@@ -6,7 +6,7 @@ export const PUBLIC_ROUTES = [
   '/login',
   '/demo',
   '/logout',
-  '/unauthorized',
+  '/workspace',
 ];
 export const ROLE_BASED_ROUTES = {
   [TenantName.SECOND_CHANCE_PROGRAM]: {

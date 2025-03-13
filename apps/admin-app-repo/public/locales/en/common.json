@@ -147,19 +147,7 @@
     "RETURN_TO_LOGIN": "Return to Login",
     "COHORT_CODE_EXISTS": "Code already exists",
     "NO_MENTOR_FOUND": "No Mentor Found",
-    "NO_MENTOR_LEAD_FOUND": "No Mentor Lead Found",
-    "NO_STATE_FOUND": "No State Found",
-    "NO_VILLAGE_FOUND": "No Village Found",
-    "NO_DISTRICTS_FOUND": "N0 District Found",
-    "NO_BLOCK_FOUND": "No Block Found",
-    "NO_FACILITATOR_FOUND": "No Facilitator Found",
-    "NOT_ABLE_UPDATE_FACILITATOR": "Not Able To Update Teacher",
-    "NOT_ABLE_CREATE_FACILITATOR": "Not Able To Create Teacher",
-    "NOT_ABLE_UPDATE_LEARNER": "Not Able To Update Learner",
-    "NOT_ABLE_CREATE_LEARNER": "Not Able To Create Learner",
-    "NO_CONTENT_CREATOR_FOUND": "No Content Creator (SCTA) Found",
-    "NO_CONTENT_REVIEWER_FOUND": "No Content Reviewer (CCTA) Found",
-    "NO_STATE_LEAD_FOUND": "No State Lead Found"
+    "NO_MENTOR_LEAD_FOUND": "No Mentor Lead Found"
   },
   "LOGIN_PAGE": {
     "USERNAME": "Username",
@@ -220,9 +208,7 @@
     "MENTOR": "Mentor",
     "MENTOR_LEADER": "Mentor Leader",
     "CERTIFICATE_ISSUANCE": "Certificate Issuance",
-    "SUPPORT_REQUEST": "Support Request",
-    "CONTENT_CREATOR": "Content Creator",
-    "CONTENT_REVIEWER": "Content Reviewer"
+    "SUPPORT_REQUEST": "Support Request"
   },
   "FACILITATORS": {
     "STATE": "State",
@@ -245,8 +231,7 @@
     "LEARNER_CREATED_SUCCESSFULLY": "Learner has been successfully created!",
     "USER_CREDENTIALS_WILL_BE_SEND_SOON": "Learner is created, credentials will be sent soon",
     "LEARNER_UPDATED_SUCCESSFULLY": "Learner has been successfully updated!",
-    "EDIT_LEARNER": "Edit Learner",
-    "NO_LEARNERS_FOUND": "No Learners Found"
+    "EDIT_LEARNER": "Edit Learner"
   },
   "MENTORS": {
     "SEARCHBAR_PLACEHOLDER": "Search mentors..",
@@ -282,10 +267,7 @@
     "TEAM_LEADER_CREATED_SUCCESSFULLY": "Team Leader is created, and credentials sent successfully!",
     "USER_CREDENTIALS_WILL_BE_SEND_SOON": "Team Leader is created ,credentials will be sent soon",
     "TEAM_LEADER_UPDATED_SUCCESSFULLY": "Team Leader has been successfully updated!",
-    "EDIT_TEAM_LEADER": "Edit Team Leader",
-    "NO_TEAM_LEADER_FOUND": "No Team Leader Found",
-    "NOT_ABLE_CREATE_TEAM_LEADER": "Not Able To Create Team leader",
-    "NOT_ABLE_UPDATE_TEAM_LEADER": "Not Able to update Team leader"
+    "EDIT_TEAM_LEADER": "Edit Team Leader"
   },
   "ADMIN": {
     "ADMIN_UPDATED_SUCCESSFULLY": "Admin has been successfully updated!"
@@ -381,18 +363,6 @@
     "CENTER_UPDATE_FAILED": "Something went wrong while updating center",
     "YOU_CANT_DELETE_CENTER_HAS_ACTIVE_LEARNERS": "You can't delete the center because it has {{activeMembers}} Active Learners"
   },
-  "BATCH": {
-    "NEW_BATCH": "New Batch",
-    "UPDATE_BATCH": "Update Batch",
-    "SURE_DELETE_BATCH": "Are you sure you want to delete ",
-    "BATCH_UPDATE_SUCCESSFULLY": "Batch has been successfully updated",
-    "BATCH_DELETE_SUCCESSFULLY": "Batch has been successfully deleted",
-    "BATCH_CREATED_SUCCESSFULLY": "Batch Created successfully",
-    "BATCH_UPDATE_FAILED": "Something went wrong while updating batch",
-    "YOU_CANT_DELETE_BATCH_HAS_ACTIVE_LEARNERS": "You can't delete the batch because it has {{activeMembers}} Active Learners",
-    "NO_BATCH_FOUND": "No Batch Found"
-  },
-
   "FORM": {
     "FULL_NAME": "Full Name",
     "ENTER_FULL_NAME": "Enter FUll Name",
@@ -667,41 +637,7 @@
   "FEMALE": "Female",
   "TRANSGENDER": "Transgender",
   "dob": "DOB",
-  "email": "Email",
-  "CONTENT_CREATORS": {
-    "SEARCHBAR_PLACEHOLDER": "Search content creator..",
-    "NEW_CONTENT_CREATOR": "New Content Creator",
-    "FIRST_SELECT_REQUIRED_FIELDS": "First select required fields",
-    "CONTENT_CREATOR_CREATED_SUCCESSFULLY": "Content Creator has been successfully created!",
-    "USER_CREDENTIALS_WILL_BE_SEND_SOON": "Content Creator is created, credentials will be sent soon",
-    "CONTENT_CREATOR_UPDATED_SUCCESSFULLY": "Content Creator has been successfully updated!",
-    "EDIT_CONTENT_CREATOR": "Edit Content Creator",
-    "NOT_ABLE_UPDATE_CONTENT_CREATOR": "Not able to update Content Creator",
-    "NOT_ABLE_CREATE_CONTENT_CREATOR": "Not able to create Content Creator",
-    "UPDATE_CONTENT_CREATOR": "Update Content Creator"
-  },
-  "CONTENT_REVIEWERS": {
-    "SEARCHBAR_PLACEHOLDER": "Search content reviewer..",
-    "NEW_CONTENT_REVIEWER": "New Content Reviewer",
-    "FIRST_SELECT_REQUIRED_FIELDS": "First select required fields",
-    "CONTENT_REVIEWER_CREATED_SUCCESSFULLY": "Content Reviewer has been successfully created!",
-    "USER_CREDENTIALS_WILL_BE_SEND_SOON": "Content Reviewer is created, credentials will be sent soon",
-    "CONTENT_REVIEWER_UPDATED_SUCCESSFULLY": "Content Reviewer has been successfully updated!",
-    "EDIT_CONTENT_REVIEWER": "Edit Content Reviewer",
-    "NOT_ABLE_UPDATE_CONTENT_REVIEWER": "Not able to update Content Reviewer",
-    "NOT_ABLE_CREATE_CONTENT_REVIEWER": "Not able to create Content Reviewer",
-    "UPDATE_CONTENT_REVIEWER": "Update Content Reviewer"
-  },
-  "STATE_LEADS": {
-    "SEARCHBAR_PLACEHOLDER": "Search State Lead..",
-    "NEW_STATE_LEAD": "New State Lead",
-    "FIRST_SELECT_REQUIRED_FIELDS": "First select required fields",
-    "STATE_LEAD_CREATED_SUCCESSFULLY": "State Lead has been successfully created!",
-    "USER_CREDENTIALS_WILL_BE_SEND_SOON": "State Lead is created, credentials will be sent soon",
-    "STATE_LEAD_UPDATED_SUCCESSFULLY": "State Lead has been successfully updated!",
-    "EDIT_STATE_LEAD": "Edit State Lead",
-    "NOT_ABLE_UPDATE_STATE_LEAD": "Not able to update State Lead",
-    "NOT_ABLE_CREATE_STATE_LEAD": "Not able to create State Lead",
-    "UPDATE_STATE_LEAD": "Update State Lead"
-  }
+  "email": "Email"
+
+
 }

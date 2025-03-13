@@ -1,5 +1,5 @@
 import { API_ENDPOINTS } from '@/utils/API/APIEndpoints';
-import { get, post } from "./RestClient";
+import { get, post } from './RestClient';
 import axios from 'axios';
 
 interface LoginParams {
@@ -15,14 +15,13 @@ export const login = async ({
   username,
   password,
 }: LoginParams): Promise<any> => {
-  const apiUrl: string =  API_ENDPOINTS.accountLogin;
-  
+  const apiUrl: string = API_ENDPOINTS.accountLogin;
 
   try {
     const response = await post(apiUrl, { username, password });
     return response?.data;
   } catch (error) {
-    console.error("error in login", error);
+    console.error('error in login', error);
     throw error;
   }
 };
@@ -35,7 +34,7 @@ export const refresh = async ({
     const response = await post(apiUrl, { refresh_token });
     return response?.data;
   } catch (error) {
-    console.error("error in login", error);
+    console.error('error in login', error);
     throw error;
   }
 };
@@ -45,7 +44,7 @@ export const logout = async (refreshToken: string): Promise<any> => {
     const response = await post(apiUrl, { refresh_token: refreshToken });
     return response;
   } catch (error) {
-    console.error("error in logout", error);
+    console.error('error in logout', error);
     throw error;
   }
 };
@@ -71,8 +70,7 @@ export const getUserId = async (): Promise<any> => {
     throw error;
   }
 };
-export const resetPassword = async (
-  newPassword: any): Promise<any> => {
+export const resetPassword = async (newPassword: any): Promise<any> => {
   const apiUrl: string = API_ENDPOINTS.resetPassword;
   try {
     const response = await post(apiUrl, { newPassword });
@@ -80,5 +78,16 @@ export const resetPassword = async (
   } catch (error) {
     console.error('error in reset', error);
     throw error;
+  }
+};
+
+export const getTenant = async (): Promise<any> => {
+  const apiUrl: string = API_ENDPOINTS.tenantRead;
+  try {
+    const response = await get(apiUrl);
+    return response?.data;
+  } catch (error) {
+    console.error('error in fetching user details', error);
+    return error;
   }
 };

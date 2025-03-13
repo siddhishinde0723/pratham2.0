@@ -8,10 +8,14 @@ import {
   Avatar,
   useTheme,
 } from '@mui/material';
+import { useRouter } from 'next/router';
+
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 const loginUrl = process.env.NEXT_PUBLIC_ADMIN_LOGIN_URL;
 
 const WorkspaceHeader = () => {
+  const router = useRouter();
+
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const theme = useTheme<any>();
@@ -20,11 +24,13 @@ const WorkspaceHeader = () => {
   };
 
   const handleMenuClose = () => {
-    setAnchorEl(null);
-    if (loginUrl) {
-      window.parent.location.href = loginUrl;
-      localStorage.clear();
-    }
+    localStorage.clear();
+    window.location.href = '/logout';
+    // setAnchorEl(null);
+    // if (loginUrl) {
+    //   window.parent.location.href = loginUrl;
+    //   localStorage.clear();
+    // }
   };
 
   const handleMenuCollapse = () => {
