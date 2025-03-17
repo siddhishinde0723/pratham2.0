@@ -9,7 +9,7 @@ const s3Client = new S3Client({
   },
 });
 
-const bucketName = process.env.AWS_BUCKET_NAME;
+const bucketName = process.env.AWS_BUCKET_NAME || 'shiksha2';
 
 // Disable default body parser
 export const config = {
