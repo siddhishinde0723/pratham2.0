@@ -33,67 +33,71 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: "/action/asset/v1/upload/:identifier*",
-        destination: "/api/fileUpload",
+        source: '/action/asset/v1/upload/:identifier*',
+        destination: '/api/fileUpload',
       },
       {
-        source: "/assets/pdfjs/:path*",
+        source: '/assets/pdfjs/:path*',
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/assets/pdfjs/:path*`,
       },
       {
-        source: "/play/content/assets/pdfjs/:path*",
+        source: '/play/content/assets/pdfjs/:path*',
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/assets/pdfjs/:path*`,
       },
       {
-        source: "/play/content/assets/:path*",
+        source: '/play/content/assets/:path*',
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/assets/:path*`,
       },
       {
-        source: "/action/content/v3/upload/url/:identifier*",
+        source: '/action/content/v3/upload/url/:identifier*',
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/api/proxy?path=/action/content/v3/upload/url/:identifier*`,
       },
       {
-        source: "/action/content/v3/upload/:identifier*",
-        destination: "/api/fileUpload",
+        source: '/action/content/v3/upload/:identifier*',
+        destination: '/api/fileUpload',
       },
       {
-        source: "/workspace/content/assets/:path*",
+        source: '/mfe_workspace/workspace/content/assets/:path*',
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/assets/:path*`,
       },
       {
-        source: "/action/asset/:path*",
+        source: '/workspace/content/assets/:path*',
+        destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/assets/:path*`,
+      },
+      {
+        source: '/action/asset/:path*',
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/api/proxy?path=/action/asset/:path*`,
       },
       {
-        source: "/action/v1/telemetry",
+        source: '/action/v1/telemetry',
         destination: `${process.env.NEXT_PUBLIC_TELEMETRY_URL}/v1/telemetry`,
       },
       {
-        source: "/action/data/v3/telemetry",
+        source: '/action/data/v3/telemetry',
         destination: `${process.env.NEXT_PUBLIC_TELEMETRY_URL}/v1/telemetry`,
       },
       {
-        source: "/data/v3/telemetry",
+        source: '/data/v3/telemetry',
         destination: `${process.env.NEXT_PUBLIC_TELEMETRY_URL}/v1/telemetry`,
       },
       {
-        source: "/action/content/:path*",
+        source: '/action/content/:path*',
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/api/proxy?path=/action/content/:path*`,
       },
       {
-        source: "/api/tenantConfig/:path*",
-        destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/api/tenantConfig/:path*`
+        source: '/api/tenantConfig/:path*',
+        destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/api/tenantConfig/:path*`,
       },
       {
-        source: "/action/:path*",
+        source: '/action/:path*',
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/api/proxy?path=/action/:path*`,
       },
       {
-        source: "/api/:path*",
+        source: '/api/:path*',
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/api/proxy?path=/api/:path*`,
       },
       {
-        source: "/assets/public/:path*",
+        source: '/assets/public/:path*',
         destination: `${process.env.CLOUD_STORAGE_URL}/:path*`,
       },
       {
@@ -110,10 +114,10 @@ const nextConfig = {
       },
       {
         source: '/sunbird-plugins/renderer/:path*',
-        destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/sunbird-plugins/renderer/:path*`
+        destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/sunbird-plugins/renderer/:path*`,
       },
       {
-        source: "/app/telemetry",
+        source: '/app/telemetry',
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/api/telemetry`,
       },
     ];
