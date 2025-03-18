@@ -1,0 +1,10 @@
+{
+  "/_app": "pages/_app.js",
+  "/_error": "pages/_error.js",
+  "/_document": "pages/_document.js",
+  "/": "pages/index.js",
+  "/workspace": "pages/workspace.js",
+  "/logout": "pages/logout.js",
+  "/login": "pages/login.js",
+  "/api/tenantConfig": "pages/api/tenantConfig.js"
+}
