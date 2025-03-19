@@ -187,10 +187,10 @@ const GenericEditor: React.FC = () => {
                     console.log("Review Event triggered inside iframe!", event);
                     console.log("window", window);
                     console.log("window parent", window?.parent);
-                    sendReviewNotification({
-                      contentId: window?.parent?.context?.contentId,
-                      creator: getLocalStoredUserName(),
-                    });
+                    // sendReviewNotification({
+                    //   contentId: window?.parent?.context?.contentId,
+                    //   creator: getLocalStoredUserName(),
+                    // });
                   }
                 );
               }

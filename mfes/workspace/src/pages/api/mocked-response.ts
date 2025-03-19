@@ -157,7 +157,7 @@ export const genericEditorReviewFormResponseatree = {
           {
             code: 'topic',
             visible: true,
-            depends: ['sub-topic'],
+            depends: ['subTopic'],
             editable: true,
             dataType: 'list',
             renderingHints: {},
@@ -170,7 +170,7 @@ export const genericEditorReviewFormResponseatree = {
             placeholder: 'Select Topic',
           },
           {
-            code: 'sub-topic',
+            code: 'subTopic',
             visible: true,
             depends: [],
             editable: true,
