@@ -7,10 +7,10 @@ import {
   genericEditorReviewFormResponse,
   genericEditorRequestForChangesFormResponse,
   publishResourceFormResponse,
+  genericEditorReviewFormResponseshiksha,
 } from './mocked-response';
 import { getCookie } from '@workspace/utils/cookieHelper';
 import { mockData } from './tenantConfig';
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -54,6 +54,8 @@ export default async function handler(
         return res.status(200).json(genericEditorReviewFormResponseatree);
       } else if (framework == 'kef-framework') {
         return res.status(200).json(genericEditorReviewFormResponsekef);
+      } else if (framework == 'shiksha-fw') {
+        return res.status(200).json(genericEditorReviewFormResponseshiksha);
       }
       // Default response if the framework doesn't match the specified values
       return res.status(200).json(genericEditorReviewFormResponse);

@@ -27,6 +27,11 @@ export const mockData: Record<string, any> = {
     CONTENT_FRAMEWORK: 'atree-framework',
     COLLECTION_FRAMEWORK: 'atree-framework',
   },
+  'ebae40d1-b78a-4f73-8756-df5e4b060436': {
+    CHANNEL_ID: 'shikshagraha-channel',
+    CONTENT_FRAMEWORK: 'shiksha-fw',
+    COLLECTION_FRAMEWORK: 'shiksha-fw',
+  },
 };
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
