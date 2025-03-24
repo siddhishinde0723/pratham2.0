@@ -20,6 +20,7 @@ export * from './lib/SunbirdPlayer/SunbirdPlayer';
 export * from './lib/QuestionSetEditor/QuestionSet';
 export * from './lib/CollectionEditor/Collection';
 export * from './lib/GenericEditor/GenericEditor';
+export * from './lib/ContentEditor/ContentEditor';
 export * from './lib/Dialog/CommonDialog';
 export * from './lib/theme';
 export * from './lib/ThemeProvider';

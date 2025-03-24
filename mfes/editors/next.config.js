@@ -5,12 +5,14 @@ const { composePlugins, withNx } = require('@nx/next');
 
 const PORTAL_BASE_URL = 'https://sunbird-editor.tekdinext.com';
 
+const CONTENT_EDITOR_BASE_URL = 'https://sunbird-editor.tekdinext.com';
 const routes = {
   API: {
     GENERAL: {
       CONTENT_PREVIEW: '/content/preview/:path*',
       CONTENT_PLUGINS: '/content-plugins/:path*',
       GENERIC_EDITOR: '/generic-editor/:path*',
+      CONTENT_EDITOR: '/content-editor/:path*',
     },
   },
 };
@@ -86,6 +88,10 @@ const nextConfig = {
       {
         source: routes.API.GENERAL.GENERIC_EDITOR,
         destination: `${PORTAL_BASE_URL}/:path*`, // Proxy to generic editor portal
+      },
+      {
+        source: routes.API.GENERAL.CONTENT_EDITOR,
+        destination: `${CONTENT_EDITOR_BASE_URL}/:path*`, // Proxy to generic editor portal
       },
       {
         source: '/app/telemetry', // Match telemetry route

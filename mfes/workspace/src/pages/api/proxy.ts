@@ -7,10 +7,14 @@ import {
   genericEditorReviewFormResponse,
   genericEditorRequestForChangesFormResponse,
   publishResourceFormResponse,
+  contentEditorQuestionFormResponse,
+  contentEditorQuestionMetaFormResponse,
   genericEditorReviewFormResponseshiksha,
 } from './mocked-response';
 import { getCookie } from '@workspace/utils/cookieHelper';
 import { mockData } from './tenantConfig';
+import { act } from 'react';
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -18,10 +22,12 @@ export default async function handler(
   const { method, body, query } = req;
   const { path } = query;
 
-  const token = getCookie(req, 'authToken') || process.env.AUTH_API_TOKEN as string;
+  const token =
+    getCookie(req, 'authToken') || (process.env.AUTH_API_TOKEN as string);
 
   const BASE_URL = process.env.NEXT_PUBLIC_MIDDLEWARE_URL as string;
-  const tenantId = getCookie(req, 'tenantId') || process.env.NEXT_PUBLIC_TENANT_ID as string;
+  const tenantId =
+    getCookie(req, 'tenantId') || (process.env.NEXT_PUBLIC_TENANT_ID as string);
 
   const tenantConfig = mockData[tenantId];
 
@@ -66,6 +72,20 @@ export default async function handler(
     }
     if (action === 'publish' && subType === 'resource' && type === 'content') {
       return res.status(200).json(publishResourceFormResponse);
+    }
+    if (
+      action === 'question-filter-view' &&
+      subType === 'questions' &&
+      type === 'content'
+    ) {
+      return res.status(200).json(contentEditorQuestionFormResponse);
+    }
+    if (
+      action === 'question-meta-save' &&
+      subType === 'questions' &&
+      type === 'content'
+    ) {
+      return res.status(200).json(contentEditorQuestionMetaFormResponse);
     }
   }
 

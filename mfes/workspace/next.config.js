@@ -5,16 +5,17 @@ const { composePlugins, withNx } = require('@nx/next');
 
 const PORTAL_BASE_URL = 'https://sunbird-editor.tekdinext.com';
 
+const CONTENT_EDITOR_BASE_URL = 'https://sunbird-editor.tekdinext.com';
 const routes = {
   API: {
     GENERAL: {
       CONTENT_PREVIEW: '/content/preview/:path*',
       CONTENT_PLUGINS: '/content-plugins/:path*',
       GENERIC_EDITOR: '/generic-editor/:path*',
+      CONTENT_EDITOR: '/content-editor/:path*',
     },
   },
 };
-
 /**
  * @type {import('@nx/next/plugins/with-nx').WithNxOptions}
  **/
@@ -53,7 +54,7 @@ const nextConfig = {
         destination: '/api/proxy?path=/action/content/:path*', // Forward other /action/asset requests to proxy.js
       },
       {
-        source: "/action/v1/telemetry",
+        source: '/action/v1/telemetry',
         destination: `${process.env.NEXT_PUBLIC_TELEMETRY_URL}/v1/telemetry`,
       },
       {
@@ -93,7 +94,15 @@ const nextConfig = {
         destination: `${PORTAL_BASE_URL}/:path*`, // Proxy to generic editor portal
       },
       {
+        source: routes.API.GENERAL.CONTENT_EDITOR,
+        destination: `${CONTENT_EDITOR_BASE_URL}/:path*`, // Proxy to generic editor portal
+      },
+      {
         source: '/app/telemetry', // Match telemetry route
+        destination: '/api/telemetry', // Redirect to telemetry proxy
+      },
+      {
+        source: '/content-editor/telemetry', // Match telemetry route
         destination: '/api/telemetry', // Redirect to telemetry proxy
       },
     ];

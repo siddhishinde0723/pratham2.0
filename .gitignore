@@ -44,8 +44,9 @@ Thumbs.db
 # Next.js
 .next
 out
-build/
-
+# build/
+mfes/scp-teacher-repo/build/
+apps/admin-app-repo/build/
 # ignore env
 .env
 .env.local

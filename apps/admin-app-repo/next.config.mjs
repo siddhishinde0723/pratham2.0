@@ -3,12 +3,14 @@ import nextI18nextConfig from "./next-i18next.config.js";
 
 const PORTAL_BASE_URL = "https://sunbird-editor.tekdinext.com";
 
+const CONTENT_EDITOR_BASE_URL = 'https://shiksha-dev-ge.tekdinext.com';
 const routes = {
   API: {
     GENERAL: {
-      CONTENT_PREVIEW: "/content/preview/:path*",
-      CONTENT_PLUGINS: "/content-plugins/:path*",
-      GENERIC_EDITOR: "/generic-editor/:path*",
+      CONTENT_PREVIEW: '/content/preview/:path*',
+      CONTENT_PLUGINS: '/content-plugins/:path*',
+      GENERIC_EDITOR: '/generic-editor/:path*',
+      // CONTENT_EDITOR: '/content-editor/:path*',
     },
   },
 };
@@ -65,6 +67,10 @@ const nextConfig = {
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/assets/:path*`,
       },
       {
+        source: '/mfe_workspace/assets/:path*', // Match all requests under /mfe_workspace/assets
+        destination: '/mfe_workspace/assets/:path*', // Serve from public/
+      },
+      {
         source: '/action/asset/:path*',
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/api/proxy?path=/action/asset/:path*`,
       },
@@ -112,6 +118,10 @@ const nextConfig = {
         source: routes.API.GENERAL.GENERIC_EDITOR,
         destination: `${PORTAL_BASE_URL}/:path*`,
       },
+      // {
+      //   source: routes.API.GENERAL.CONTENT_EDITOR,
+      //   destination: `${CONTENT_EDITOR_BASE_URL}/:path*`, // Proxy to generic editor portal
+      // },
       {
         source: '/sunbird-plugins/renderer/:path*',
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/sunbird-plugins/renderer/:path*`,
@@ -119,6 +129,10 @@ const nextConfig = {
       {
         source: '/app/telemetry',
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/api/telemetry`,
+      },
+      {
+        source: '/content-editor/telemetry', // Match telemetry route
+        destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/api/telemetry`, // Redirect to telemetry proxy
       },
     ];
   },

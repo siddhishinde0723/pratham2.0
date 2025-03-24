@@ -18,6 +18,7 @@
       "@/*": ["mfes/scp-teacher-repo/src/*"],
       "@collection": ["mfes/editors/src/components/CollectionEditor.tsx"],
       "@generic-editor": ["mfes/editors/src/components/GenericEditor.tsx"],
+      "@content-editor": ["mfes/editors/src/components/ContentEditor.tsx"],
       "@login": ["mfes/authentication/src/pages/login.tsx"],
       "@logout": ["mfes/authentication/src/pages/logout.tsx"],
       "@mfe-next": ["mfes/mfe-next/src/app/page.tsx"],

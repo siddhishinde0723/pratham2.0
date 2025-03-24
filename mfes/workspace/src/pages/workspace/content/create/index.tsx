@@ -78,37 +78,46 @@ const CreatePage = () => {
 
   const cardData = [
     {
-      title: "New Question Set",
-      description: "Create assessments, question banks, quizzes, etc.",
+      title: 'New Question Set',
+      description: 'Create assessments, question banks, quizzes, etc.',
       icon: <QuizOutlinedIcon fontSize="large" />,
       onClick: openEditor,
     },
     {
-      title: "New Course",
-      description:
-        " Create courses by defining content, assessments, etc",
+      title: 'New Course',
+      description: ' Create courses by defining content, assessments, etc',
       icon: <SchoolOutlinedIcon fontSize="large" />,
       onClick: openCollectionEditor,
     },
     {
-      title: "New Content",
-      description: "Create new documents, PDF, video, QML, HTML, etc.",
+      title: 'New Content',
+      description: 'Create new documents, PDF, video, QML, HTML, etc.',
       icon: <VideoLibraryOutlinedIcon fontSize="large" />,
       onClick: () => {
-        sessionStorage.setItem("previousPage", window.location.href);
-        router.push("/upload-editor")
+        sessionStorage.setItem('previousPage', window.location.href);
+        router.push('/upload-editor');
       },
     },
     {
-      title: "Create New Large Content", // Added "Create" to the title
-      description: "Create videos and documents larger than 150mb", // Updated description
+      title: 'Create New Large Content', // Added "Create" to the title
+      description: 'Create videos and documents larger than 150mb', // Updated description
       icon: <img src={'/150+.png'} alt="large-video" height={35} width={70} />, // Correct as is
       onClick: () => {
-        sessionStorage.setItem("previousPage", window.location.href); // No change needed
+        sessionStorage.setItem('previousPage', window.location.href); // No change needed
         router.push({
-          pathname: "/upload-editor",
-          query: { editorforlargecontent: "true" }, // No change needed
+          pathname: '/upload-editor',
+          query: { editorforlargecontent: 'true' }, // No change needed
         }); // Removed an extra comma
+      },
+    },
+    {
+      title: 'New Resource',
+      description:
+        ' Create different resource like story, game, activity, audio, video using the inbuild authoring tools.',
+      icon: <SchoolOutlinedIcon fontSize="large" />,
+      onClick: () => {
+        sessionStorage.setItem('previousPage', window.location.href);
+        router.push('/resourse-editor');
       },
     },
   ];

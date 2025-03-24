@@ -1,123 +1,193 @@
 {
-    "GENERIC_EDITOR": {
-        "WINDOW_CONFIG": {
-            "corePluginsPackaged": true,
-            "modalId": "genericEditor",
-            "dispatcher": "local",
-            "apislug": "/action",
-            "alertOnUnload": true,
-            "headerLogo": "",
-            "loadingImage": "",
-            "plugins": [
-                {
-                    "id": "org.ekstep.sunbirdcommonheader",
-                    "ver": "1.9",
-                    "type": "plugin"
-                },
-                {
-                    "id": "org.ekstep.sunbirdmetadata",
-                    "ver": "1.1",
-                    "type": "plugin"
-                },
-                {
-                    "id": "org.ekstep.metadata",
-                    "ver": "1.5",
-                    "type": "plugin"
-                }
-            ],
-            "previewConfig": {
-                "repos": [
-                    "/sunbird-plugins/renderer"
-                ],
-                "plugins": [
-                    {
-                        "id": "org.sunbird.player.endpage",
-                        "ver": 1.1,
-                        "type": "plugin"
-                    }
-                ],
-                "splash": {
-                    "text": "",
-                    "icon": "",
-                    "bgImage": "assets/icons/splacebackground_1.png",
-                    "webLink": ""
-                },
-                "overlay": {
-                    "showUser": false
-                },
-                "showEndPage": false
-            },
-            "build_number": "5.1.0.1243321",
-            "lock": {},
-            "extContWhitelistedDomains": "youtube.com,youtu.be",
-            "enableTelemetryValidation": false,
-            "videoMaxSize": "150",
-            "defaultContentFileSize": "150",
-            "absURL": "",
-            "genericeditorPlugins": [
-                {
-                    "id": "org.ekstep.sunbirdcommonheader",
-                    "ver": "1.9",
-                    "type": "plugin"
-                },
-                {
-                    "id": "org.ekstep.sunbirdmetadata",
-                    "ver": "1.1",
-                    "type": "plugin"
-                },
-                {
-                    "id": "org.ekstep.metadata",
-                    "ver": "1.5",
-                    "type": "plugin"
-                }
-            ],
-            "headerConfig": {
-                "managecollaborator": false
-            },
-            "branding" : "Pratham"
+  "GENERIC_EDITOR": {
+    "WINDOW_CONFIG": {
+      "corePluginsPackaged": true,
+      "modalId": "genericEditor",
+      "dispatcher": "local",
+      "apislug": "/action",
+      "alertOnUnload": true,
+      "headerLogo": "",
+      "loadingImage": "",
+      "plugins": [
+        {
+          "id": "org.ekstep.sunbirdcommonheader",
+          "ver": "1.9",
+          "type": "plugin"
         },
-        "WINDOW_CONTEXT": {
-            "user": {
-                "id": "",
-                "name": "",
-                "orgIds": [
-                    ""
-                ],
-                "organisations": {
-                    "channel-id": "channel Name"
-                }
-            },
-            "did": "",
-            "sid": "",
-            "contentId": "",
-            "pdata": {
-                "id": "dev.admin.portal",
-                "ver": "1.0.0",
-                "pid": "admin-portal.genericEditor"
-            },
-            "contextRollUp": {
-                "l1": ""
-            },
-            "tags": [
-                ""
-            ],
-            "channel": "",
-            "env": "generic-editor",
-            "framework": "",
-            "ownershipType": [
-                "createdBy",
-                "createdFor"
-            ],
-            "timeDiff": -0.295,
-            "primaryCategories": [
-                "Learning Resource"
-            ],
-            "uid": "",
-            "etags": {
-                "app": [],
-                "partner": [],
-                "dims": []
-            }
+        {
+          "id": "org.ekstep.sunbirdmetadata",
+          "ver": "1.1",
+          "type": "plugin"
+        },
+        {
+          "id": "org.ekstep.metadata",
+          "ver": "1.5",
+          "type": "plugin"
         }
+      ],
+      "previewConfig": {
+        "repos": ["/sunbird-plugins/renderer"],
+        "plugins": [
+          {
+            "id": "org.sunbird.player.endpage",
+            "ver": 1.1,
+            "type": "plugin"
+          }
+        ],
+        "splash": {
+          "text": "",
+          "icon": "",
+          "bgImage": "assets/icons/splacebackground_1.png",
+          "webLink": ""
+        },
+        "overlay": {
+          "showUser": false
+        },
+        "showEndPage": false
+      },
+      "build_number": "5.1.0.1243321",
+      "lock": {},
+      "extContWhitelistedDomains": "youtube.com,youtu.be",
+      "enableTelemetryValidation": false,
+      "videoMaxSize": "150",
+      "defaultContentFileSize": "150",
+      "absURL": "",
+      "genericeditorPlugins": [
+        {
+          "id": "org.ekstep.sunbirdcommonheader",
+          "ver": "1.9",
+          "type": "plugin"
+        },
+        {
+          "id": "org.ekstep.sunbirdmetadata",
+          "ver": "1.1",
+          "type": "plugin"
+        },
+        {
+          "id": "org.ekstep.metadata",
+          "ver": "1.5",
+          "type": "plugin"
+        }
+      ],
+      "headerConfig": {
+        "managecollaborator": false
+      },
+      "branding": "Pratham"
+    },
+    "WINDOW_CONTEXT": {
+      "user": {
+        "id": "",
+        "name": "",
+        "orgIds": [""],
+        "organisations": {
+          "channel-id": "channel Name"
+        }
+      },
+      "did": "",
+      "sid": "",
+      "contentId": "",
+      "pdata": {
+        "id": "dev.admin.portal",
+        "ver": "1.0.0",
+        "pid": "admin-portal.genericEditor"
+      },
+      "contextRollUp": {
+        "l1": ""
+      },
+      "tags": [""],
+      "channel": "",
+      "env": "generic-editor",
+      "framework": "",
+      "ownershipType": ["createdBy", "createdFor"],
+      "timeDiff": -0.295,
+      "primaryCategories": ["Learning Resource"],
+      "uid": "",
+      "etags": {
+        "app": [],
+        "partner": [],
+        "dims": []
+      }
     }
+  },
+  "CONTENT_EDITOR": {
+    "WINDOW_CONFIG": {
+      "corePluginsPackaged": true,
+      "baseURL": "",
+      "modalId": "contentEditor",
+      "apislug": "/action",
+      "alertOnUnload": true,
+      "build_number": "1.0",
+      "headerLogo": "",
+      "aws_s3_urls": [],
+      "plugins": [
+        {
+          "id": "org.ekstep.sunbirdcommonheader",
+          "ver": "1.9",
+          "type": "plugin"
+        },
+        {
+          "id": "org.ekstep.sunbirdmetadata",
+          "ver": "1.1",
+          "type": "plugin"
+        },
+        {
+          "id": "org.ekstep.metadata",
+          "ver": "1.5",
+          "type": "plugin"
+        },
+        {
+          "id": "org.ekstep.questionset",
+          "ver": "1.0",
+          "type": "plugin"
+        },
+        {
+          "id": "org.ekstep.reviewercomments",
+          "ver": "1.0",
+          "type": "plugin"
+        },
+        {
+          "id": "org.ekstep.developer",
+          "ver": "1.0",
+          "type": "plugin"
+        }
+      ],
+      "dispatcher": "local",
+      "localDispatcherEndpoint": "/content-editor/telemetry",
+      "showHelp": false
+    },
+    "WINDOW_CONTEXT": {
+      "user": {
+        "id": "",
+        "name": "",
+        "orgIds": [""],
+        "organisations": {
+          "channel-id": "channel Name"
+        }
+      },
+      "did": "",
+      "sid": "",
+      "contentId": "test13455",
+      "pdata": {
+        "id": "dev.sunbird.portal",
+        "ver": "4.9.0",
+        "pid": "sunbird-portal.contenteditor"
+      },
+      "contextRollUp": {
+        "l1": ""
+      },
+      "tags": [""],
+      "channel": "",
+      "env": "content-editor",
+      "framework": "",
+      "ownershipType": ["createdBy", "createdFor"],
+      "timeDiff": -0.295,
+      "primaryCategories": ["Learning Resource"],
+      "uid": "",
+      "etags": {
+        "app": [],
+        "partner": [],
+        "dims": []
+      }
+    }
+  }
 }
