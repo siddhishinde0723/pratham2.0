@@ -65,6 +65,10 @@ const nextConfig = {
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/assets/:path*`,
       },
       {
+        source: '/mfe_workspace/assets/:path*', 
+        destination: '/mfe_workspace/assets/:path*', 
+      },
+      {
         source: '/action/asset/:path*',
         destination: `${process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL}/api/proxy?path=/action/asset/:path*`,
       },
