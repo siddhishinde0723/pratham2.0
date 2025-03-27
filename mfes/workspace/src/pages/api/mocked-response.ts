@@ -179,7 +179,7 @@ export const genericEditorReviewFormResponseatree = {
             description: 'Sub Topic',
             index: 6,
             label: 'Sub Topic',
-            required: true,
+            required: false,
             name: 'Sub Topic',
             inputType: 'multiselect',
             placeholder: 'Sub Topic',
