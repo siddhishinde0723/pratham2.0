@@ -277,7 +277,7 @@ export const genericEditorReviewFormResponseatree = {
             visible: true,
           },
           {
-            code: 'contentLanguage',
+            code: 'language',
             dataType: 'text',
             description: 'Content Language',
             editable: true,
