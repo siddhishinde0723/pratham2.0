@@ -278,7 +278,7 @@ export const genericEditorReviewFormResponseatree = {
           },
           {
             code: 'language',
-            dataType: 'text',
+            dataType: 'list',
             description: 'Content Language',
             editable: true,
             index: 8,
