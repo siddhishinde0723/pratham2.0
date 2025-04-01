@@ -32,6 +32,11 @@ export const mockData: Record<string, any> = {
     CONTENT_FRAMEWORK: 'shiksha-fw',
     COLLECTION_FRAMEWORK: 'shiksha-fw',
   },
+  '35529b5d-526f-4da5-bc6e-64f740023d26': {
+    CHANNEL_ID: 'swadhaar-channel',
+    CONTENT_FRAMEWORK: 'swadhaar-fw',
+    COLLECTION_FRAMEWORK: 'swadhaar-fw',
+  },
 };
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
