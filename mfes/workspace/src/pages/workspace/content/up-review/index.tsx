@@ -136,13 +136,13 @@ const [showHeader, setShowHeader] = useState<boolean | null>(null);
         const contentType="upReview"
         const response = await getContent(
           ["Review", "FlagReview"],
-          query,
-          LIMIT,
-          offset,
-          primaryCategory,
-          sort_by,
-          tenantConfig?.CHANNEL_ID,
-          contentType
+          // query,
+          // LIMIT,
+          // offset,
+          // primaryCategory,
+          // sort_by,
+          // tenantConfig?.CHANNEL_ID,
+          // contentType
         );
         const contentList = (response?.content || []).concat(
           response?.QuestionSet || []

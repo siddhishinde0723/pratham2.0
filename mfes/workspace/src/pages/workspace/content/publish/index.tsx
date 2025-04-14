@@ -157,13 +157,13 @@ const PublishPage = () => {
         const order = sortBy === "Created On" ? "asc" : "desc";
         const sort_by = { lastUpdatedOn: order };
         const response = await getContent(
-          ["Live"],
-          query,
-          LIMIT,
-          offset,
-          primaryCategory,
-          sort_by,
-          tenantConfig?.CHANNEL_ID
+          [],
+          // query,
+          // LIMIT,
+          // offset,
+          // primaryCategory,
+          // sort_by,
+          // tenantConfig?.CHANNEL_ID
         );
         const contentList = (response?.content || []).concat(
           response?.QuestionSet || []
