@@ -12,6 +12,7 @@ const s3Client = new S3Client({
   },
 });
 
+
 const bucketName = process.env.AWS_BUCKET_NAME || 'shiksha2';
 
 export default async function handler(req, res) {

@@ -219,12 +219,12 @@ const [showHeader, setShowHeader] = useState<boolean | null>(null);
         console.log("seraching", debouncedSearchTerm);
         const response = await getContent(
           status,
-          query,
-          LIMIT,
-          offset,
-          primaryCategory,
-          sort_by,
-          tenantConfig?.CHANNEL_ID
+          // query,
+          // LIMIT,
+          // offset,
+          // primaryCategory,
+          // sort_by,
+          // tenantConfig?.CHANNEL_ID
         );
         const contentList = (response?.content || []).concat(
           response?.QuestionSet || []
@@ -259,10 +259,13 @@ const [showHeader, setShowHeader] = useState<boolean | null>(null);
   const filteredData = useMemo(
     () =>
       contentList?.filter((content) =>
-        content?.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+        (content?.name ?? '')
+          .toLowerCase()
+          .includes(debouncedSearchTerm.toLowerCase())
       ),
     [debouncedSearchTerm, contentList]
   );
+
 
   const displayedRows = filteredData.slice(
     page * rowsPerPage,
@@ -270,6 +273,7 @@ const [showHeader, setShowHeader] = useState<boolean | null>(null);
   );
 
   console.log("contentList", contentList);
+  console.log("data", data);
   return (
     <>
     {showHeader && <WorkspaceHeader />}

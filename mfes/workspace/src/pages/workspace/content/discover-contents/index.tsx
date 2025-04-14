@@ -166,14 +166,14 @@ const ContentsPage = () => {
        
         const response = await getContent(
           status,
-          query,
-          LIMIT,
-          offset,
-          primaryCategory,
-          sort_by,
-          tenantConfig?.CHANNEL_ID,
-          contentType,
-          state !== "All" ? state : undefined
+          // query,
+          // LIMIT,
+          // offset,
+          // primaryCategory,
+          // sort_by,
+          // tenantConfig?.CHANNEL_ID,
+          // contentType,
+          // state !== "All" ? state : undefined
         );
         
         const contentList = (response?.content || []).concat(
@@ -212,7 +212,9 @@ const ContentsPage = () => {
   const filteredData = useMemo(
     () =>
       contentList?.filter((content) =>
-        content?.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
+        (content?.name ?? '')
+          .toLowerCase()
+          .includes(debouncedSearchTerm.toLowerCase())
       ),
     [debouncedSearchTerm, contentList]
   );

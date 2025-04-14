@@ -251,10 +251,11 @@ const GenericEditor: React.FC = () => {
       window["config"].enableTelemetryValidation = false;
       window["config"].videoMaxSize = videoMaxSize;
       window["config"].defaultContentFileSize = defaultContentFileSize;
-      window["config"].cloudStorage = {
-        provider: "aws",
+      window['config'].cloudStorage = {
+        provider: 'azure',
         presigned_headers: {
-          "x-amz-acl": "private", // This header sets access control; it's specific to AWS S3.
+          // 'x-amz-acl': 'private',
+          'x-ms-blob-type': 'BlockBlob', // This header sets access control; it's specific to AWS S3.
         },
       };
     }
