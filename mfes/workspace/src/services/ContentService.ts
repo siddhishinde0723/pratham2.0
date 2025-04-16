@@ -35,7 +35,7 @@ export const getPrimaryCategory = async (channelId: any) => {
 const defaultReqBody = {
   request: {
     filters: {
-       createdBy: userId,
+      //  createdBy: userId,
     },
     sort_by: {
       lastUpdatedOn: "desc",
@@ -45,7 +45,7 @@ const defaultReqBody = {
 const upForReviewReqBody = {
   request: {
     filters: {
-       createdBy: { userId},
+      //  createdBy: { userId},
     },
     sort_by: {
       lastUpdatedOn: "desc",
@@ -82,7 +82,7 @@ const getReqBodyWithStatus = (
             ...upForReviewReqBody.request.filters,
             status,
             primaryCategory,
-             createdBy: { "!=": getLocalStoredUserId() },
+            //  createdBy: { "!=": getLocalStoredUserId() },
             state: state,
           },
 
@@ -102,7 +102,7 @@ const getReqBodyWithStatus = (
           ...upForReviewReqBody.request.filters,
           status,
           primaryCategory,
-           createdBy: { "!=": getLocalStoredUserId() },
+          //  createdBy: { "!=": getLocalStoredUserId() },
           channel: channel
         },
 
@@ -208,7 +208,7 @@ export const createQuestionSet = async (frameworkId: any) => {
         mimeType: "application/vnd.sunbird.questionset",
         primaryCategory: "Practice Question Set",
         code: uuidv4(),
-        createdBy: userId,
+        // createdBy: userId,
         framework: frameworkId,
       },
     },
@@ -250,7 +250,7 @@ export const createCourse = async (userId: any, channelId: any, contentFW: any, 
       content: {
         code: uuidv4(), // Generate a unique ID for 'code'
         name: "Untitled Course",
-        createdBy: userId,
+        // createdBy: userId,
         createdFor: [channelId],
         mimeType: MIME_TYPE.COURSE_MIME_TYPE,
         resourceType: "Course",
