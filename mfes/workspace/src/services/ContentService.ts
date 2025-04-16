@@ -35,7 +35,7 @@ export const getPrimaryCategory = async (channelId: any) => {
 const defaultReqBody = {
   request: {
     filters: {
-      createdBy: userId,
+       createdBy: userId,
     },
     sort_by: {
       lastUpdatedOn: "desc",
@@ -45,7 +45,7 @@ const defaultReqBody = {
 const upForReviewReqBody = {
   request: {
     filters: {
-      //  createdBy: { userId},
+       createdBy: { userId},
     },
     sort_by: {
       lastUpdatedOn: "desc",
@@ -82,7 +82,7 @@ const getReqBodyWithStatus = (
             ...upForReviewReqBody.request.filters,
             status,
             primaryCategory,
-            createdBy: { "!=": getLocalStoredUserId() },
+             createdBy: { "!=": getLocalStoredUserId() },
             state: state,
           },
 
@@ -102,7 +102,7 @@ const getReqBodyWithStatus = (
           ...upForReviewReqBody.request.filters,
           status,
           primaryCategory,
-          createdBy: { "!=": getLocalStoredUserId() },
+           createdBy: { "!=": getLocalStoredUserId() },
           channel: channel
         },
 
@@ -151,52 +151,52 @@ const getReqBodyWithStatus = (
 
 
 
-// export const getContent = async (
-//   status: string[],
-//   query: string,
-//   limit: number,
-//   offset: number,
-//   primaryCategory: string[],
-//   sort_by: any,
-//   channel: any,
-//   contentType?: string,
-//   state?: string
-// ) => {
-//   const apiURL = "/action/composite/v3/search";
-//   try {
-//     const reqBody = getReqBodyWithStatus(
-//       status,
-//       query,
-//       limit,
-//       offset,
-//       primaryCategory,
-//       sort_by,
-//       channel,
-//       contentType,
-//       state
-//     );
-//     const response = await post(apiURL, reqBody);
-//     return response?.data?.result;
-//   } catch (error) {
-//     throw error;
-//   }
-// };
-export const getContent = async (status: string[]) => {
-  const apiURL = '/action/composite/v3/search';
+export const getContent = async (
+  status: string[],
+  query: string,
+  limit: number,
+  offset: number,
+  primaryCategory: string[],
+  sort_by: any,
+  channel: any,
+  contentType?: string,
+  state?: string
+) => {
+  const apiURL = "/action/composite/v3/search";
   try {
-    const reqBody = {
-      request: {
-        filters: {
-          status: status,
-        },
-      },
-    };
+    const reqBody = getReqBodyWithStatus(
+      status,
+      query,
+      limit,
+      offset,
+      primaryCategory,
+      sort_by,
+      channel,
+      contentType,
+      state
+    );
     const response = await post(apiURL, reqBody);
     return response?.data?.result;
   } catch (error) {
     throw error;
   }
 };
+// export const getContent = async (status: string[]) => {
+//   const apiURL = '/action/composite/v3/search';
+//   try {
+//     const reqBody = {
+//       request: {
+//         filters: {
+//           status: status,
+//         },
+//       },
+//     };
+//     const response = await post(apiURL, reqBody);
+//     return response?.data?.result;
+//   } catch (error) {
+//     throw error;
+//   }
+// };
 
 
 export const createQuestionSet = async (frameworkId: any) => {

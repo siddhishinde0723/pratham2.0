@@ -135,12 +135,12 @@ useEffect(() => {
         const sort_by = { lastUpdatedOn: order };
         const response = await getContent(
           ["Review", "FlagReview"],
-          // query,
-          // LIMIT,
-          // offset,
-          // primaryCategory,
-          // sort_by,
-          // tenantConfig?.CHANNEL_ID
+          query,
+          LIMIT,
+          offset,
+          primaryCategory,
+          sort_by,
+          tenantConfig?.CHANNEL_ID
         );
         const contentList = (response?.content || []).concat(
           response?.QuestionSet || []

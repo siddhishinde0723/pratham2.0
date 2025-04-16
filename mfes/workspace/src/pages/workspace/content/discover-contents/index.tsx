@@ -166,14 +166,14 @@ const ContentsPage = () => {
        
         const response = await getContent(
           status,
-          // query,
-          // LIMIT,
-          // offset,
-          // primaryCategory,
-          // sort_by,
-          // tenantConfig?.CHANNEL_ID,
-          // contentType,
-          // state !== "All" ? state : undefined
+          query,
+          LIMIT,
+          offset,
+          primaryCategory,
+          sort_by,
+          tenantConfig?.CHANNEL_ID,
+          contentType,
+          state !== "All" ? state : undefined
         );
         
         const contentList = (response?.content || []).concat(

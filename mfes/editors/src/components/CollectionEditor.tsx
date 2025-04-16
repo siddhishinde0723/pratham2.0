@@ -115,7 +115,7 @@ const CollectionEditor: React.FC = () => {
       timeDiff: 5,
       objectRollup: {},
       host: "",
-      defaultLicense: "CC BY 4.0",
+      defaultLicense: "CCA BY-SA 4.0",
       endpoint: "/data/v3/telemetry",
       env: "collection_editor",
       cloudStorageUrls: [CLOUD_STORAGE_URL],

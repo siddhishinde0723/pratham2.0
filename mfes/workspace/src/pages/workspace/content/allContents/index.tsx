@@ -219,12 +219,12 @@ const [showHeader, setShowHeader] = useState<boolean | null>(null);
         console.log("seraching", debouncedSearchTerm);
         const response = await getContent(
           status,
-          // query,
-          // LIMIT,
-          // offset,
-          // primaryCategory,
-          // sort_by,
-          // tenantConfig?.CHANNEL_ID
+          query,
+          LIMIT,
+          offset,
+          primaryCategory,
+          sort_by,
+          tenantConfig?.CHANNEL_ID
         );
         const contentList = (response?.content || []).concat(
           response?.QuestionSet || []
