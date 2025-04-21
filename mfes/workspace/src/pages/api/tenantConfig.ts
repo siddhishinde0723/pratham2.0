@@ -37,6 +37,11 @@ export const mockData: Record<string, any> = {
     CONTENT_FRAMEWORK: 'swadhaar-fw',
     COLLECTION_FRAMEWORK: 'swadhaar-fw',
   },
+  '8cf74da8-392d-4d02-8ac3-ae2204e34c0a': {
+    CHANNEL_ID: 'oblf-channel',
+    CONTENT_FRAMEWORK: 'oblf-fw',
+    COLLECTION_FRAMEWORK: 'oblf-fw',
+  },
 };
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
