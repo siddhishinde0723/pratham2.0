@@ -59,6 +59,8 @@ export default async function handler(
         return res.status(200).json(genericEditorReviewFormResponseshiksha);
       } else if (framework == 'swadhaar-fw') {
         return res.status(200).json(genericEditorReviewFormResponseswadhaar);
+      } else if (framework == 'oblf-fw') {
+        return res.status(200).json(genericEditorReviewFormResponseshiksha);
       }
      ;
       // Default response if the framework doesn't match the specified values
