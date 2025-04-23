@@ -28,9 +28,9 @@ export const mockData: Record<string, any> = {
     COLLECTION_FRAMEWORK: 'atree-framework',
   },
   'ebae40d1-b78a-4f73-8756-df5e4b060436': {
-    CHANNEL_ID: 'shikshagraha-channel',
-    CONTENT_FRAMEWORK: 'shiksha-fw',
-    COLLECTION_FRAMEWORK: 'shiksha-fw',
+    CHANNEL_ID: 'shikshalokam-channel',
+    CONTENT_FRAMEWORK: 'shikshalokam-framework',
+    COLLECTION_FRAMEWORK: 'shikshalokam-framework',
   },
   '4730e033-b032-429d-86a5-9eba94b8f05d': {
     CHANNEL_ID: 'saasdev-channel',
