@@ -35,7 +35,7 @@ export const getPrimaryCategory = async (channelId: any) => {
 const defaultReqBody = {
   request: {
     filters: {
-      //  createdBy: userId,
+      createdBy: userId,
     },
     sort_by: {
       lastUpdatedOn: "desc",
@@ -81,8 +81,8 @@ const getReqBodyWithStatus = (
           filters: {
             ...upForReviewReqBody.request.filters,
             status,
-            primaryCategory,
-            //  createdBy: { "!=": getLocalStoredUserId() },
+            // primaryCategory,
+            createdBy: { "!=": getLocalStoredUserId() },
             state: state,
           },
 
@@ -101,8 +101,8 @@ const getReqBodyWithStatus = (
         filters: {
           ...upForReviewReqBody.request.filters,
           status,
-          primaryCategory,
-          //  createdBy: { "!=": getLocalStoredUserId() },
+          // primaryCategory,
+          createdBy: { "!=": getLocalStoredUserId() },
           channel: channel
         },
 
@@ -120,7 +120,7 @@ const getReqBodyWithStatus = (
         filters: {
           ...upForReviewReqBody.request.filters,
           status,
-          primaryCategory,
+          // primaryCategory,
           channel: channel
         },
         query,
@@ -138,7 +138,7 @@ const getReqBodyWithStatus = (
       filters: {
         ...defaultReqBody.request.filters,
         status,
-        primaryCategory,
+        // primaryCategory,
         channel: channel
       },
       query,
@@ -148,8 +148,6 @@ const getReqBodyWithStatus = (
     },
   };
 };
-
-
 
 export const getContent = async (
   status: string[],
@@ -181,23 +179,6 @@ export const getContent = async (
     throw error;
   }
 };
-// export const getContent = async (status: string[]) => {
-//   const apiURL = '/action/composite/v3/search';
-//   try {
-//     const reqBody = {
-//       request: {
-//         filters: {
-//           status: status,
-//         },
-//       },
-//     };
-//     const response = await post(apiURL, reqBody);
-//     return response?.data?.result;
-//   } catch (error) {
-//     throw error;
-//   }
-// };
-
 
 export const createQuestionSet = async (frameworkId: any) => {
   const apiURL = `/action/questionset/v2/create`;
@@ -208,7 +189,7 @@ export const createQuestionSet = async (frameworkId: any) => {
         mimeType: "application/vnd.sunbird.questionset",
         primaryCategory: "Practice Question Set",
         code: uuidv4(),
-        // createdBy: userId,
+        createdBy: userId,
         framework: frameworkId,
       },
     },
@@ -250,7 +231,7 @@ export const createCourse = async (userId: any, channelId: any, contentFW: any, 
       content: {
         code: uuidv4(), // Generate a unique ID for 'code'
         name: "Untitled Course",
-        // createdBy: userId,
+        createdBy: userId,
         createdFor: [channelId],
         mimeType: MIME_TYPE.COURSE_MIME_TYPE,
         resourceType: "Course",

@@ -10,7 +10,6 @@ import { MIME_TYPE } from "@workspace/utils/app.config";
 import Image from "next/image";
 import ActionIcon from "./ActionIcon";
 import { Padding } from "@mui/icons-material";
-import axios from "axios";
 interface CustomTableProps {
   data: any[]; // Define a more specific type for your data if needed
   columns: Array<{
@@ -38,30 +37,9 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
   };
   const handleOpen = () => setOpen(true);
 
-  const openEditor = async (content: any) => {
+  const openEditor = (content: any) => {
     console.log("content", content);
-
     const identifier = content?.identifier;
-      try {
-        const response = await axios.get(
-          `https://saas-dev-interface.tekdinext.com/interface/v1/action/content/v3/read/${identifier}`,
-          {
-            headers: {
-              tenantId: `${localStorage.getItem('tenantId')}`, // Replace with actual tenant ID
-              Authorization: `Bearer ${localStorage.getItem('token')}`, // Add your token here
-            },
-          }
-        );
-
-        if (response?.data?.result?.content) {
-          content = { ...content, ...response.data.result.content };
-        } else {
-          console.warn('Failed to enrich content data from API.');
-        }
-      } catch (error) {
-        console.error('Error fetching content data:', error);
-      }
-
     let mode = content?.mode; // default mode from content, can be overwritten by tableTitle
 
     switch (tableTitle) {
