@@ -229,6 +229,7 @@ const [showHeader, setShowHeader] = useState<boolean | null>(null);
         const contentList = (response?.content || []).concat(
           response?.QuestionSet || []
         );
+        console.log("contentList", contentList);
         setContentList(contentList);
         setTotalCount(response?.count);
         setLoading(false);

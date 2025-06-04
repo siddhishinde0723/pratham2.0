@@ -27,10 +27,15 @@ export const mockData: Record<string, any> = {
     CONTENT_FRAMEWORK: 'atree-framework',
     COLLECTION_FRAMEWORK: 'atree-framework',
   },
-  'ebae40d1-b78a-4f73-8756-df5e4b060436': {
+  'dbfbfbaa-39a9-41e1-9a66-d2855d67a094': {
     CHANNEL_ID: 'shikshagraha-channel',
-    CONTENT_FRAMEWORK: 'shiksha-fw',
-    COLLECTION_FRAMEWORK: 'shiksha-fw',
+    CONTENT_FRAMEWORK: 'shikshagraha-framework',
+    COLLECTION_FRAMEWORK: 'shikshagraha-framework',
+  },
+  '8cf74da8-392d-4d02-8ac3-ae2204e34c0a': {
+    CHANNEL_ID: 'oblf-channel',
+    CONTENT_FRAMEWORK: 'oblf-framework',
+    COLLECTION_FRAMEWORK: 'oblf-framework',
   },
 };
 

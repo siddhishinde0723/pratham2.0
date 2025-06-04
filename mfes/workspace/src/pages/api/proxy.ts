@@ -60,11 +60,11 @@ export default async function handler(
         return res.status(200).json(genericEditorReviewFormResponseatree);
       } else if (framework == 'kef-framework') {
         return res.status(200).json(genericEditorReviewFormResponsekef);
-      } else if (framework == 'shiksha-fw') {
+      } else if (framework == 'shikshagraha-framework' || framework == 'oblf-framework') {
         return res.status(200).json(genericEditorReviewFormResponseshiksha);
       }
       // Default response if the framework doesn't match the specified values
-      return res.status(200).json(genericEditorReviewFormResponse);
+      return res.status(200).json(genericEditorReviewFormResponseshiksha);
     }
 
     if (action === 'requestforchanges' && subType === 'resource') {

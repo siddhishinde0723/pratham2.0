@@ -100,8 +100,8 @@
       "framework": "",
       "ownershipType": ["createdBy", "createdFor"],
       "timeDiff": -0.295,
-      "primaryCategories": ["Learning Resource"],
       "uid": "",
+      "primaryCategories": ["Learning Resource"],
       "etags": {
         "app": [],
         "partner": [],
@@ -111,12 +111,11 @@
   },
   "CONTENT_EDITOR": {
     "WINDOW_CONFIG": {
-      "corePluginsPackaged": true,
       "baseURL": "",
       "modalId": "contentEditor",
       "apislug": "/action",
       "alertOnUnload": true,
-      "build_number": "1.0",
+      "build_number": "5.2.1.10",
       "headerLogo": "",
       "aws_s3_urls": [],
       "plugins": [
@@ -144,16 +143,40 @@
           "id": "org.ekstep.reviewercomments",
           "ver": "1.0",
           "type": "plugin"
-        },
-        {
-          "id": "org.ekstep.developer",
-          "ver": "1.0",
-          "type": "plugin"
         }
       ],
       "dispatcher": "local",
       "localDispatcherEndpoint": "/content-editor/telemetry",
-      "showHelp": false
+      "showHelp": false,
+      "previewConfig": {
+        "repos": ["/sunbird-plugins/renderer"],
+        "plugins": [
+          {
+            "id": "org.sunbird.player.endpage",
+            "ver": 1.1,
+            "type": "plugin"
+          }
+        ],
+        "splash": {
+          "text": "",
+          "icon": "",
+          "bgImage": "assets/icons/splacebackground_1.png",
+          "webLink": ""
+        },
+        "overlay": {
+          "showUser": false
+        },
+        "showEndPage": false
+      },
+      "pluginsRepoUrl": "/plugins/v1/search",
+      "enableTelemetryValidation": false,
+      "lock": {},
+      "videoMaxSize": "150",
+      "absURL": "",
+      "headerConfig": {
+        "managecollaborator": false
+      },
+      "branding": "Pratham"
     },
     "WINDOW_CONTEXT": {
       "user": {
@@ -166,22 +189,20 @@
       },
       "did": "",
       "sid": "",
-      "contentId": "test13455",
+      "contentId": "",
       "pdata": {
-        "id": "dev.sunbird.portal",
-        "ver": "4.9.0",
-        "pid": "sunbird-portal.contenteditor"
+        "id": "dev.admin.portal",
+        "ver": "1.0.0",
+        "pid": "admin-portal.contenteditor"
       },
       "contextRollUp": {
         "l1": ""
       },
       "tags": [""],
       "channel": "",
-      "env": "content-editor",
       "framework": "",
       "ownershipType": ["createdBy", "createdFor"],
-      "timeDiff": -0.295,
-      "primaryCategories": ["Learning Resource"],
+      "timeDiff": -0.528,
       "uid": "",
       "etags": {
         "app": [],

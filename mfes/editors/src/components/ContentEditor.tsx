@@ -1,137 +1,61 @@
-//@ts-nocheck
-import React, { useEffect, useState } from 'react';
-
-// Extend the Window interface to include ecEditor
-declare global {
-  interface Window {
-    ecEditor?: any;
-  }
-}
+'use client';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import $ from 'jquery';
 import _ from 'lodash';
-import 'izimodal/css/iziModal.css';
-import 'izimodal/js/iziModal.js';
+import 'izimodal/js/iziModal';
 import editorConfig from './editor.config.json';
+import useTenantConfig from '../hooks/useTenantConfig';
 import {
   getLocalStoredUserId,
   getLocalStoredUserName,
 } from '../services/LocalStorageService';
-import { fetchCCTAList } from '../services/userServices';
-import { sendCredentialService } from '../services/NotificationService';
-import useTenantConfig from '../hooks/useTenantConfig';
-const ContentEditor: React.FC = () => {
+import $ from 'jquery';
+const InteractiveEditor: React.FC = () => {
   const tenantConfig = useTenantConfig();
-  const router = useRouter();
-  // const { identifier, editorforlargecontent } = router.query;
- const { identifier, editorforlargecontent } = 'do_2142741789173923841164';
-
   const [showLoader, setShowLoader] = useState(true);
-  const buildNumber = '';
-  const extContWhitelistedDomains = 'youtube.com,youtu.be';
+  const router = useRouter();
+  const { identifier } = router.query;
+  const contentEditorURL = 'content-editor/index.html';
+  const buildNumber = '5.2.1.1.0';
   const videoMaxSize = '150';
-  const defaultContentFileSize = '150';
-  let isLargeFileUpload = false;
-
-  if (editorforlargecontent) {
-    isLargeFileUpload = true;
-  }
-
-  const handlePopState = (event: any) => {
-    console.log('popstate event fired', event.state);
-    window.location.hash = 'no';
-    if (event.state) {
-      // Push the current state back to prevent navigation
-      // window.history.pushState(null, '', window.location.href);
-      alert('Please use the "x" button to exit this page.');
-      window.location.hash = 'no';
-    }
-    window.location.hash = 'no';
-  };
-  const sendReviewNotification = async (notificationData: any) => {
-    try {
-      const response = await fetchCCTAList();
-      const cctaList = response;
-      console.log('response', response);
-      const isQueue = false;
-      const context = 'CMS';
-      const key = 'onContentReview';
-      const url = `${window.location.origin}/workspace/content/review?identifier=${notificationData?.contentId}`;
-      const ContentDetail = await fetch(
-        `/action/content/v3/read/${notificationData?.contentId}`
-      );
-      const data = await ContentDetail.json();
-
-      cctaList?.map(async (user: any) => {
-        const replacements = {
-          '{reviewerName}': user?.name,
-          '{creatorName}': notificationData?.creator,
-          '{contentId}': notificationData?.contentId,
-          '{appUrl}': url,
-          '{submissionDate}': new Date(),
-          '{contentType}': 'Learning Resource',
-          '{contentTitle}': data?.result?.content?.name,
-        };
-        const response = await sendCredentialService({
-          isQueue,
-          context,
-          key,
-          replacements,
-          email: { receipients: [user?.email] },
-        });
-      });
-    } catch (error) {
-      console.error('Error sending email notifications:', error);
-    }
-  };
-
-  useEffect(() => {
-    // Listen for the popstate event
-    window.location.hash = 'no';
-    window.addEventListener('popstate', handlePopState);
-
-    return () => {
-      // Clean up event listener
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, []);
 
   useEffect(() => {
     if (!tenantConfig?.CHANNEL_ID || !tenantConfig?.CONTENT_FRAMEWORK) return;
-    if (typeof window !== 'undefined') {
-      // Attach jQuery to window and window.parent
-      window.$ = window.jQuery = $;
-      if (window.parent) {
-        window.parent.$ = window.$;
-        window.parent.jQuery = window.jQuery;
-      }
+    window.$ = window.jQuery = $;
+    if (window.parent) {
+      window.parent.$ = window.$;
+      window.parent.jQuery = window.jQuery;
+    }
 
-      console.log('editorConfig ==>', editorConfig);
+    if (identifier) {
       getContentDetails(identifier)
-        .then((data: any) => {
+        .then((data) => {
           initEditor();
           setWindowContext(data);
           setWindowConfig();
-          console.log('window.config ==>', window.config);
-          console.log('window.context ==>', window.context);
           $('#contentEditor').iziModal('open');
           setShowLoader(false);
         })
-        .catch((error) => {
-          console.error('Error:', error);
+        .catch(() => {
           closeModal();
         });
+    } else {
+      setShowLoader(false);
     }
+
+    return () => {
+      $('#contentEditor').iziModal('destroy');
+    };
   }, [tenantConfig?.CHANNEL_ID, tenantConfig?.CONTENT_FRAMEWORK, identifier]);
 
   const getContentDetails = async (contentId: any) => {
     if (!contentId) {
-      return {}; // Return empty object if contentId is undefined
+      return {};
     }
 
     try {
       const response = await fetch(
-        `/action/content/v3/read/${contentId}?fields=createdBy,status,mimeType,contentType,resourceType,collaborators,contentDisposition,primaryCategory,framework,channel,targetFWIds&mode=edit`
+        `/action/content/v3/read/${contentId}?mode=edit`
       );
 
       if (!response.ok) {
@@ -146,65 +70,24 @@ const ContentEditor: React.FC = () => {
     }
   };
 
-  // Initialize the modal and open iframe
   const initEditor = () => {
     if (typeof window !== 'undefined') {
-      $('#content-editor').iziModal({
+      let iframeURL = `${contentEditorURL}?${buildNumber}`;
+      $('#contentEditor').iziModal({
         title: '',
         iframe: true,
-        //online from tekdinext
-        iframeURL: `content-editor/index.html`,
-        navigateArrows: false,
+        iframeURL,
         fullscreen: true,
         openFullscreen: true,
         closeOnEscape: false,
         overlayClose: false,
-        overlay: false,
-        overlayColor: '',
-        history: false,
         onClosing: () => {
           closeModal();
-        },
-        onOpened: () => {
-          // Wait for iframe to be injected
-          console.log('Opened=========>');
-          const iframe = document.querySelector(
-            '#contentEditor iframe'
-          ) as HTMLIFrameElement;
-          console.log('iframe', iframe);
-          if (iframe) {
-            // Attach event listener when iframe loads
-            // iframe.onload = () => {
-            console.log('Iframe loaded successfully!');
-
-            try {
-              const iframeWindow = iframe.contentWindow;
-
-              if (iframeWindow && iframeWindow.ecEditor) {
-                iframeWindow.ecEditor.addEventListener(
-                  'org.ekstep.contenteditor:review',
-                  (event: any) => {
-                    console.log('Review Event triggered inside iframe!', event);
-                    console.log('window', window);
-                    console.log('window parent', window?.parent);
-                    sendReviewNotification({
-                      contentId: window?.parent?.context?.contentId,
-                      creator: getLocalStoredUserName(),
-                    });
-                  }
-                );
-              }
-            } catch (error) {
-              console.error('Error accessing iframe content:', error);
-            }
-            // };
-          }
         },
       });
     }
   };
 
-  // Set window context for the iframe
   const setWindowContext = (data: any) => {
     const contentChannel = data?.channel || tenantConfig?.CHANNEL_ID;
     const contentFramework = data?.framework || tenantConfig?.CONTENT_FRAMEWORK;
@@ -228,65 +111,51 @@ const ContentEditor: React.FC = () => {
       window['context'].tags = [contentChannel];
       window['context'].channel = contentChannel;
       window['context'].framework = contentFramework;
-      if (
-        isLargeFileUpload ||
-        _.get(data, 'contentDisposition') === 'online-only'
-      ) {
-        window.context['uploadInfo'] = {
-          isLargeFileUpload: true,
-          maxAllowedContentSize: '1', //1GB
-        };
-      }
     }
   };
 
-  // Set window config for the iframe
   const setWindowConfig = () => {
     if (typeof window !== 'undefined') {
       window['config'] = _.cloneDeep(editorConfig.CONTENT_EDITOR.WINDOW_CONFIG);
       window['config'].build_number = buildNumber;
       window['config'].headerLogo = '/logo.png';
       window['config'].lock = {};
-      window['config'].extContWhitelistedDomains = extContWhitelistedDomains;
       window['config'].enableTelemetryValidation = false;
       window['config'].videoMaxSize = videoMaxSize;
-      window['config'].defaultContentFileSize = defaultContentFileSize;
       window['config'].cloudStorage = {
-        provider: 'aws',
+        // provider: 'aws',
+        provider: 'azure',
         presigned_headers: {
-          'x-amz-acl': 'private', // This header sets access control; it's specific to AWS S3.
+          // 'x-amz-acl': 'private',
+          'x-ms-blob-type': 'BlockBlob', // This header sets access control; it's specific to AWS S3.
         },
       };
     }
   };
 
-  // Function to close the modal and navigate away
   const closeModal = () => {
     setShowLoader(false);
 
     const previousPage = sessionStorage.getItem('previousPage');
-    const editorElement = document.getElementById('contentEditor');
+    const editorElement = document.getElementById('genericEditor');
     if (editorElement) {
       editorElement.remove();
     }
     console.log('history', window.history.length);
-    // window.history.back();
 
     if (previousPage) {
-      // window.location.href = previousPage; // Navigate to the previous URL
       router.replace(previousPage);
     } else {
-      // window.location.href = '/workspace/content/create';
       router.replace('/workspace/content/create');
     }
   };
 
   return (
     <div>
+      {showLoader && <div>Loading...</div>}
       <div id="contentEditor"></div>
-      {showLoader && <div>Loading Editor.....</div>}
     </div>
   );
 };
 
-export default ContentEditor;
+export default InteractiveEditor;

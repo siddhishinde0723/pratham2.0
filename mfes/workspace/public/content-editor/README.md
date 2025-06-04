@@ -1,18 +1,26 @@
+# Content Editor
+
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/9858d61b7adf494a9e30afedb7c06739)](https://app.codacy.com/app/sunbird-bot/sunbird-content-editor?utm_source=github.com&utm_medium=referral&utm_content=project-sunbird/sunbird-content-editor&utm_campaign=Badge_Grade_Settings)
 [![Build Status](https://travis-ci.org/project-sunbird/sunbird-content-editor.svg?branch=master)](https://travis-ci.org/project-sunbird/sunbird-content-editor)
 [![npm version](https://badge.fury.io/js/%40project-sunbird%2Fcontent-editor.svg)](https://badge.fury.io/js/%40project-sunbird%2Fcontent-editor)
 
-# Content Editor
+## Introduction
 	
-Content Editor is tool. Which allows you to create ECML(Ekstep content markup language) type content.
-## How to configure
- Download content editor 
+Sunbird's in-built content editor tool allows you to create Ekstep Content Markup Language(ECML) type of content.
 
->Run npm i @project-sunbird/content-editor
+
+## Step 1: Installation
+ 
+ Download the content editor using the following command: 
+```red
+Run npm i @project-sunbird/content-editor
+```
+
+## Step 2: Configure the content editor
 
 **Required configuration**
 	
 ```js
-	
 window.context = {
 {
   "user": {
@@ -70,34 +78,33 @@ window.config = {
   "enableTelemetryValidation": false
 }
 ```
-| Property Name | Description | Default Value   |
-| --- | --- | --- |
-| `user` | It is a `object`, Which should contain the user details(userId, name)  | NA  |
-| `sid` | It is a `string`, Session identifier  | NA  |
-| `contentId ` | It is a `string`,  content identifier | NA  |
-| `pdata ` | It is a `object`,  producer information.It can have producer version, producer Id | NA  |
-| `tags ` | It is a `array`,  Encrypted dimension tags passed by respective channels| NA  |
-| `channel ` | It is a `string`,  Channel which has produced the event| NA  |
-| `framework ` | It is a `string`, example:NCF, NCERT| NA  |
-| `baseURL ` | It is a `string`, host url| NA  |
-| `corePluginsPackaged ` | It is a `boolean`, Which enables the content-editor to load the plugins from packaged script rather than individual  | true  |
-| `pluginRepo ` | It is a `string`, From which location plugins should load  | /plugins  |
-| `dispatcher ` | It is a `string`,Where the telemetry should log ex(console, piwik, library) | console |
-| `keywordsLimit ` | It is a `number`, Max response keyword size| 500 |
-| `plugins ` | It is a `array`, Array of plugins ex:`[{id:"org.sunbird.header",ver:"1.0",type:"plugin"}]`| NA |
-| `previewURL ` | It is a `string`, path of the content player preview | NA |
-| `showHelp ` | It is a `boolean`, to show the help icon in the editor | false |
-| `previewConfig ` | It is a `object`, configurations related to content player preview for more details refer [here](https://github.com/project-sunbird/sunbird-content-player) | false |
-| `enableTelemetryValidation ` | It is a `boolean`, To validate the telemetry events which is being generated in editors | false |
-| `aws_s3_urls ` | It is a `array`, if the content assets are referring any of aws s3 urls which is denfined in the `aws_s3_urls` then editor will replace those path with `baseURL + assetReverseProxyUrl` | NA |
+
+| Property Name | Description | Property Type | Default Value | Example |
+| --- | --- | --- |---|---|
+| `user` | The user field contains four objects - user name, user ID, organization IDs and organization names. |object  | NA  |{"id":"95e4052d-abe8-477d-aebd-ad8e6de4bfc8","name":"Reviewer User","orgIds":["012363943890170242","ORG_001"],"organisations":{"ORG_001":"Sunbird","012363943890170242":"QA ORG"}} |
+| `sid` | The string value that identifies the session |string | NA  | IYNPDoYY5aoWbv1Yre4Nfl_J8tResl_S |
+| `contentId ` |The string value that identifies the content being created or modified |string | NA  |do_112699569941724161115|
+| `pdata ` | The producer information. It contains three objects - producer ID, build version and the component ID| object | NA  | {"id":"dev.sunbird.portal","ver":"1.14.0","pid":"sunbird-portal.contenteditor"} |
+| `tags ` | Encrypted dimension tags passed by respective channels| array | NA  | ["012363943890170242", "ORG_001"] |
+| `channel ` | Channel that produces the event| string| NA  |b00bc992eg65f1a8s8fg3291e20efc8d|
+| `framework ` | The content framework used to create the content|NA  | NCF, NCERT|
+| `baseURL ` | The name of the host URL |string | NA  |
+| `corePluginsPackaged ` | The configuration that enables the content editor to load plugins from a packaged script rather than individually| boolean|true  | true|
+| `pluginRepo ` | The location from which plugins are loaded |string  | /plugins  |/plugins/v1/search|
+| `dispatcher ` | The location where telemetry is logged | string| console | console, piwik, library |
+| `keywordsLimit ` | The maximum size for the response keywords| number | 500 | 100|
+| `plugins ` | An array for the plugins | array | NA | ex:`[{id:"org.sunbird.header",ver:"1.0",type:"plugin"}]`|
+| `previewURL ` | The path of the content player previewer | string | NA |
+| `showHelp ` | Used to show the help icon in the editor | boolean|false |
+| `previewConfig ` | The configurations related to the content player preview. For details, refer [here](https://github.com/project-sunbird/sunbird-content-player) | string | false |
+| `enableTelemetryValidation ` | Used to validate the telemetry events that are generated in the editors | boolean| false |
+| `aws_s3_urls ` | If any content asset refers to any aws s3 url, configure the URLs here. The editor replaces those paths with `baseURL + assetReverseProxyUrl` |array| NA |"https://s3.ap-south-1.amazonaws.com/ekstep-public-dev/" | 
+| `cloudStorage` |  It is `object` and which defines cloud storage configuration which contains provider & presigned_headers for diff service provider for example: Azure, AWS | object | ``` cloudStorage: { provider: azure, presigned_headers: { 'x-ms-blob-type': 'BlockBlob' // This header is specific to azure storage provider. } } ``` | The default configuration can be overwrite by passing empty headers. ***For example:*** If you don't want to pass any headers for AWS than pass as empty headers as below: ``` cloudStorage: { provider: '', presigned_headers: { } } ```
 
 
-
-
-
+## Step 3: Integration
 
 ```js
-
   openContentEditor() {
     jQuery.fn.iziModal = iziModal;
     jQuery('#content-editor').iziModal({
@@ -118,25 +125,44 @@ window.config = {
         });
       }
     });
-```
-	
+```  
 
-## How to setup sunbird-content-editor in local
+# How to Setup Sunbird Content Editor in your Local Machine
+
 1. Clone the sunbird-content-editor repo from [here](https://github.com/project-sunbird/sunbird-content-editor)
 2. Clone the sunbird-content-plugins repo from [here](https://github.com/project-sunbird/sunbird-content-plugins) 
 3. Go to the root directory sunbird-content-editor.
-4. Run `npm install` to install node moduels.
+4. Run `npm install` to install node modules.
 3. `cd app` and run `bower install` to install bower components
-5. Create a symlink to 'sunbird-content-plugins' (`ln -s ../sunbird-content-plugins plugins`)(Linx, mac)
+5. Create a symlink to 'sunbird-content-plugins' (`ln -s ../sunbird-content-plugins plugins`)(Linux, mac)
 for windows: use `mklink`
-6. Run `node app`
-7. Open Chrome and visit this link: http://localhost:3000/app/
+6. Configure the content editor [here](https://github.com/project-sunbird/sunbird-content-editor#how-to-configure-the-sunbird-content-editor)
+7. Run `node app`
+8. Open Chrome and visit this link: http://localhost:3000/app?contentId={{content_id}}  
+*content_id*: Live/Draft content id created on Sunbird portal
 
+sample link: http://localhost:3000/app?contentId=do_1124674880571
+
+## Reference links
+
+*How to setup Sunbird backend*: http://docs.sunbird.org/latest/developer-docs/installation/install_sbbackend/
+
+*How to setup Editors in Sunbird portal*: http://docs.sunbird.org/latest/developer-docs/installation/install_sbportal/
+
+*Sunbird API Reference*: http://docs.sunbird.org/latest/apis/
 
 ## ChangeLogs
-   For changes logs please refer [here](https://github.com/project-sunbird/sunbird-content-editor/releases) 
+For changes logs,refer [here](https://github.com/project-sunbird/sunbird-content-editor/releases) 
 
-  
- >For sunbird-content-editor demo please visit [here](https://staging.open-sunbird.org/workspace/content/create)   
+## License
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/project-sunbird/sunbird-content-editor/blob/master/LICENSE) file for details
 
+## Versioning
+We use [SemVer](https://semver.org/) for versioning. For the versions available, see the [tags](https://github.com/project-sunbird/sunbird-content-editor/tags) on this repository.
+
+## Any Issues?
+We have an open and active [issue tracker](https://project-sunbird.atlassian.net/issues/). Please report any issues.
+
+
+>For sunbird-content-editor demo, refer [here](https://staging.open-sunbird.org/workspace/content/create)   
 

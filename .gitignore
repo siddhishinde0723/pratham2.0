@@ -47,6 +47,7 @@ out
 # build/
 mfes/scp-teacher-repo/build/
 apps/admin-app-repo/build/
+mfes/workspace/public/content-editor
 # ignore env
 .env
 .env.local

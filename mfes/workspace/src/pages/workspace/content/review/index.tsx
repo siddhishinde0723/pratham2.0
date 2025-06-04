@@ -73,7 +73,10 @@ const ReviewContentSubmissions = () => {
           // playerConfig.metadata = quMLMetadata;
           // playerConfig.metadata = epubMetadata;
           console.log("data ==>", data);
-          if (MIME_TYPE.INTERACTIVE_MIME_TYPE.includes(data?.mimeType)) {
+          if (
+            MIME_TYPE.INTERACTIVE_MIME_TYPE.includes(data?.mimeType) ||
+            data?.mimeType == MIME_TYPE.ECML_MIME_TYPE
+          ) {
             V1PlayerConfig.metadata = data;
             V1PlayerConfig.context.contentId = data.identifier;
             V1PlayerConfig.context.channel = tenantConfig?.CHANNEL_ID;
