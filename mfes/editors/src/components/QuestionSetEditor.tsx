@@ -77,7 +77,8 @@ const QuestionSetEditor: React.FC = () => {
       correctionComments: false,
       sourcingResourceStatus: true,
       cloudStorage: {
-        provider: "aws",
+        // provider: "aws",
+        provider:'azure',
         presigned_headers: {},
       },
     },

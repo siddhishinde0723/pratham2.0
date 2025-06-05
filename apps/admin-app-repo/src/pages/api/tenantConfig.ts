@@ -42,6 +42,11 @@ export const mockData: Record<string, any> = {
     CONTENT_FRAMEWORK: 'oblf-fw',
     COLLECTION_FRAMEWORK: 'oblf-fw',
   },
+  'dbfbfbaa-39a9-41e1-9a66-d2855d67a094': {
+    CHANNEL_ID: 'shikshagraha-channel',
+    CONTENT_FRAMEWORK: 'shikshagraha-framework',
+    COLLECTION_FRAMEWORK: 'shikshagraha-framework',
+  },
 };
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {

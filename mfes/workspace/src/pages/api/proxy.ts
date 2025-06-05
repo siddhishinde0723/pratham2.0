@@ -55,7 +55,7 @@ export default async function handler(
         return res.status(200).json(genericEditorReviewFormResponseatree);
       } else if (framework == 'kef-framework') {
         return res.status(200).json(genericEditorReviewFormResponsekef);
-      } else if (framework == 'shikshalokam-framework') {
+      } else if (framework == 'shikshalokam-framework' || 'shikshagraha-framework') {
         return res.status(200).json(genericEditorReviewFormResponseshiksha);
       } else if (framework == 'swadhaar-fw') {
         return res.status(200).json(genericEditorReviewFormResponseswadhaar);
