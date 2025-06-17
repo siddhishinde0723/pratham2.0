@@ -19,10 +19,12 @@ export default async function handler(
   const { method, body, query } = req;
   const { path } = query;
 
-  const token = getCookie(req, 'authToken') || process.env.AUTH_API_TOKEN as string;
+  const token =
+    getCookie(req, 'authToken') || (process.env.AUTH_API_TOKEN as string);
 
   const BASE_URL = process.env.NEXT_PUBLIC_MIDDLEWARE_URL as string;
-  const tenantId = getCookie(req, 'tenantId') || process.env.NEXT_PUBLIC_TENANT_ID as string;
+  const tenantId =
+    getCookie(req, 'tenantId') || (process.env.NEXT_PUBLIC_TENANT_ID as string);
 
   const tenantConfig = mockData[tenantId];
 
@@ -55,14 +57,17 @@ export default async function handler(
         return res.status(200).json(genericEditorReviewFormResponseatree);
       } else if (framework == 'kef-framework') {
         return res.status(200).json(genericEditorReviewFormResponsekef);
-      } else if (framework == 'shikshalokam-framework' || 'shikshagraha-framework') {
+      } else if (
+        framework == 'shikshalokam-framework' ||
+        'shikshagraha-framework' ||
+        'Colab-framework'
+      ) {
         return res.status(200).json(genericEditorReviewFormResponseshiksha);
       } else if (framework == 'swadhaar-fw') {
         return res.status(200).json(genericEditorReviewFormResponseswadhaar);
       } else if (framework == 'oblf-fw') {
         return res.status(200).json(genericEditorReviewFormResponseshiksha);
       }
-     ;
       // Default response if the framework doesn't match the specified values
       return res.status(200).json(genericEditorReviewFormResponse);
     }

@@ -2,10 +2,10 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 // Mock data
 export const mockData: Record<string, any> = {
-  'ef99949b-7f3a-4a5f-806a-e67e683e38f3': {
-    CHANNEL_ID: 'scp-channel',
-    CONTENT_FRAMEWORK: 'level1-framework',
-    COLLECTION_FRAMEWORK: 'scp-framework',
+  '322288f8-6163-4cc4-9910-8009b5dbc534': {
+    CHANNEL_ID: 'Colab-channel',
+    CONTENT_FRAMEWORK: 'Colab-framework',
+    COLLECTION_FRAMEWORK: 'Colab-framework',
   },
   '29f8c9a6-032f-48c7-a14a-9e3db3d7b76e': {
     CHANNEL_ID: 'pos-channel',
