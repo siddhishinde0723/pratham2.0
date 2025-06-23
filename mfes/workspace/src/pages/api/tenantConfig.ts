@@ -39,8 +39,8 @@ export const mockData: Record<string, any> = {
   },
   '8cf74da8-392d-4d02-8ac3-ae2204e34c0a': {
     CHANNEL_ID: 'oblf-channel',
-    CONTENT_FRAMEWORK: 'oblf-fw',
-    COLLECTION_FRAMEWORK: 'oblf-fw',
+    CONTENT_FRAMEWORK: 'oblf-framework',
+    COLLECTION_FRAMEWORK: 'oblf-framework',
   },
   'dbfbfbaa-39a9-41e1-9a66-d2855d67a094': {
     CHANNEL_ID: 'shikshagraha-channel',

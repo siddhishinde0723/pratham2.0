@@ -60,14 +60,13 @@ export default async function handler(
       } else if (
         framework == 'shikshalokam-framework' ||
         'shikshagraha-framework' ||
-        'Colab-framework'
+        'Colab-framework' ||
+        'oblf-framework'
       ) {
         return res.status(200).json(genericEditorReviewFormResponseshiksha);
       } else if (framework == 'swadhaar-fw') {
         return res.status(200).json(genericEditorReviewFormResponseswadhaar);
-      } else if (framework == 'oblf-fw') {
-        return res.status(200).json(genericEditorReviewFormResponseshiksha);
-      }
+      } 
       // Default response if the framework doesn't match the specified values
       return res.status(200).json(genericEditorReviewFormResponse);
     }
