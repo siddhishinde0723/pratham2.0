@@ -157,7 +157,7 @@ export const genericEditorReviewFormResponseatree = {
           {
             code: 'topic',
             visible: true,
-            depends: ['subTopic'],
+            depends: ['subtopic'],
             editable: true,
             dataType: 'list',
             renderingHints: {},
@@ -170,7 +170,7 @@ export const genericEditorReviewFormResponseatree = {
             placeholder: 'Select Topic',
           },
           {
-            code: 'subTopic',
+            code: 'subtopic',
             visible: true,
             depends: [],
             editable: true,
@@ -356,20 +356,7 @@ export const genericEditorReviewFormResponseatree = {
             required: false,
             visible: true,
           },
-          {
-            code: 'year',
-            dataType: 'text',
-            description: 'Year of Publishing',
-            editable: true,
-            index: 2,
-            inputType: 'text',
-            label: 'Year of Publishing',
-            name: 'Year of Publishing',
-            placeholder: 'Enter Year of Publishing',
-            renderingHints: {},
-            required: false,
-            visible: true,
-          },
+
           {
             code: 'access',
             dataType: 'text',
@@ -408,6 +395,20 @@ export const genericEditorReviewFormResponseatree = {
             label: 'Download Url',
             name: 'Download Url',
             placeholder: 'Enter download url',
+            renderingHints: {},
+            required: false,
+            visible: true,
+          },
+          {
+            code: 'thumbnail1',
+            dataType: 'text',
+            description: 'Thumbnail',
+            editable: true,
+            index: 2,
+            inputType: 'text',
+            label: 'Thumbnail name',
+            name: 'Thumbnail name',
+            placeholder: 'Enter Thumbnail name',
             renderingHints: {},
             required: false,
             visible: true,
@@ -1144,116 +1145,111 @@ export const contentEditorQuestionFormResponse = {
 };
 
 export const contentEditorQuestionMetaFormResponse = {
-    "id": "api.form.read",
-    "params": {
-        "resmsgid": "1d4dc61c-e66b-41ba-aed2-00509bd4c9b7",
-        "msgid": "7f7f8182-5461-488d-93cc-3f6fdf11feaf",
-        "status": "successful"
+  id: 'api.form.read',
+  params: {
+    resmsgid: '1d4dc61c-e66b-41ba-aed2-00509bd4c9b7',
+    msgid: '7f7f8182-5461-488d-93cc-3f6fdf11feaf',
+    status: 'successful',
+  },
+  responseCode: 'OK',
+  result: {
+    form: {
+      type: 'content',
+      subtype: 'questions',
+      action: 'question-meta-save',
+      component: '*',
+      framework: '*',
+      data: {
+        action: 'question-meta-save',
+        templateName: 'questionMetaDataTemplate',
+        fields: [
+          {
+            code: 'name',
+            dataType: 'text',
+            description: 'Title of the question',
+            editable: true,
+            inputType: 'text',
+            label: 'Title',
+            name: 'Title',
+            index: 0,
+            placeholder: 'Enter the Title',
+            renderingHints: {},
+            required: true,
+            visible: true,
+          },
+          {
+            code: 'description',
+            dataType: 'text',
+            description: 'Brief description',
+            editable: true,
+            inputType: 'textarea',
+            label: 'Description',
+            name: 'Description',
+            placeholder: 'Enter the Description',
+            renderingHints: {},
+            required: false,
+            visible: true,
+            index: 1,
+          },
+          {
+            code: 'medium',
+            dataType: 'text',
+            description: 'Language',
+            editable: true,
+            index: 8,
+            inputType: 'select',
+            label: 'Language',
+            name: 'Language',
+            placeholder: 'Select Language',
+            renderingHints: {},
+            required: false,
+            visible: true,
+          },
+          {
+            code: 'qlevel',
+            dataType: 'text',
+            description: 'Add Notes',
+            editable: true,
+            index: 3,
+            inputType: 'select',
+            label: 'Level',
+            name: 'qlevel',
+            placeholder: 'Select Level',
+            range: ['EASY', 'MEDIUM', 'DIFFICULT'],
+            renderingHints: {},
+            required: true,
+            visible: true,
+          },
+          {
+            code: 'max_score',
+            dataType: 'number',
+            description: '',
+            editable: true,
+            index: 4,
+            inputType: 'number',
+            label: 'Max Score',
+            name: 'max_score',
+            placeholder: 'Enter the Max Score',
+            renderingHints: {},
+            required: true,
+            visible: true,
+            validation: [
+              {
+                type: 'min',
+                value: '1',
+                message: '',
+              },
+            ],
+          },
+        ],
+      },
+      created_on: '2020-08-19T11:42:18.732Z',
+      last_modified_on: '2020-08-16T11:48:17.934Z',
+      rootOrgId: '*',
     },
-    "responseCode": "OK",
-    "result": {
-        "form": {
-            "type": "content",
-            "subtype": "questions",
-            "action": "question-meta-save",
-            "component": "*",
-            "framework": "*",
-            "data": {
-                "action": "question-meta-save",
-                "templateName": "questionMetaDataTemplate",
-                "fields": [
-                    {
-                        "code": "name",
-                        "dataType": "text",
-                        "description": "Title of the question",
-                        "editable": true,
-                        "inputType": "text",
-                        "label": "Title",
-                        "name": "Title",
-                        "index": 0,
-                        "placeholder": "Enter the Title",
-                        "renderingHints": {},
-                        "required": true,
-                        "visible": true
-                    },
-                    {
-                        "code": "description",
-                        "dataType": "text",
-                        "description": "Brief description",
-                        "editable": true,
-                        "inputType": "textarea",
-                        "label": "Description",
-                        "name": "Description",
-                        "placeholder": "Enter the Description",
-                        "renderingHints": {},
-                        "required": false,
-                        "visible": true,
-                        "index": 1
-                    },
-                    {
-                        "code": "medium",
-                        "dataType": "text",
-                        "description": "Language",
-                        "editable": true,
-                        "index": 8,
-                        "inputType": "select",
-                        "label": "Language",
-                        "name": "Language",
-                        "placeholder": "Select Language",
-                        "renderingHints": {},
-                        "required": false,
-                        "visible": true
-                    },
-                    {
-                        "code": "qlevel",
-                        "dataType": "text",
-                        "description": "Add Notes",
-                        "editable": true,
-                        "index": 3,
-                        "inputType": "select",
-                        "label": "Level",
-                        "name": "qlevel",
-                        "placeholder": "Select Level",
-                        "range": [
-                            "EASY",
-                            "MEDIUM",
-                            "DIFFICULT"
-                        ],
-                        "renderingHints": {},
-                        "required": true,
-                        "visible": true
-                    },
-                    {
-                        "code": "max_score",
-                        "dataType": "number",
-                        "description": "",
-                        "editable": true,
-                        "index": 4,
-                        "inputType": "number",
-                        "label": "Max Score",
-                        "name": "max_score",
-                        "placeholder": "Enter the Max Score",
-                        "renderingHints": {},
-                        "required": true,
-                        "visible": true,
-                        "validation": [
-                            {
-                                "type": "min",
-                                "value": "1",
-                                "message": ""
-                            }
-                        ]
-                    }
-                ]
-            },
-            "created_on": "2020-08-19T11:42:18.732Z",
-            "last_modified_on": "2020-08-16T11:48:17.934Z",
-            "rootOrgId": "*"
-        }
-    },
-    "ts": "2025-03-20T05:54:42.223Z",
-    "ver": "1.0"
-
+  },
+  ts: '2025-03-20T05:54:42.223Z',
+  ver: '1.0',
 };
 
 export const genericEditorRequestForChangesFormResponse = {

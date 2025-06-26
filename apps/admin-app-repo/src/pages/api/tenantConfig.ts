@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 
 // Mock data
 export const mockData: Record<string, any> = {
-  '322288f8-6163-4cc4-9910-8009b5dbc534': {
+  '94f936dc-7fce-4b92-9a9b-0ebb3076793f': {
     CHANNEL_ID: 'Colab-channel',
     CONTENT_FRAMEWORK: 'Colab-framework',
     COLLECTION_FRAMEWORK: 'Colab-framework',
