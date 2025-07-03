@@ -18,9 +18,9 @@ export const mockData: Record<string, any> = {
     COLLECTION_FRAMEWORK: 'youthnet-framework',
   },
   '6c386899-7a00-4733-8447-5ef925bbf700': {
-    CHANNEL_ID: 'kef-channel',
-    CONTENT_FRAMEWORK: 'kef-framework',
-    COLLECTION_FRAMEWORK: 'kef-framework',
+    CHANNEL_ID: 'KEF-channel',
+    CONTENT_FRAMEWORK: 'KEF-framework',
+    COLLECTION_FRAMEWORK: 'KEF-framework',
   },
   '3a849655-30f6-4c2b-8707-315f1ed64fbd': {
     CHANNEL_ID: 'atree-channel',
