@@ -7,9 +7,8 @@ import {
   genericEditorReviewFormResponse,
   genericEditorRequestForChangesFormResponse,
   publishResourceFormResponse,
-  contentEditorQuestionFormResponse,
-  contentEditorQuestionMetaFormResponse,
   genericEditorReviewFormResponseshiksha,
+  genericEditorReviewFormResponseswadhaar,
 } from './mocked-response';
 import { getCookie } from '@workspace/utils/cookieHelper';
 import { mockData } from './tenantConfig';
@@ -58,13 +57,20 @@ export default async function handler(
       console.log('framework ==>', framework);
       if (framework == 'atree-framework') {
         return res.status(200).json(genericEditorReviewFormResponseatree);
-      } else if (framework == 'kef-framework') {
-        return res.status(200).json(genericEditorReviewFormResponsekef);
-      } else if (framework == 'shikshagraha-framework' || framework == 'oblf-framework') {
+      } else if (framework == 'KEF-framework') {
         return res.status(200).json(genericEditorReviewFormResponseshiksha);
+      } else if (
+        framework == 'shikshalokam-framework' ||
+        'shikshagraha-framework' ||
+        'Colab-framework' ||
+        'oblf-framework'
+      ) {
+        return res.status(200).json(genericEditorReviewFormResponseshiksha);
+      } else if (framework == 'swadhaar-fw') {
+        return res.status(200).json(genericEditorReviewFormResponseswadhaar);
       }
       // Default response if the framework doesn't match the specified values
-      return res.status(200).json(genericEditorReviewFormResponseshiksha);
+      return res.status(200).json(genericEditorReviewFormResponse);
     }
 
     if (action === 'requestforchanges' && subType === 'resource') {
@@ -73,22 +79,7 @@ export default async function handler(
     if (action === 'publish' && subType === 'resource' && type === 'content') {
       return res.status(200).json(publishResourceFormResponse);
     }
-    if (
-      action === 'question-filter-view' &&
-      subType === 'questions' &&
-      type === 'content'
-    ) {
-      return res.status(200).json(contentEditorQuestionFormResponse);
-    }
-    if (
-      action === 'question-meta-save' &&
-      subType === 'questions' &&
-      type === 'content'
-    ) {
-      return res.status(200).json(contentEditorQuestionMetaFormResponse);
-    }
   }
-
   if (pathString === '/action/lock/v1/create') {
     return res.status(200).json(creatLockResponse);
   }
