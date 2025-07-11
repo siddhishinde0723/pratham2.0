@@ -665,7 +665,7 @@ const LoginPage = () => {
                 inputRef={passwordRef}
               />
 
-              <Box
+              {/* <Box
                 sx={{
                   fontSize: '14px',
                   fontWeight: '500',
@@ -681,8 +681,8 @@ const LoginPage = () => {
                 }}
               >
                 {t('LOGIN_PAGE.FORGOT_PASSWORD')}
-              </Box>
-              {
+              </Box> */}
+              {/* {
                 <Box
                   display="flex"
                   alignItems="center"
@@ -714,7 +714,7 @@ const LoginPage = () => {
                     {t('LOGIN_PAGE.REMEMBER_ME')}
                   </Typography>
                 </Box>
-              }
+              } */}
 
               <Box marginTop="2rem" textAlign="center">
                 <Button
