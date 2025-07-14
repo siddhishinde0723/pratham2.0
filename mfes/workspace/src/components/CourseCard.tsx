@@ -44,6 +44,7 @@ const CourseCard: React.FC<ContentCardProps> = ({
 
   const onContentClick = () => {
     console.log('onContentClick ');
+    console.log('mimeType 47', mimeType);
     if (mimeType === MIME_TYPE.QUESTIONSET_MIME_TYPE) {
       router.push({ pathname: `/editor`, query: { identifier, mode } });
     } else if (

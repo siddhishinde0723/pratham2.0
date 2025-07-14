@@ -134,8 +134,7 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
           });
     } else if (
       content?.mimeType &&
-      (MIME_TYPE.GENERIC_MIME_TYPE.includes(content?.mimeType) ||
-        content?.mimeType == MIME_TYPE.ECML_MIME_TYPE)
+      MIME_TYPE.GENERIC_MIME_TYPE.includes(content?.mimeType)
     ) {
       localStorage.setItem('contentCreatedBy', content?.createdBy);
       console.log(content);
@@ -144,6 +143,18 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
           ? `/workspace/content/review`
           : `/upload-editor`;
       router.push({ pathname, query: { identifier } });
+    } else if (
+      content?.mimeType &&
+      MIME_TYPE.ECML_MIME_TYPE.includes(content?.mimeType)
+    ) {
+      localStorage.setItem('contentCreatedBy', content?.createdBy);
+      console.log(content);
+      const pathname =
+        tableTitle === 'upForReview'
+          ? `/workspace/content/review`
+          : `/resource-editor`;
+      router.push({ pathname, query: { identifier } });
+      // router.push({ pathname: `/resource-editor`, query: { identifier } });
     } else if (
       content?.mimeType &&
       MIME_TYPE.COLLECTION_MIME_TYPE.includes(content?.mimeType)
