@@ -4,7 +4,7 @@ import {
   creatLockResponse,
   genericEditorReviewFormResponseatree,
   genericEditorReviewFormResponsekef,
-  genericEditorReviewFormResponse,
+  // genericEditorReviewFormResponse,
   genericEditorRequestForChangesFormResponse,
   publishResourceFormResponse,
   genericEditorReviewFormResponseshiksha,
@@ -53,19 +53,28 @@ export default async function handler(
     if (action === 'review' && subType === 'resource') {
       const framework = tenantConfig?.CONTENT_FRAMEWORK;
       console.log('framework ==>', framework);
-      if (framework == 'atree-framework') {
-        return res.status(200).json(genericEditorReviewFormResponseatree);
-      } else if (framework == 'KEF-framework' || 'shikshagraha-framework') {
-        return res.status(200).json(genericEditorReviewFormResponsekef);
-      } else if (framework == 'Colab-framework' || 'oblf-framework') {
-        return res.status(200).json(genericEditorReviewFormResponseshiksha);
-      } else if (framework == 'shikshalokam-framework') {
-        return res.status(200).json(genericEditorReviewFormResponseshiksha);
-      } else if (framework == 'swadhaar-fw') {
-        return res.status(200).json(genericEditorReviewFormResponseswadhaar);
+
+      switch (framework) {
+        case 'atree-framework':
+          return res.status(200).json(genericEditorReviewFormResponseatree);
+
+        case 'KEF-framework':
+        case 'shikshagraha-framework':
+          return res.status(200).json(genericEditorReviewFormResponsekef);
+
+        case 'Colab-framework':
+        case 'oblf-framework':
+          return res.status(200).json(genericEditorReviewFormResponseshiksha);
+
+        case 'swadhaar-fw':
+          return res.status(200).json(genericEditorReviewFormResponseswadhaar);
+
+        // case 'shikshalokam-framework':
+        //   return res.status(200).json(genericEditorReviewFormResponseshiksha);
+
+        default:
+          return res.status(200).json(genericEditorReviewFormResponseshiksha);
       }
-      // Default response if the framework doesn't match the specified values
-      return res.status(200).json(genericEditorReviewFormResponseshiksha);
     }
 
     if (action === 'requestforchanges' && subType === 'resource') {
