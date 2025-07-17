@@ -47,6 +47,16 @@ export const mockData: Record<string, any> = {
     CONTENT_FRAMEWORK: 'shikshagraha-framework',
     COLLECTION_FRAMEWORK: 'shikshagraha-framework',
   },
+  '49db8074-ec4a-4d36-a542-8365a815c288': {
+    CHANNEL_ID: 'shikshagrahanew-channel',
+    CONTENT_FRAMEWORK: 'shikshagrahanew-framework',
+    COLLECTION_FRAMEWORK: 'shikshagrahanew-framework',
+  },
+  '20ed10cc-3e63-4225-89f8-705560f1d418': {
+    CHANNEL_ID: 'twp',
+    CONTENT_FRAMEWORK: 'twp-framework',
+    COLLECTION_FRAMEWORK: 'twp-framework',
+  },
 };
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
