@@ -57,11 +57,9 @@ export default async function handler(
         return res.status(200).json(genericEditorReviewFormResponseatree);
       } else if (framework == 'KEF-framework' || 'shikshagraha-framework') {
         return res.status(200).json(genericEditorReviewFormResponsekef);
-      } else if (
-        framework == 'Colab-framework' ||
-        'oblf-framework' ||
-        'shikshalokam-framework'
-      ) {
+      } else if (framework == 'Colab-framework' || 'oblf-framework') {
+        return res.status(200).json(genericEditorReviewFormResponseshiksha);
+      } else if (framework == 'shikshalokam-framework') {
         return res.status(200).json(genericEditorReviewFormResponseshiksha);
       } else if (framework == 'swadhaar-fw') {
         return res.status(200).json(genericEditorReviewFormResponseswadhaar);
