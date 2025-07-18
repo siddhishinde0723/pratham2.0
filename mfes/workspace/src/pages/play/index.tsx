@@ -49,7 +49,32 @@ const ReviewContentSubmissions = () => {
     }
   }, [tenantConfig?.CHANNEL_ID, identifier]);
 
-  return <V1Player playerConfig={V1PlayerConfig} />;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: '1rem',
+        backgroundColor: '#f9f9f9',
+        minHeight: '100vh',
+        boxSizing: 'border-box',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: '1000px',
+          backgroundColor: '#fff',
+          borderRadius: '8px',
+          boxShadow: '0 2px 12px rgba(0, 0, 0, 0.1)',
+          overflow: 'hidden',
+        }}
+      >
+        <V1Player playerConfig={V1PlayerConfig} />{' '}
+      </div>
+    </div>
+  );
 };
 
 export default ReviewContentSubmissions;

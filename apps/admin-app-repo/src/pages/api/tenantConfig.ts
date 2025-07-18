@@ -47,6 +47,11 @@ export const mockData: Record<string, any> = {
     CONTENT_FRAMEWORK: 'shikshagraha-framework',
     COLLECTION_FRAMEWORK: 'shikshagraha-framework',
   },
+  '87f15a01-7a03-4ff3-9943-20f5875b4791': {
+    CHANNEL_ID: 'badal',
+    CONTENT_FRAMEWORK: 'badal-framework',
+    COLLECTION_FRAMEWORK: 'badal-framework',
+  },
 };
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {

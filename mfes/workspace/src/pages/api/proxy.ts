@@ -9,6 +9,7 @@ import {
   publishResourceFormResponse,
   genericEditorReviewFormResponseshiksha,
   genericEditorReviewFormResponseswadhaar,
+  genericEditorReviewFormResponsebadal,
 } from './mocked-response';
 import { getCookie } from '@workspace/utils/cookieHelper';
 import { mockData } from './tenantConfig';
@@ -55,22 +56,29 @@ export default async function handler(
     if (action === 'review' && subType === 'resource') {
       const framework = tenantConfig?.CONTENT_FRAMEWORK;
       console.log('framework ==>', framework);
-      if (framework == 'atree-framework') {
-        return res.status(200).json(genericEditorReviewFormResponseatree);
-      } else if (framework == 'KEF-framework') {
-        return res.status(200).json(genericEditorReviewFormResponseshiksha);
-      } else if (
-        framework == 'shikshalokam-framework' ||
-        'shikshagraha-framework' ||
-        'Colab-framework' ||
-        'oblf-framework'
-      ) {
-        return res.status(200).json(genericEditorReviewFormResponseshiksha);
-      } else if (framework == 'swadhaar-fw') {
-        return res.status(200).json(genericEditorReviewFormResponseswadhaar);
+
+      switch (framework) {
+        case 'atree-framework':
+          return res.status(200).json(genericEditorReviewFormResponseatree);
+
+        case 'KEF-framework':
+          return res.status(200).json(genericEditorReviewFormResponseshiksha);
+
+        case 'shikshalokam-framework':
+        case 'shikshagraha-framework':
+        case 'Colab-framework':
+        case 'oblf-framework':
+          return res.status(200).json(genericEditorReviewFormResponseshiksha);
+
+        case 'badal-framework':
+          return res.status(200).json(genericEditorReviewFormResponsebadal);
+
+        case 'swadhaar-fw':
+          return res.status(200).json(genericEditorReviewFormResponseswadhaar);
+
+        default:
+          return res.status(200).json(genericEditorReviewFormResponse);
       }
-      // Default response if the framework doesn't match the specified values
-      return res.status(200).json(genericEditorReviewFormResponse);
     }
 
     if (action === 'requestforchanges' && subType === 'resource') {

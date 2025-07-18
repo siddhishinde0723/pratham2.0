@@ -1,5 +1,5 @@
 import { getTelemetryEvents } from '@workspace/utils/Helper';
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
 interface PlayerProps {
   playerConfig: any;
@@ -7,6 +7,19 @@ interface PlayerProps {
 
 const V1Player = ({ playerConfig }: PlayerProps) => {
   const previewRef = useRef<HTMLIFrameElement | null>(null);
+  const [isLandscape, setIsLandscape] = useState(false);
+
+  // Detect orientation
+  const handleResize = () => {
+    const landscape = window.innerWidth > window.innerHeight;
+    setIsLandscape(landscape);
+  };
+
+  useEffect(() => {
+    handleResize(); // Initial check
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const preview: any = previewRef.current;
@@ -31,6 +44,7 @@ const V1Player = ({ playerConfig }: PlayerProps) => {
             }
             preview.contentWindow.initializePreview(playerConfig);
           }
+
           preview.contentWindow.addEventListener('message', (event: any) => {
             console.log('V1 player event', event);
           });
@@ -52,12 +66,6 @@ const V1Player = ({ playerConfig }: PlayerProps) => {
 
       return () => {
         preview.removeEventListener('load', handleLoad);
-
-        // Reset iframe to prevent residual styles or memory leaks
-        // Commenting below code - Content Preview is only work due to below code
-        // if (preview) {
-        //   preview.src = "";
-        // }
       };
     }
   }, [playerConfig]);
@@ -66,9 +74,14 @@ const V1Player = ({ playerConfig }: PlayerProps) => {
     <div
       style={{
         width: '100%',
+        height: isLandscape ? '100vh' : 'auto',
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
+        overflow: 'hidden',
+        padding: isLandscape ? 0 : '1rem',
+        backgroundColor: '#f9f9f9',
+        boxSizing: 'border-box',
       }}
     >
       <iframe
@@ -77,7 +90,11 @@ const V1Player = ({ playerConfig }: PlayerProps) => {
         title="Content Player"
         src="/content/preview/preview.html?webview=true"
         aria-label="Content Player"
-        style={{ width: '100%', height: '600px', border: 'none' }}
+        style={{
+          width: '100%',
+          height: isLandscape ? '100vh' : '600px',
+          border: 'none',
+        }}
       ></iframe>
     </div>
   );
