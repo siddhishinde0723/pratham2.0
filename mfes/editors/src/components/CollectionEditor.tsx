@@ -214,7 +214,7 @@ const CollectionEditor: React.FC = () => {
           'https://cdn.jsdelivr.net/npm/@project-sunbird/sunbird-epub-player-web-component@1.4.0/styles.css';
         document.head.appendChild(epubLink);
       }
-      
+
       const videoScript = document.createElement('script');
       console.log('Video Player loaded');
       videoScript.id = 'sunbird-video-player.js';
@@ -265,21 +265,21 @@ const CollectionEditor: React.FC = () => {
           ) {
             if (event.detail?.action === 'submitContent') {
               console.log('collection');
-
-              sendReviewNotification({
-                contentId: identifier,
-                creator: getLocalStoredUserName(),
-              })
-                .then(() => {
-                  window.history.back();
-                })
-                .catch((error) => {
-                  console.error('Error in sendReviewNotification:', error);
-                });
+              window.history.back();
+              // sendReviewNotification({
+              //   contentId: identifier,
+              //   creator: getLocalStoredUserName(),
+              // })
+              //   .then(() => {
+              //     window.history.back();
+              //   })
+              //   .catch((error) => {
+              //     console.error('Error in sendReviewNotification:', error);
+              //   });
             } else if (event.detail?.action === 'publishContent') {
-              sendContentPublishNotification();
+              // sendContentPublishNotification();
             } else if (event.detail?.action === 'rejectContent') {
-              sendContentRejectNotification();
+              // sendContentRejectNotification();
             } else {
               window.history.back();
             }

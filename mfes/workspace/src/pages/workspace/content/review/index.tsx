@@ -148,7 +148,7 @@ const ReviewContentSubmissions = () => {
 
       if (getLocalStoredUserRole() === Role.CCTA) {
         setPublishOpenToast(true)
-        sendContentPublishNotification()
+        // sendContentPublishNotification()
 
 
       }
@@ -173,7 +173,7 @@ const ReviewContentSubmissions = () => {
       setOpenCommentPopup(false);
       if (getLocalStoredUserRole() === Role.CCTA) {
         setRequestOpenToast(true)
-        sendContentRejectNotification(comment)
+        // sendContentRejectNotification(comment)
 
       }
       else

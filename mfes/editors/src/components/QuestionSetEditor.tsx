@@ -220,17 +220,17 @@ const QuestionSetEditor: React.FC = () => {
           ) {
             if (event.detail?.action === "submitContent") {
               console.log("collection");
-            
-              sendReviewNotification({
-                contentId: identifier,
-                creator: getLocalStoredUserName(),
-              })
-                .then(() => {
-                  window.history.back(); 
-                })
-                .catch((error) => {
-                  console.error("Error in sendReviewNotification:", error);
-                });
+             window.history.back(); 
+              // sendReviewNotification({
+              //   contentId: identifier,
+              //   creator: getLocalStoredUserName(),
+              // })
+              //   .then(() => {
+              //     window.history.back(); 
+              //   })
+              //   .catch((error) => {
+              //     console.error("Error in sendReviewNotification:", error);
+              //   });
             } 
             else if (event.detail?.action === "publishContent")
             {
