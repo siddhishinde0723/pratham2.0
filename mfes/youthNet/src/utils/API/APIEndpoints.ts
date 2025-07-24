@@ -4,7 +4,7 @@ const API_ENDPOINTS = {
   userRead: (userId: string | string[]) => `${baseurl}/user/read/${userId}`,
   userUpdate: (userId: string | string[]) => `${baseurl}/user/update/${userId}`,
   userAuth: `${baseurl}/user/v1/auth`,
-  notificationSend: `${baseurl}/notification/send`,
+  notificationSend: `${baseurl}/notification`,
   userReadWithField: (userId: string | string[]) => `${baseurl}/user/v1/read/${userId}?fieldvalue=true`,
   academicYearsList: `${baseurl}/user/v1/academicyears/list`,
   userList: `${baseurl}/user/list`,

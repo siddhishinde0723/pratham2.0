@@ -17,7 +17,7 @@ export const API_ENDPOINTS = {
   fieldOptionDelete: (type: string, option: string) => `${baseurl}/fields/options/delete/${type}?option=${option}`,
   fieldUpdate: (fieldId: string) => `${baseurl}/fields/update/${fieldId}`,
   cohortUpdate: (cohortId: string) => `${baseurl}/cohort/update/${cohortId}`,
-  notificationSend: `${baseurl}/notification/send`,
+  notificationSend: `${baseurl}/notification`,
   tenantRead: `${baseurl}/tenant/read`,
   tenantCreate: `${baseurl}/tenant/create`,
   tenantUpdate: (tenantId: string) => `${baseurl}/tenant/update/${tenantId}`,

@@ -25,7 +25,7 @@ export const sendCredentialService = async ({
 }: SendCredentialsRequest): Promise<any> => {
   console.log("sendcred");
 
-  const apiUrl: string = `${process.env.NEXT_PUBLIC_MIDDLEWARE_URL}/notification/send`;
+  const apiUrl: string = `${process.env.NEXT_PUBLIC_MIDDLEWARE_URL}/notification`;
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${getLocalStoredToken()}`,
