@@ -1,58 +1,58 @@
-import {
-  getLocalStoredUserId,
-  getLocalStoredUserRole,
-} from './LocalStorageService';
-import { delApi, get, post } from './RestClient';
-import { MIME_TYPE } from '@workspace/utils/app.config';
+import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
-import { PrimaryCategoryValue, Role } from '@workspace/utils/app.constant';
-const userId = getLocalStoredUserId();
-console.log('userId ==>', userId);
+import mime from 'mime-types';
+import { getLocalStoredUserId } from './LocalStorageService';
 
-export const getPrimaryCategory = async (channelId: any) => {
-  const apiURL = `/api/channel/v1/read/${channelId}`;
+const userId = getLocalStoredUserId();
+
+interface ContentRecord {
+  cont_title?: string;
+  cont_description?: string;
+  language?: string;
+  resourse_type?: string;
+  author?: string;
+  publisher?: string;
+  year?: string;
+  cont_url?: string;
+  cont_dwurl?: string;
+  access?: string;
+  image?: string;
+  thumbnail?: string;
+  domain?: string;
+  sub_domain?: string;
+  content_language?: string;
+  primary_user?: string;
+  target_age_group?: string;
+  program?: string;
+  subjects?: string;
+  topic?: string;
+  sub_category?: string;
+  cont_tagwords?: string;
+  old_system_content_id?: string;
+  convertedUrl?: string;
+}
+
+export const getPrimaryCategory = async (channelId: string) => {
   try {
-    const response = await get(apiURL);
+    const response = await axios.get(`/api/channel/v1/read/${channelId}`);
     return response?.data?.result;
+  } catch (e) {
+    console.error('getPrimaryCategory error:', e);
+    return undefined;
+  }
+};
+
+export const getFrameworkDetails = async (frameworkId: string) => {
+  try {
+    const response = await axios.get(`/api/framework/v1/read/${frameworkId}`);
+    return response?.data;
   } catch (error) {
+    console.error('Error in getting Framework Details', error);
     throw error;
   }
 };
 
-// const PrimaryCategoryData = async () => {
-//   const response = await getPrimaryCategory();
-//   const collectionPrimaryCategories =
-//     response?.channel?.collectionPrimaryCategories;
-//   const contentPrimaryCategories = response?.channel?.contentPrimaryCategories;
-
-//   const PrimaryCategory = [
-//     ...collectionPrimaryCategories,
-//     ...contentPrimaryCategories,
-//   ];
-//   return PrimaryCategory;
-// };
-
-const defaultReqBody = {
-  request: {
-    filters: {
-      createdBy: userId,
-    },
-    sort_by: {
-      lastUpdatedOn: 'desc',
-    },
-  },
-};
-const upForReviewReqBody = {
-  request: {
-    filters: {
-      //  createdBy: { userId},
-    },
-    sort_by: {
-      lastUpdatedOn: 'desc',
-    },
-  },
-};
-const getReqBodyWithStatus = (
+export const getReqBodyWithStatus = (
   status: string[],
   query: string,
   limit: number,
@@ -63,84 +63,26 @@ const getReqBodyWithStatus = (
   contentType?: string,
   state?: string
 ) => {
-  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-    var PrimaryCategory =
-      JSON.parse(localStorage.getItem('PrimaryCategory') as string) ||
-      PrimaryCategoryValue;
-  }
-  primaryCategory =
-    primaryCategory.length === 0 ? PrimaryCategory : primaryCategory;
+  const filters: any = {
+    status,
+    primaryCategory,
+    channel: [channel],
+    ...(contentType ? { contentType: [contentType] } : {}),
+    ...(state ? { state: [state] } : {}),
+  };
+
+  // CreatedBy behavior to support My/Discover/UpForReview screens
   if (contentType === 'discover-contents') {
-    const userRole = getLocalStoredUserRole();
-
-    if (state) {
-      return {
-        ...upForReviewReqBody,
-        request: {
-          ...upForReviewReqBody.request,
-          filters: {
-            ...upForReviewReqBody.request.filters,
-            status,
-            primaryCategory,
-            createdBy: { '!=': getLocalStoredUserId() },
-            state: state,
-          },
-
-          query,
-          limit,
-          offset,
-          sort_by,
-        },
-      };
-    }
-
-    return {
-      ...upForReviewReqBody,
-      request: {
-        ...upForReviewReqBody.request,
-        filters: {
-          ...upForReviewReqBody.request.filters,
-          status,
-          primaryCategory,
-          createdBy: { '!=': getLocalStoredUserId() },
-          channel: channel,
-        },
-
-        query,
-        limit,
-        offset,
-        sort_by,
-      },
-    };
+    filters.createdBy = { '!=': userId };
   } else if (contentType === 'upReview') {
-    return {
-      ...upForReviewReqBody,
-      request: {
-        ...upForReviewReqBody.request,
-        filters: {
-          ...upForReviewReqBody.request.filters,
-          status,
-          primaryCategory,
-          channel: channel,
-        },
-        query,
-        limit,
-        offset,
-        sort_by,
-      },
-    };
+    // no createdBy filter
+  } else {
+    filters.createdBy = userId;
   }
 
   return {
-    ...defaultReqBody,
     request: {
-      ...defaultReqBody.request,
-      filters: {
-        ...defaultReqBody.request.filters,
-        status,
-        primaryCategory,
-        channel: channel,
-      },
+      filters,
       query,
       limit,
       offset,
@@ -154,9 +96,9 @@ export const getContent = async (
   query: string,
   limit: number,
   offset: number,
-  primaryCategory: string[],
+  primaryCategory: any,
   sort_by: any,
-  channel: any,
+  channel: string,
   contentType?: string,
   state?: string
 ) => {
@@ -173,216 +115,549 @@ export const getContent = async (
       contentType,
       state
     );
-    const response = await post(apiURL, reqBody);
+    const response = await axios.post(apiURL, reqBody);
     return response?.data?.result;
   } catch (error) {
-    throw error;
-  }
-};
-export const createResourceContent = async (
-  userId: any,
-  contentType: string,
-  channelId: any,
-  contentFW: any
-) => {
-  const apiURL = `/action/content/v3/create`;
-
-  const reqBody = {
-    request: {
-      content: {
-        code: '123456', // Generate a unique ID for 'code'
-        name: 'Untitled Resource',
-        createdBy: userId,
-        createdFor: [channelId],
-        mimeType: MIME_TYPE.ECML_MIME_TYPE,
-        resourceType: 'Learn',
-        contentType: contentType,
-        framework: contentFW,
-        ...(contentType !== 'SelfAssess' && {
-          primaryCategory: 'Learning Resource',
-        }),
-      },
-    },
-  };
-
-  try {
-    const response = await post(apiURL, reqBody);
-    return response?.data;
-  } catch (error) {
-    console.error('Error creating Resource:', error);
-    throw error;
-  }
-};
-export const createQuestionSet = async (frameworkId: any) => {
-  const apiURL = `/action/questionset/v2/create`;
-  const reqBody = {
-    request: {
-      questionset: {
-        name: 'Untitled QuestionSet',
-        mimeType: 'application/vnd.sunbird.questionset',
-        primaryCategory: 'Practice Question Set',
-        code: uuidv4(),
-        createdBy: userId,
-        framework: frameworkId,
-      },
-    },
-  };
-
-  try {
-    const response = await post(apiURL, reqBody);
-    return response?.data;
-  } catch (error) {
+    console.error('Error fetching content:', error);
     throw error;
   }
 };
 
-export const deleteContent = async (identifier: string, mimeType: string) => {
-  const questionsetRetireURL = `/action/questionset/v2/retire/${identifier}`;
-  const contentRetireURL = `/action/content/v3/retire/${identifier}`;
-  let apiURL = '';
-  if (mimeType === MIME_TYPE.QUESTIONSET_MIME_TYPE) {
-    apiURL = questionsetRetireURL;
-  } else if (
-    mimeType !== MIME_TYPE.QUESTIONSET_MIME_TYPE
-    // mimeType !== MIME_TYPE.COLLECTION_MIME_TYPE
+export class ContentService {
+  private readonly middlewareUrl: string;
+  private readonly framework: string;
+  private readonly tenantId: string;
+  private readonly channelId: string;
+  private readonly imageBaseUrl: string;
+  private readonly awsBucketName?: string;
+  private readonly awsRegion?: string;
+
+  constructor() {
+    this.middlewareUrl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL || '';
+    this.framework = process.env.NEXT_PUBLIC_FRAMEWORK || 'atree-framework';
+    this.tenantId =
+      process.env.NEXT_PUBLIC_TENANT_ID ||
+      '3a849655-30f6-4c2b-8707-315f1ed64fbd';
+    this.channelId = process.env.NEXT_PUBLIC_CHANNEL_ID || 'atree-channel';
+    this.imageBaseUrl = 'https://atreefrontend.s3.ap-south-1.amazonaws.com';
+    this.awsBucketName = process.env.NEXT_PUBLIC_AWS_BUCKET_NAME;
+    this.awsRegion = process.env.NEXT_PUBLIC_AWS_REGION;
+  }
+
+  private isApiSuccess(data: any): boolean {
+    try {
+      if (typeof data === 'string') {
+        data = JSON.parse(data);
+      }
+      return (
+        data?.success === true ||
+        data?.responseCode === 'OK' ||
+        data?.params?.status === 'successful'
+      );
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  private toArray(value: string | undefined): string[] {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    return value
+      .split(',')
+      .map((item) => item.trim())
+      .filter((item) => item !== '');
+  }
+
+  private validateMimeType(mimeType: string): boolean {
+    const allowedMimeTypes = [
+      'application/vnd.ekstep.ecml-archive',
+      'application/vnd.ekstep.html-archive',
+      'application/vnd.android.package-archive',
+      'application/vnd.ekstep.content-archive',
+      'application/vnd.ekstep.content-collection',
+      'application/vnd.ekstep.plugin-archive',
+      'application/vnd.ekstep.h5p-archive',
+      'application/epub',
+      'text/x-url',
+      'video/x-youtube',
+      'application/octet-stream',
+      'application/msword',
+      'application/pdf',
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/tiff',
+      'image/bmp',
+      'image/gif',
+      'image/svg+xml',
+      'video/avi',
+      'video/mpeg',
+      'video/quicktime',
+      'video/3gpp',
+      'video/mp4',
+      'video/ogg',
+      'video/webm',
+      'audio/mp3',
+      'audio/mp4',
+      'audio/mpeg',
+      'audio/ogg',
+      'audio/webm',
+      'audio/x-wav',
+      'audio/wav',
+      'application/json',
+      'application/quiz',
+    ];
+    return allowedMimeTypes.includes(mimeType);
+  }
+
+  private async validateFileUrl(
+    fileUrl: string,
+    record: ContentRecord
+  ): Promise<boolean> {
+    const SUPPORTED_FILE_TYPES = ['pdf', 'mp4', 'zip', 'mp3', 'html'];
+    const isYouTubeUrl =
+      /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//.test(fileUrl);
+    const isGoogleDriveUrl = /drive\.google\.com\/file\/d\/([^/]+)\//.test(
+      fileUrl
+    );
+
+    if (isYouTubeUrl) {
+      console.log(`Skipping file existence check for YouTube URL: ${fileUrl}`);
+      return true;
+    }
+
+    if (isGoogleDriveUrl) {
+      console.log(
+        `Skipping file existence check for Google Drive URL: ${fileUrl}`
+      );
+      return true;
+    }
+
+    const ext = fileUrl.split('.').pop()?.toLowerCase();
+
+    try {
+      // Try HEAD request first
+      const response = await axios.head(fileUrl, { timeout: 15000 });
+
+      if (response.status !== 200) {
+        throw new Error(`Unexpected status code: ${response.status}`);
+      }
+
+      const mimeType = response.headers['content-type'];
+      console.log(`File exists: ${fileUrl} (MIME: ${mimeType}, EXT: ${ext})`);
+
+      if (ext && !SUPPORTED_FILE_TYPES.includes(ext)) {
+        throw new Error(`Unsupported file type: ${ext} for URL: ${fileUrl}`);
+      }
+
+      return true;
+    } catch (error) {
+      console.warn(`File validation failed for ${fileUrl}:`, error);
+      return false;
+    }
+  }
+
+  private convertGoogleDriveUrl(url: string): string {
+    const patterns = [/\/file\/d\/([^/]+)/, /id=([^&]+)/, /\/open\?id=([^&]+)/];
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match && match[1]) {
+        return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+      }
+    }
+    return url;
+  }
+
+  private getHeaders(userToken: string) {
+    return {
+      Authorization: `Bearer ${userToken}`,
+      tenantId: this.tenantId,
+      'X-Channel-Id': this.channelId,
+      'Content-Type': 'application/json',
+    };
+  }
+
+  private async retryRequest<T>(
+    fn: () => Promise<T>,
+    retries = 3,
+    delayMs = 2000,
+    label = 'API'
+  ): Promise<T> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const result = await fn();
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`⚠️ ${label} attempt ${attempt} failed: ${message}`);
+        if (attempt < retries) {
+          await new Promise((res) => setTimeout(res, delayMs));
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw new Error(`${label} failed after ${retries} retries`);
+  }
+
+  async processContent(
+    record: ContentRecord,
+    userId: string,
+    userToken: string
+  ): Promise<string | undefined> {
+    try {
+      console.log('Processing content record:', record);
+      const title = record.cont_title;
+      const fileDownloadURL = record.cont_dwurl || '';
+      const isMediaFile = fileDownloadURL.match(/\.(m4a|m4v)$/i);
+      const fileUrl = isMediaFile
+        ? record.convertedUrl || fileDownloadURL
+        : fileDownloadURL;
+
+      const primaryCategory = 'Learning Resource';
+
+      if (!title || !fileUrl) {
+        throw new Error('Title or file URL is missing');
+      }
+
+      const isValidFile = await this.validateFileUrl(fileUrl, record);
+      if (!isValidFile) {
+        throw new Error('Invalid file URL');
+      }
+
+      // Create and upload content
+      const createdContent = await this.createAndUploadContent(
+        record,
+        title,
+        userId,
+        fileUrl,
+        primaryCategory,
+        userToken
+      );
+
+      if (!createdContent) {
+        throw new Error('Failed to create content');
+      }
+
+      console.log('Content created successfully:', createdContent.doId);
+
+      // Upload media
+      const uploadedContent = await this.uploadContent(
+        createdContent.doId,
+        createdContent.fileUrl,
+        userToken
+      );
+      console.log('Uploaded Content:', uploadedContent);
+
+      // Review content
+      const reviewedContent = await this.reviewContent(
+        createdContent.doId,
+        userToken
+      );
+      console.log('Reviewed Content:', reviewedContent);
+
+      // Publish content
+      const publishedContent = await this.publishContent(
+        createdContent.doId,
+        userToken
+      );
+      console.log('Published Content:', publishedContent);
+
+      return createdContent.doId;
+    } catch (error) {
+      console.error('Error processing content:', error);
+      throw error;
+    }
+  }
+
+  private async createAndUploadContent(
+    record: ContentRecord,
+    title: string,
+    userId: string,
+    documentUrl: string,
+    primaryCategory: string,
+    userToken: string
+  ): Promise<
+    { doId: string; versionKey: string; fileUrl: string } | undefined
+  > {
+    try {
+      const YOUTUBE_URL_REGEX =
+        /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+$/;
+      const isYouTubeURL = YOUTUBE_URL_REGEX.test(documentUrl);
+      const uniqueCode = uuidv4();
+      let fileUrl: string = documentUrl;
+
+      // Prepare additional fields
+      const additionalFields = {
+        description: record.cont_description || '',
+        domain: this.toArray(record.domain),
+        primaryUser: this.toArray(record.primary_user),
+        program: this.toArray(record.program),
+        subDomain: this.toArray(record.sub_domain),
+        targetAgeGroup: this.toArray(record.target_age_group),
+        contentLanguage: record.content_language || '',
+        isContentMigrated: 1,
+        oldSystemContentId: record.old_system_content_id || '',
+        contentType: 'Resource',
+        subject: this.toArray(record.subjects),
+        topic: this.toArray(record.topic),
+        subTopic: this.toArray(record.sub_category),
+        keywords: this.toArray(record.cont_tagwords),
+        author: record.author || '',
+        name: record.cont_title || '',
+        url: record.cont_url || '',
+        language: this.toArray(record.language),
+        resource: record.resourse_type || '',
+        access: record.access || '',
+        publisher: record.publisher || '',
+        year: record.year || '',
+        posterImage: record.thumbnail
+          ? `${this.imageBaseUrl}/thumbnail/${record.thumbnail}`
+          : '',
+        appicon: record.image
+          ? `${this.imageBaseUrl}/detail/${record.image}`
+          : '',
+      };
+
+      // Handle Google Drive URLs
+      let fileExtension = '';
+      const googleDriveMatch = documentUrl.match(
+        /drive\.google\.com\/file\/d\/([^/?]+)/
+      );
+      const googleDriveDownloadMatch = documentUrl.match(
+        /drive\.google\.com\/uc\?export=download&id=([^&]+)/
+      );
+      let fileId: string | null = null;
+
+      if (googleDriveMatch) fileId = googleDriveMatch[1];
+      else if (googleDriveDownloadMatch) fileId = googleDriveDownloadMatch[1];
+
+      if (fileId) {
+        try {
+          const apiKey = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY;
+          if (!apiKey) {
+            throw new Error('Google Drive API key is missing');
+          }
+
+          // Use the download URL directly instead of API
+          fileUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+          console.log('Using Google Drive download URL:', fileUrl);
+        } catch (err) {
+          console.warn('Google Drive API failed, using direct download URL');
+          fileUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+        }
+      }
+
+      // Determine file extension from URL
+      try {
+        const url = new URL(documentUrl);
+        fileExtension = url.pathname.split('.').pop()?.toLowerCase() || '';
+      } catch (e) {
+        console.warn('Could not parse URL for file extension');
+      }
+
+      // Determine MIME type
+      let mimeType = isYouTubeURL
+        ? 'video/x-youtube'
+        : fileExtension === 'zip'
+        ? 'application/vnd.ekstep.html-archive'
+        : mime.lookup(fileExtension) || 'application/octet-stream';
+
+      if (!this.validateMimeType(mimeType)) {
+        throw new Error(`MIME type ${mimeType} is not supported`);
+      }
+
+      // Create content payload
+      const payload = {
+        request: {
+          content: {
+            code: uniqueCode,
+            mimeType,
+            primaryCategory,
+            framework: this.framework,
+            createdBy: userId,
+            ...additionalFields,
+          },
+        },
+      };
+
+      // Create content
+      const createResponse = await this.retryRequest(
+        () =>
+          axios.post(`/action/content/v3/create`, payload, {
+            headers: this.getHeaders(userToken),
+          }),
+        3,
+        2000,
+        'Create Content'
+      );
+
+      if (!createResponse.data?.result) {
+        throw new Error('Invalid response format from content creation API');
+      }
+
+      const { identifier: doId, versionKey } = createResponse.data.result;
+
+      return { doId, versionKey, fileUrl };
+    } catch (error) {
+      console.error('Error in createAndUploadContent:', error);
+      throw error;
+    }
+  }
+
+  private async uploadContent(
+    contentId: string,
+    fileUrl: string,
+    userToken: string
   ) {
-    apiURL = contentRetireURL;
+    try {
+      const isYouTubeURL =
+        /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//.test(fileUrl);
+      const isGoogleDriveURL = /drive\.google\.com/.test(fileUrl);
+
+      if (isYouTubeURL || isGoogleDriveURL) {
+        // For YouTube or Google Drive, update artifactUrl directly (requires versionKey)
+        const readResponse = await this.retryRequest(
+          () =>
+            axios.get(`/action/content/v3/read/${contentId}`, {
+              headers: this.getHeaders(userToken),
+            }),
+          3,
+          2000,
+          'Read Content Before Update'
+        );
+        const currentVersionKey =
+          readResponse?.data?.result?.content?.versionKey || '';
+        const updateResponse = await this.retryRequest(
+          () =>
+            axios.patch(
+              `/action/content/v3/update/${contentId}`,
+              {
+                request: {
+                  content: {
+                    versionKey: currentVersionKey,
+                    artifactUrl: fileUrl,
+                  },
+                },
+              },
+              {
+                headers: {
+                  ...this.getHeaders(userToken),
+                  'Content-Type': 'application/json',
+                },
+              }
+            ),
+          3,
+          2000,
+          'Update Artifact URL'
+        );
+        return updateResponse.data;
+      }
+
+      // For regular files, use FormData upload
+      const formData = new FormData();
+      formData.append('fileUrl', fileUrl);
+
+      const fileExtension =
+        new URL(fileUrl).pathname.split('.').pop()?.toLowerCase() || '';
+      const mimeType =
+        fileExtension === 'zip'
+          ? 'application/vnd.ekstep.html-archive'
+          : mime.lookup(fileExtension) || 'application/octet-stream';
+
+      formData.append('mimeType', mimeType);
+
+      const uploadResponse = await this.retryRequest(
+        () =>
+          axios.post(`/action/content/v3/upload/${contentId}`, formData, {
+            headers: {
+              ...this.getHeaders(userToken),
+              'Content-Type': 'multipart/form-data',
+            },
+          }),
+        3,
+        2000,
+        'Upload Content'
+      );
+
+      return uploadResponse.data;
+    } catch (error) {
+      console.error('Error in uploadContent:', error);
+      throw error;
+    }
   }
-  try {
-    const response = await delApi(apiURL); // Assuming you have a 'del' method that handles DELETE
-    return response?.data?.result;
-  } catch (error) {
-    throw error;
+
+  private async reviewContent(contentId: string, userToken: string) {
+    try {
+      const reviewResponse = await this.retryRequest(
+        () =>
+          axios.post(
+            `/action/content/v3/review/${contentId}`,
+            {},
+            {
+              headers: {
+                ...this.getHeaders(userToken),
+                'Content-Type': 'application/json',
+              },
+            }
+          ),
+        3,
+        2000,
+        'Review Content'
+      );
+      return reviewResponse.data;
+    } catch (error) {
+      console.error('Error in reviewContent:', error);
+      throw error;
+    }
   }
-};
 
-export const createCourse = async (
-  userId: any,
-  channelId: any,
-  contentFW: any,
-  targetFW: any
-) => {
-  const apiURL = `/action/content/v3/create`;
+  private async publishContent(contentId: string, userToken: string) {
+    try {
+      const publishPayload = {
+        request: {
+          content: {
+            publishChecklist: [
+              'No Hate speech, Abuse, Violence, Profanity',
+              'Is suitable for children',
+              'Correct Board, Grade, Subject, Medium',
+              'Appropriate Title, Description',
+              'No Sexual content, Nudity or Vulgarity',
+              'No Discrimination or Defamation',
+              'Appropriate tags such as Resource Type, Concepts',
+              'Relevant Keywords',
+              'Audio (if any) is clear and easy to understand',
+              'No Spelling mistakes in the text',
+              'Language is simple to understand',
+              'Can see the content clearly on Desktop and App',
+              'Content plays correctly',
+            ],
+            lastPublishedBy: userId,
+          },
+        },
+      };
 
-  const reqBody = {
-    request: {
-      content: {
-        code: uuidv4(), // Generate a unique ID for 'code'
-        name: 'Untitled Course',
-        createdBy: userId,
-        createdFor: [channelId],
-        mimeType: MIME_TYPE.COURSE_MIME_TYPE,
-        resourceType: 'Course',
-        primaryCategory: 'Course',
-        contentType: 'Course',
-        framework: contentFW,
-        targetFWIds: [targetFW],
-      },
-    },
-  };
-
-  try {
-    const response = await post(apiURL, reqBody);
-    return response?.data;
-  } catch (error) {
-    console.error('Error creating course:', error);
-    throw error;
+      const publishResponse = await this.retryRequest(
+        () =>
+          axios.post(
+            `/action/content/v3/publish/${contentId}`,
+            publishPayload,
+            {
+              headers: {
+                ...this.getHeaders(userToken),
+                'Content-Type': 'application/json',
+              },
+            }
+          ),
+        3,
+        2000,
+        'Publish Content'
+      );
+      return publishResponse.data;
+    } catch (error) {
+      console.error('Error in publishContent:', error);
+      throw error;
+    }
   }
-};
-
-export const publishContent = async (
-  identifier: any,
-  publishChecklist?: any
-) => {
-  const requestBody = {
-    request: {
-      content: {
-        lastPublishedBy: userId,
-        publishChecklist: publishChecklist,
-      },
-    },
-  };
-
-  try {
-    const response = await post(
-      `/action/content/v3/publish/${identifier}`,
-      requestBody
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error during publishing:', error);
-    throw error;
-  }
-};
-
-export const submitComment = async (
-  identifier: any,
-  comment: any,
-  rejectReasons?: any
-) => {
-  const requestBody = {
-    request: {
-      content: {
-        rejectComment: comment,
-        rejectReasons: rejectReasons,
-      },
-    },
-  };
-
-  try {
-    const response = await post(
-      `/action/content/v3/reject/${identifier}`,
-      requestBody
-    );
-    return response.data;
-  } catch (error) {
-    console.error('Error submitting comment:', error);
-    throw error;
-  }
-};
-
-export const getContentHierarchy = async ({
-  doId,
-}: {
-  doId: string;
-}): Promise<any> => {
-  const apiUrl: string = `/action/content/v3/hierarchy/${doId}`;
-
-  try {
-    console.log('Request data', apiUrl);
-    const response = await get(apiUrl);
-    // console.log('response', response);
-    return response;
-  } catch (error) {
-    console.error('Error in getContentHierarchy Service', error);
-    throw error;
-  }
-};
-export const getFrameworkDetails = async (frameworkId: any): Promise<any> => {
-  const apiUrl: string = `/api/framework/v1/read/${frameworkId}`;
-
-  try {
-    const response = await get(apiUrl);
-    return response?.data;
-  } catch (error) {
-    console.error('Error in getting Framework Details', error);
-    return error;
-  }
-};
-export const getFormFields = async (): Promise<any> => {
-  const apiUrl: string = `/action/data/v1/form/read`;
-
-  try {
-    const response = await post(apiUrl, {
-      request: {
-        action: 'publish',
-        type: 'content',
-        subType: 'resource',
-      },
-    });
-    return response?.data;
-  } catch (error) {
-    console.error('Error in getting Framework Details', error);
-    return error;
-  }
-};
+}

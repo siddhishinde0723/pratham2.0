@@ -25,7 +25,16 @@ export default async function handler(
   const token =
     getCookie(req, 'authToken') || (process.env.AUTH_API_TOKEN as string);
 
-  const BASE_URL = process.env.NEXT_PUBLIC_MIDDLEWARE_URL as string;
+  const BASE_URL = (
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.NEXT_PUBLIC_MIDDLEWARE_URL ||
+    ''
+  ).toString();
+  if (!BASE_URL) {
+    console.warn(
+      'Proxy BASE_URL env not set. Please set NEXT_PUBLIC_BASE_URL to your middleware base, e.g., https://interface.tekdinext.com/interface/v1'
+    );
+  }
   const tenantId =
     getCookie(req, 'tenantId') || (process.env.NEXT_PUBLIC_TENANT_ID as string);
 
@@ -107,25 +116,71 @@ export default async function handler(
   console.log('targetUrl =====>', targetUrl);
 
   try {
+    // Prefer the incoming content-type if provided
+    const incomingContentType = req.headers['content-type'] as
+      | string
+      | undefined;
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+      tenantId: tenantId,
+      'X-Channel-Id': CHANNEL_ID,
+    };
+    if (incomingContentType) {
+      headers['Content-Type'] = incomingContentType;
+    } else {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    let forwardBody: any = undefined;
+    if (['POST', 'PATCH', 'PUT'].includes(method || '')) {
+      if (incomingContentType?.includes('application/json')) {
+        forwardBody = JSON.stringify(body);
+      } else if (
+        incomingContentType?.includes('application/x-www-form-urlencoded')
+      ) {
+        const params = new URLSearchParams();
+        const src: Record<string, any> = (req as any).body || {};
+        Object.keys(src).forEach((k) => {
+          const v = src[k];
+          if (Array.isArray(v)) {
+            v.forEach((item) => params.append(k, String(item)));
+          } else if (v !== undefined && v !== null) {
+            params.append(k, String(v));
+          }
+        });
+        forwardBody = params.toString();
+        headers['Content-Type'] = 'application/x-www-form-urlencoded';
+      } else if (typeof (req as any).body === 'string') {
+        forwardBody = (req as any).body;
+      } else {
+        // Fallback: JSON stringify unknown structures
+        forwardBody = JSON.stringify(body || {});
+        headers['Content-Type'] = 'application/json';
+      }
+    }
+
     const options: RequestInit = {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        tenantId: tenantId,
-        'X-Channel-Id': CHANNEL_ID,
-      },
-      ...(method === 'POST' || method === 'PATCH'
-        ? { body: JSON.stringify(body) }
-        : {}),
-    };
+      headers,
+      ...(forwardBody !== undefined ? { body: forwardBody } : {}),
+    } as any;
 
     console.log('options =====>', options);
     const response = await fetch(targetUrl, options);
-    console.log('response =====>', response);
-    const data = await response.json();
-    console.log('data =====>', data);
-    res.status(response.status).json(data);
+    console.log('response status =====>', response.status);
+
+    const contentType = response.headers.get('content-type') || '';
+
+    // If upstream sends JSON, forward JSON. Otherwise, forward raw text to avoid JSON parse errors
+    if (contentType.includes('application/json')) {
+      const data = await response.json();
+      res.status(response.status).json(data);
+    } else {
+      const text = await response.text();
+      // Forward as-is with the same content-type
+      res.setHeader('Content-Type', contentType || 'text/plain');
+      res.status(response.status).send(text);
+    }
   } catch (error: any) {
     console.error('Error in proxy:', error.message);
 
