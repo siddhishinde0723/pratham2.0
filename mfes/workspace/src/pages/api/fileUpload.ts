@@ -3,6 +3,7 @@ import FormData from 'form-data';
 import axios from 'axios';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCookie } from '@workspace/utils/cookieHelper';
+import { mockData } from './tenantConfig';
 
 const upload = multer({
   limits: {
@@ -21,11 +22,18 @@ export const config = {
 };
 
 // Custom middleware to check Content-Length header
-const checkContentLength = (req: NextApiRequest, res: NextApiResponse, next: () => void) => {
+const checkContentLength = (
+  req: NextApiRequest,
+  res: NextApiResponse,
+  next: () => void
+) => {
   const contentLength = req.headers['content-length'];
 
-  if (contentLength && parseInt(contentLength) > 2 * 1024 * 1024) { // 2 MB limit
-    return res.status(413).json({ message: 'Payload too large. Maximum size is 2MB.' });
+  if (contentLength && parseInt(contentLength) > 2 * 1024 * 1024) {
+    // 2 MB limit
+    return res
+      .status(413)
+      .json({ message: 'Payload too large. Maximum size is 2MB.' });
   }
   next();
 };
@@ -38,7 +46,9 @@ const uploadPromise = (req: NextApiRequest, res: NextApiResponse) => {
         if (err instanceof MulterError) {
           return reject(new Error(`File too large: ${err.message}`));
         }
-        return reject(new Error('Error processing form data: ' + (err as Error).message));
+        return reject(
+          new Error('Error processing form data: ' + (err as Error).message)
+        );
       }
       resolve();
     });
@@ -46,8 +56,10 @@ const uploadPromise = (req: NextApiRequest, res: NextApiResponse) => {
 };
 
 // Main handler function for Next.js API route
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   // Handle only POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
@@ -82,11 +94,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // Set your base URL
-      const baseURL = process.env.NEXT_PUBLIC_BASE_URL as string;
-      const authApiToken = getCookie(req, 'authToken') || process.env.AUTH_API_TOKEN;
-      const tenantId = getCookie(req, 'tenantId') || process.env.NEXT_PUBLIC_TENANT_ID;
+      const baseURL = (process.env.NEXT_PUBLIC_BASE_URL ||
+        process.env.NEXT_PUBLIC_MIDDLEWARE_URL ||
+        '') as string;
+      const authApiToken =
+        getCookie(req, 'authToken') || process.env.AUTH_API_TOKEN;
+      const tenantId =
+        getCookie(req, 'tenantId') || process.env.NEXT_PUBLIC_TENANT_ID;
+      const tenantConfig = mockData[tenantId as string];
+      const CHANNEL_ID = tenantConfig?.CHANNEL_ID;
 
-      console.log("Using token for file upload:", authApiToken);
+      console.log('Using token for file upload:', authApiToken);
 
       // Extract the relative URL from the incoming request (after /action)
       const relativePath = req.url?.replace('/api/fileUpload', '') ?? '';
@@ -98,8 +116,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const response = await axios.post(finalURL, formData, {
         headers: {
           ...formData.getHeaders(), // Set headers for FormData
-          'Authorization': `Bearer ${authApiToken}`,  // Set your API key in the headers
-          'tenantId': tenantId,  // Set your tenant ID in the headers
+          Authorization: `Bearer ${authApiToken}`, // Set your API key in the headers
+          tenantId: tenantId, // Set your tenant ID in the headers
+          tenantid: tenantId,
+          ...(CHANNEL_ID ? { 'X-Channel-Id': CHANNEL_ID } : {}),
+          ...(CHANNEL_ID ? { 'x-channel-id': CHANNEL_ID } : {}),
         },
         params: req.query, // Pass along any query parameters from the original request
       });
@@ -107,8 +128,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Return the response from the backend service
       return res.status(response.status).json(response.data);
     } catch (error: any) {
-      console.error('Error in file upload:', error);
-      return res.status(500).json({ message: error.message });
+      console.error(
+        'Error in file upload:',
+        error?.response?.status,
+        error?.response?.data || error?.message
+      );
+      const status = error?.response?.status || 500;
+      const data = error?.response?.data || { message: error.message };
+      return res.status(status).json(data);
     }
   });
 }

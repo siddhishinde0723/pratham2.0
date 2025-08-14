@@ -7,6 +7,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import OutlinedFlagOutlinedIcon from '@mui/icons-material/OutlinedFlagOutlined';
 import PreviewOutlinedIcon from '@mui/icons-material/PreviewOutlined';
 import StorageIcon from '@mui/icons-material/Storage';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import {
   Box,
   Drawer,
@@ -81,6 +82,11 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
             text: 'Up for Review',
             key: 'up-review',
             icon: <PreviewOutlinedIcon />,
+          },
+          {
+            text: 'Bulk Upload',
+            key: 'bulk-upload',
+            icon: <CloudUploadIcon />,
           },
           ...(tenantId === '3a849655-30f6-4c2b-8707-315f1ed64fbd'
             ? [
