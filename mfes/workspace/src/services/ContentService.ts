@@ -217,9 +217,8 @@ export class ContentService {
     const SUPPORTED_FILE_TYPES = ['pdf', 'mp4', 'zip', 'mp3', 'html'];
     const isYouTubeUrl =
       /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//.test(fileUrl);
-    const isGoogleDriveUrl = /drive\.google\.com\/file\/d\/([^/]+)\//.test(
-      fileUrl
-    );
+    const isGoogleDriveUrl =
+      /drive\.google\.com\/(file\/d\/|uc\?export=download&id=)/.test(fileUrl);
 
     if (isYouTubeUrl) {
       console.log(`Skipping file existence check for YouTube URL: ${fileUrl}`);
@@ -423,7 +422,7 @@ export class ContentService {
       // Handle Google Drive URLs
       let fileExtension = '';
       const googleDriveMatch = documentUrl.match(
-        /drive\.google\.com\/file\/d\/([^/?]+)/
+        /drive\.google\.com\/file\/d\/([^\/?]+)/
       );
       const googleDriveDownloadMatch = documentUrl.match(
         /drive\.google\.com\/uc\?export=download&id=([^&]+)/
@@ -499,9 +498,16 @@ export class ContentService {
 
       const { identifier: doId, versionKey } = createResponse.data.result;
 
+      // Upload
+      if (isYouTubeURL) {
+        // For YouTube, only update artifact URL via PATCH if needed later
+        return { doId, versionKey, fileUrl };
+      }
+
+      // If not YouTube, proceed normally (upload via proxy endpoint)
       return { doId, versionKey, fileUrl };
     } catch (error) {
-      console.error('Error in createAndUploadContent:', error);
+      console.error('Error creating content record:', error);
       throw error;
     }
   }
@@ -512,110 +518,49 @@ export class ContentService {
     userToken: string
   ) {
     try {
-      const isYouTubeURL =
-        /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//.test(fileUrl);
-      const isGoogleDriveURL = /drive\.google\.com/.test(fileUrl);
-
-      if (isYouTubeURL || isGoogleDriveURL) {
-        // For YouTube or Google Drive, update artifactUrl directly (requires versionKey)
-        const readResponse = await this.retryRequest(
-          () =>
-            axios.get(`/action/content/v3/read/${contentId}`, {
-              headers: this.getHeaders(userToken),
-            }),
-          3,
-          2000,
-          'Read Content Before Update'
-        );
-        const currentVersionKey =
-          readResponse?.data?.result?.content?.versionKey || '';
-        const updateResponse = await this.retryRequest(
-          () =>
-            axios.patch(
-              `/action/content/v3/update/${contentId}`,
-              {
-                request: {
-                  content: {
-                    versionKey: currentVersionKey,
-                    artifactUrl: fileUrl,
-                  },
-                },
-              },
-              {
-                headers: {
-                  ...this.getHeaders(userToken),
-                  'Content-Type': 'application/json',
-                },
-              }
-            ),
-          3,
-          2000,
-          'Update Artifact URL'
-        );
-        return updateResponse.data;
-      }
-
-      // For regular files, use FormData upload
-      const formData = new FormData();
-      formData.append('fileUrl', fileUrl);
-
-      const fileExtension =
-        new URL(fileUrl).pathname.split('.').pop()?.toLowerCase() || '';
-      const mimeType =
-        fileExtension === 'zip'
-          ? 'application/vnd.ekstep.html-archive'
-          : mime.lookup(fileExtension) || 'application/octet-stream';
-
-      formData.append('mimeType', mimeType);
-
-      const uploadResponse = await this.retryRequest(
+      console.log('Uploaded content flow start');
+      const payload = { request: { content: { fileUrl } } };
+      const response = await this.retryRequest(
         () =>
-          axios.post(`/action/content/v3/upload/${contentId}`, formData, {
-            headers: {
-              ...this.getHeaders(userToken),
-              'Content-Type': 'multipart/form-data',
-            },
+          axios.post(`/action/content/v3/upload/${contentId}`, payload, {
+            headers: this.getHeaders(userToken),
           }),
         3,
         2000,
         'Upload Content'
       );
-
-      return uploadResponse.data;
+      return response.data;
     } catch (error) {
-      console.error('Error in uploadContent:', error);
+      console.error('Error during file upload:', error);
       throw error;
     }
   }
 
   private async reviewContent(contentId: string, userToken: string) {
     try {
-      const reviewResponse = await this.retryRequest(
+      const response = await this.retryRequest(
         () =>
           axios.post(
             `/action/content/v3/review/${contentId}`,
             {},
             {
-              headers: {
-                ...this.getHeaders(userToken),
-                'Content-Type': 'application/json',
-              },
+              headers: this.getHeaders(userToken),
             }
           ),
         3,
         2000,
-        'Review Content'
+        'reviewContent'
       );
-      return reviewResponse.data;
+      return response.data;
     } catch (error) {
-      console.error('Error in reviewContent:', error);
+      console.error('Error during review:', error);
       throw error;
     }
   }
 
   private async publishContent(contentId: string, userToken: string) {
     try {
-      const publishPayload = {
+      const body = {
         request: {
           content: {
             publishChecklist: [
@@ -637,26 +582,18 @@ export class ContentService {
           },
         },
       };
-
-      const publishResponse = await this.retryRequest(
+      const response = await this.retryRequest(
         () =>
-          axios.post(
-            `/action/content/v3/publish/${contentId}`,
-            publishPayload,
-            {
-              headers: {
-                ...this.getHeaders(userToken),
-                'Content-Type': 'application/json',
-              },
-            }
-          ),
+          axios.post(`/action/content/v3/publish/${contentId}`, body, {
+            headers: this.getHeaders(userToken),
+          }),
         3,
         2000,
-        'Publish Content'
+        'publishContent'
       );
-      return publishResponse.data;
+      return response.data;
     } catch (error) {
-      console.error('Error in publishContent:', error);
+      console.error('Error during publish:', error);
       throw error;
     }
   }
