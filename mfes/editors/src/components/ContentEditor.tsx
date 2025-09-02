@@ -123,11 +123,11 @@ const InteractiveEditor: React.FC = () => {
       window['config'].enableTelemetryValidation = false;
       window['config'].videoMaxSize = videoMaxSize;
       window['config'].cloudStorage = {
-        // provider: 'aws',
-        provider: 'azure',
+       provider: 'aws',
+        // provider: 'azure',
         presigned_headers: {
-          // 'x-amz-acl': 'private',
-          'x-ms-blob-type': 'BlockBlob', // This header sets access control; it's specific to AWS S3.
+           'x-amz-acl': 'private',
+          // 'x-ms-blob-type': 'BlockBlob', // This header sets access control; it's specific to AWS S3.
         },
       };
     }

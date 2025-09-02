@@ -10,6 +10,8 @@ import {
   genericEditorReviewFormResponseshiksha,
   genericEditorReviewFormResponseswadhaar,
   genericEditorReviewFormResponsebadal,
+  contentEditorQuestionMetaFormResponse,
+  contentEditorQuestionFormResponse,
 } from './mocked-response';
 import { getCookie } from '@workspace/utils/cookieHelper';
 import { mockData } from './tenantConfig';
@@ -60,6 +62,14 @@ export default async function handler(
     const { action, subType, type } = body.request;
     if (action === 'save' && subType === 'resource') {
       return res.status(200).json(genericEditorSaveFormResponse);
+    }
+
+    if (action === 'question-meta-save' && subType === 'questions') {
+      return res.status(200).json(contentEditorQuestionMetaFormResponse);
+    }
+
+    if (action === 'question-filter-view' && subType === 'questions') {
+      return res.status(200).json(contentEditorQuestionFormResponse);
     }
 
     if (action === 'review' && subType === 'resource') {

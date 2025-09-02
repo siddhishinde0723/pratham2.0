@@ -74,6 +74,11 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
             key: 'submitted',
             icon: <PreviewOutlinedIcon />,
           },
+          // {
+          //   text: 'Bulk Upload',
+          //   key: 'bulk-upload',
+          //   icon: <CloudUploadIcon />,
+          // },
         ]
       : []),
     ...(userRole === Role.CCTA
@@ -83,11 +88,12 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
             key: 'up-review',
             icon: <PreviewOutlinedIcon />,
           },
-          {
-            text: 'Bulk Upload',
-            key: 'bulk-upload',
-            icon: <CloudUploadIcon />,
-          },
+          // {
+          //   text: 'Bulk Upload',
+          //   key: 'bulk-upload',
+          //   icon: <CloudUploadIcon />,
+          // },
+
           ...(tenantId === '3a849655-30f6-4c2b-8707-315f1ed64fbd'
             ? [
                 {
