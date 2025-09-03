@@ -339,13 +339,27 @@ const BulkUpload: React.FC = () => {
             // Validate that the value exists in the framework
             if (!validateFrameworkValue(category, fieldValue)) {
               const availableOptions = getFrameworkOptions(category);
-              messages.push(
-                `Row ${
-                  index + 1
-                }: Invalid ${category} value "${fieldValue}". Available options: ${availableOptions.join(
-                  ', '
-                )}`
+              // Split the value to check which specific values are invalid
+              const values = fieldValue
+                .split(',')
+                .map((v) => v.trim())
+                .filter((v) => v);
+              const invalidValues = values.filter(
+                (val) =>
+                  !framework.categories
+                    .find((cat) => cat.code === category)
+                    ?.terms.some((term) => term.name === val)
               );
+
+              if (invalidValues.length > 0) {
+                messages.push(
+                  `Row ${
+                    index + 1
+                  }: Invalid ${category} value(s) "${invalidValues.join(
+                    ', '
+                  )}". Available options: ${availableOptions.join(', ')}`
+                );
+              }
             }
           }
         }
@@ -406,6 +420,15 @@ const BulkUpload: React.FC = () => {
 
     const raw =
       error instanceof Error ? error.message : String(error || 'Unknown error');
+
+    // Handle file size errors
+    if (
+      /Payload too large|Maximum size is 10MB|exceeds the maximum allowed size/i.test(
+        raw
+      )
+    ) {
+      return 'File size exceeds the 10MB limit. Please use a smaller file or compress the content.';
+    }
     if (/Missing required fields/i.test(raw)) {
       return raw;
     }
@@ -696,7 +719,21 @@ const BulkUpload: React.FC = () => {
 
     if (!categoryData) return false;
 
-    return categoryData.terms.some((term) => term.name === value);
+    // Split the value by commas and trim each part to handle multiple values
+    const values = value
+      .split(',')
+      .map((v) => v.trim())
+      .filter((v) => v);
+
+    // For single value, check exact match
+    if (values.length === 1) {
+      return categoryData.terms.some((term) => term.name === values[0]);
+    }
+
+    // For multiple values, check if all values are valid
+    return values.every((val) =>
+      categoryData.terms.some((term) => term.name === val)
+    );
   };
 
   // Get available options for a framework category
@@ -786,6 +823,9 @@ const BulkUpload: React.FC = () => {
               Required columns: {getRequiredFieldsMessage()}. Allowed file
               types: {SUPPORTED_FILE_TYPES.join(', ')} or a public
               YouTube/Google Drive link. The URLs must be publicly accessible.
+              <br />
+              <strong>Note:</strong> File size limit is 10MB. Larger files will
+              be rejected.
             </Alert>
 
             {/* {framework && (

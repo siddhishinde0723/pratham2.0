@@ -2,18 +2,18 @@ module.exports = {
   apps: [
     {
       name: 'admin-app-repo',
-      script: '/workspace/node_modules/.bin/next',
-      args: 'start -p 3002',
-      cwd: '/workspace/apps/admin-app-repo',
+      script: 'sh',
+      args: '-c "cd /workspace/apps/admin-app-repo && /workspace/node_modules/.bin/next start -p 3002"',
+      cwd: '/workspace',
       env: {
         NODE_ENV: 'production',
       },
     },
     {
       name: 'workspace',
-      script: '/workspace/node_modules/.bin/next',
-      args: 'start -p 4104',
-      cwd: '/workspace/mfes/workspace',
+      script: 'sh',
+      args: '-c "cd /workspace/mfes/workspace && /workspace/node_modules/.bin/next start -p 4104"',
+      cwd: '/workspace',
       env: {
         NODE_ENV: 'production',
       },

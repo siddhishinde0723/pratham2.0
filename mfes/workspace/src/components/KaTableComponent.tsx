@@ -41,7 +41,7 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
     console.log('content', content);
     const identifier = content?.identifier;
     let mode = content?.mode; // default mode from content, can be overwritten by tableTitle
-
+    console.log('mode', mode);
     switch (tableTitle) {
       case 'draft':
         mode = !mode ? 'edit' : mode;
@@ -94,7 +94,7 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
 
     // Save mode in localStorage
     localStorage.setItem('contentMode', mode);
-
+    console.log('content?.mimeType', content?.mimeType);
     // Generic routing for cases other than 'draft'
     if (content?.mimeType === MIME_TYPE.QUESTIONSET_MIME_TYPE) {
       router.push({ pathname: `/editor`, query: { identifier } });

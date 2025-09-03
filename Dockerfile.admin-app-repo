@@ -20,8 +20,7 @@ COPY . .
 RUN npx nx run-many --target=build --projects=admin-app-repo,workspace
 
 # Install PM2 to manage multiple apps
-RUN npm install -g pm2
-
+RUN npm install -g pm2@6.0.8
 # Expose the ports for all apps
 EXPOSE 3002 4104
 

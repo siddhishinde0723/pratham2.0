@@ -47,6 +47,27 @@ export const playerConfig = {
       showPrint: false,
       showReplay: true,
     },
+    // Video player specific configurations
+    videoPlayer: {
+      autoplay: false,
+      controls: true,
+      preload: 'metadata',
+      responsive: true,
+      fluid: true,
+      playbackRates: [0.5, 1, 1.25, 1.5, 2],
+      controlBar: {
+        children: [
+          'playToggle',
+          'volumePanel',
+          'currentTimeDisplay',
+          'timeDivider',
+          'durationDisplay',
+          'progressControl',
+          'playbackRateMenuButton',
+          'fullscreenToggle',
+        ],
+      },
+    },
   },
   metadata: {},
   data: {},
@@ -94,6 +115,27 @@ export const V1PlayerConfig = {
       showExit: false,
     },
     enableTelemetryValidation: false,
+    // Video player specific configurations
+    videoPlayer: {
+      autoplay: false,
+      controls: true,
+      preload: 'metadata',
+      responsive: true,
+      fluid: true,
+      playbackRates: [0.5, 1, 1.25, 1.5, 2],
+      controlBar: {
+        children: [
+          'playToggle',
+          'volumePanel',
+          'currentTimeDisplay',
+          'timeDivider',
+          'durationDisplay',
+          'progressControl',
+          'playbackRateMenuButton',
+          'fullscreenToggle',
+        ],
+      },
+    },
   },
   context: {
     mode: 'play',

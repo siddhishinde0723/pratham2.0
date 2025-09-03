@@ -141,7 +141,7 @@ export class ContentBulkService {
   private readonly defaultRetryDelay: number;
 
   constructor() {
-    this.middlewareUrl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL || '';
+    this.middlewareUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
 
     // Get values from localStorage only
     this.framework =
@@ -243,35 +243,177 @@ export class ContentBulkService {
     return allowedMimeTypes.includes(mimeType);
   }
 
+  private async validateNcertUrl(url: string): Promise<boolean> {
+    // Check if it's an NCERT textbook portal link
+    if (url.includes('ncert.nic.in/textbook.php')) {
+      return true; // Special case - these are valid textbook references
+    }
+    return false;
+  }
+
+  private readonly MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit to match server
+
+  private async downloadFileFromUrl(url: string): Promise<ArrayBuffer> {
+    try {
+      console.log('Downloading file from URL:', url);
+
+      // Check if it's a Google Drive URL
+      if (url.includes('drive.google.com')) {
+        // Extract file ID from Google Drive URL
+        const fileIdMatch =
+          url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^/?]+)/);
+        if (!fileIdMatch) {
+          throw new Error('Could not extract file ID from Google Drive URL');
+        }
+
+        const fileId = fileIdMatch[1];
+        const apiKey =
+          process.env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY ||
+          'AIzaSyD00Un42OrRpk2hEBEq7pdUGC3Ry54Wdq8';
+
+        console.log('Using Google Drive API to download file ID:', fileId);
+
+        // Use Google Drive API to download the file
+        const response = await axios.get(
+          `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+          {
+            params: { key: apiKey },
+            responseType: 'arraybuffer',
+            timeout: 30000,
+            maxContentLength: this.MAX_FILE_SIZE, // Use 2MB limit
+          }
+        );
+
+        // Check file size before proceeding
+        if (response.data.byteLength > this.MAX_FILE_SIZE) {
+          const sizeInMB = (response.data.byteLength / (1024 * 1024)).toFixed(
+            2
+          );
+          throw new Error(
+            `File size (${sizeInMB}MB) exceeds the maximum allowed size of 10MB. Please use a smaller file or compress the content.`
+          );
+        }
+
+        console.log(
+          'File downloaded successfully via Google Drive API, size:',
+          response.data.byteLength,
+          'bytes'
+        );
+        return response.data;
+      } else {
+        // For non-Google Drive URLs, use direct download
+        const response = await axios.get(url, {
+          responseType: 'arraybuffer',
+          timeout: 30000, // 30 seconds timeout
+          maxContentLength: this.MAX_FILE_SIZE, // Use 10MB limit
+        });
+
+        // Check file size before proceeding
+        if (response.data.byteLength > this.MAX_FILE_SIZE) {
+          const sizeInMB = (response.data.byteLength / (1024 * 1024)).toFixed(
+            2
+          );
+          throw new Error(
+            `File size (${sizeInMB}MB) exceeds the maximum allowed size of 10MB. Please use a smaller file or compress the content.`
+          );
+        }
+
+        console.log(
+          'File downloaded successfully, size:',
+          response.data.byteLength,
+          'bytes'
+        );
+        return response.data;
+      }
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Download error details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+        });
+
+        // Handle specific error cases
+        if (error.response?.status === 413) {
+          throw new Error(
+            'File size exceeds the maximum allowed size of 10MB. Please use a smaller file.'
+          );
+        }
+      }
+      throw new Error(
+        `Failed to download file from ${url}: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+
   private async validateFileUrl(
     fileUrl: string,
     record: ContentRecord
   ): Promise<boolean> {
+    if (await this.validateNcertUrl(fileUrl)) {
+      return true;
+    }
+
     const SUPPORTED_FILE_TYPES = ['pdf', 'mp4', 'zip', 'mp3', 'html'];
+
     const isYouTubeUrl =
       /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//.test(fileUrl);
-    const isGoogleDriveUrl =
-      /drive\.google\.com\/(file\/d\/|uc\?export=download&id=)/.test(fileUrl);
+    const isGoogleDriveUrl = /drive\.google\.com\/file\/d\/([^/]+)\//.test(
+      fileUrl
+    );
+    const isGoogleDriveDownloadUrl =
+      /drive\.google\.com\/uc\?export=download/.test(fileUrl);
 
     if (isYouTubeUrl) {
       console.log(`Skipping file existence check for YouTube URL: ${fileUrl}`);
       return true;
     }
 
-    if (isGoogleDriveUrl) {
-      console.log(
-        `Skipping file existence check for Google Drive URL: ${fileUrl}`
-      );
+    if (isGoogleDriveUrl || isGoogleDriveDownloadUrl) {
+      console.log(`Google Drive URL detected: ${fileUrl}`);
+
+      // Convert to download URL for validation
+      const downloadUrl = this.convertGoogleDriveUrl(fileUrl);
+      console.log(`Converted to download URL: ${downloadUrl}`);
+
+      // For Google Drive URLs, we'll skip the HEAD request validation
+      // since they often return 403 or redirect responses
       return true;
     }
 
-    const ext = fileUrl.split('.').pop()?.toLowerCase();
+    // Handle URLs without file extensions
+    let ext = '';
+    try {
+      const url = new URL(fileUrl);
+      ext = url.pathname.split('.').pop()?.toLowerCase() || '';
+    } catch (error) {
+      console.warn(`Invalid URL format: ${fileUrl}`);
+      return false;
+    }
+
+    // If no extension, try to infer from content-type
+    if (!ext) {
+      try {
+        const response = await axios.head(fileUrl, { timeout: 10000 });
+        const mimeType = response.headers['content-type'];
+        if (mimeType) {
+          const inferredExt = mime.extension(mimeType);
+          if (inferredExt && SUPPORTED_FILE_TYPES.includes(inferredExt)) {
+            ext = inferredExt;
+            console.log(`Inferred extension from MIME type: ${ext}`);
+          }
+        }
+      } catch (error) {
+        console.warn(`Could not infer file extension for: ${fileUrl}`);
+      }
+    }
 
     try {
-      // Try HEAD request first
-      const response = await axios.head(fileUrl, {
-        timeout: this.fileValidationTimeout,
-      });
+      // Primary check using HEAD request
+      const response = await axios.head(fileUrl, { timeout: 15000 });
 
       if (response.status !== 200) {
         throw new Error(`Unexpected status code: ${response.status}`);
@@ -280,19 +422,56 @@ export class ContentBulkService {
       const mimeType = response.headers['content-type'];
       console.log(`File exists: ${fileUrl} (MIME: ${mimeType}, EXT: ${ext})`);
 
+      // If we have an extension, validate it
       if (ext && !SUPPORTED_FILE_TYPES.includes(ext)) {
         throw new Error(`Unsupported file type: ${ext} for URL: ${fileUrl}`);
       }
 
       return true;
-    } catch (error) {
-      console.warn(`File validation failed for ${fileUrl}:`, error);
-      return false;
+    } catch (headError) {
+      console.warn(
+        `HEAD request failed for ${fileUrl}. Attempting GET fallback...`
+      );
+
+      try {
+        // Fallback check using GET request with Range header (fetch only 1st byte)
+        const response = await axios.get(fileUrl, {
+          headers: { Range: 'bytes=0-0' },
+          timeout: 15000,
+        });
+
+        const mimeType = response.headers['content-type'];
+        console.log(
+          `(Fallback) File exists: ${fileUrl} (MIME: ${mimeType}, EXT: ${ext})`
+        );
+
+        // If we have an extension, validate it
+        if (ext && !SUPPORTED_FILE_TYPES.includes(ext)) {
+          throw new Error(`Unsupported file type: ${ext} for URL: ${fileUrl}`);
+        }
+
+        return true;
+      } catch (getError) {
+        const errorMessage =
+          getError instanceof Error
+            ? getError.message
+            : 'Unknown fallback error';
+        const logMessage = `❌ Fallback failed: ${fileUrl}. Title: ${record.cont_title} - ${errorMessage}`;
+
+        console.error(logMessage);
+        return false;
+      }
     }
   }
 
   private convertGoogleDriveUrl(url: string): string {
-    const patterns = [/\/file\/d\/([^/]+)/, /id=([^&]+)/, /\/open\?id=([^&]+)/];
+    // Handle various Google Drive URL formats
+    const patterns = [
+      /\/file\/d\/([^/?]+)/, // Standard file URL
+      /id=([^&]+)/, // ID parameter
+      /\/open\?id=([^&]+)/, // Open URL
+      /\/view\?usp=([^&]+)/, // View URL
+    ];
 
     for (const pattern of patterns) {
       const match = url.match(pattern);
@@ -300,6 +479,13 @@ export class ContentBulkService {
         return `https://drive.google.com/uc?export=download&id=${match[1]}`;
       }
     }
+
+    // If no pattern matches, try to extract file ID from the URL path
+    const fileIdMatch = url.match(/\/d\/([^/?]+)/);
+    if (fileIdMatch && fileIdMatch[1]) {
+      return `https://drive.google.com/uc?export=download&id=${fileIdMatch[1]}`;
+    }
+
     return url;
   }
 
@@ -474,59 +660,163 @@ export class ContentBulkService {
         // Note: subject is already handled above as 'subjects'
       };
 
-      // Handle Google Drive URLs only if documentUrl exists
+      // Handle Google Drive URLs and file type detection
       let fileExtension = '';
       let fileId: string | null = null;
 
       if (documentUrl) {
+        // ✅ Check if it's a Google Drive URL
+        console.log('documentUrl', documentUrl);
+
+        // Convert Google Drive URL to download URL if needed
+        if (documentUrl.includes('drive.google.com')) {
+          documentUrl = this.convertGoogleDriveUrl(documentUrl);
+          console.log('Converted documentUrl to download URL:', documentUrl);
+        }
+
         const googleDriveMatch = documentUrl.match(
-          /drive\.google\.com\/file\/d\/([^\/?]+)/
+          /drive\.google\.com\/file\/d\/([^/?]+)/
         );
         const googleDriveDownloadMatch = documentUrl.match(
           /drive\.google\.com\/uc\?export=download&id=([^&]+)/
         );
 
-        if (googleDriveMatch) fileId = googleDriveMatch[1];
-        else if (googleDriveDownloadMatch) fileId = googleDriveDownloadMatch[1];
+        if (googleDriveMatch) {
+          fileId = googleDriveMatch[1];
+        } else if (googleDriveDownloadMatch) {
+          fileId = googleDriveDownloadMatch[1];
+        }
 
+        // First try using the Google Drive API to fetch metadata
         if (fileId) {
-          try {
-            const apiKey = process.env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY;
-            if (!apiKey) {
-              throw new Error('Google Drive API key is missing');
-            }
+          const apiKey =
+            process.env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY ||
+            'AIzaSyD00Un42OrRpk2hEBEq7pdUGC3Ry54Wdq8';
+          console.log('🔑 API Key available:', !!apiKey);
+          console.log('🔑 API Key length:', apiKey?.length);
 
-            // Use the download URL directly instead of API
+          if (!apiKey) {
+            console.warn(
+              '⚠️ Google Drive API key is missing, using fallback URL'
+            );
             fileUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-            console.log('Using Google Drive download URL:', fileUrl);
-          } catch (err) {
-            console.warn('Google Drive API failed, using direct download URL');
-            fileUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+          } else {
+            try {
+              const metadata = await axios.get(
+                `https://www.googleapis.com/drive/v3/files/${fileId}`,
+                {
+                  params: {
+                    fields: 'name,mimeType',
+                    key: apiKey,
+                  },
+                }
+              );
+
+              const { name, mimeType } = metadata.data;
+              const extFromName = name.split('.').pop()?.toLowerCase() || '';
+              const extFromMime = mime.extension(mimeType);
+              fileExtension = extFromName || extFromMime || '';
+
+              // ✅ Keep the original Google Drive URL for upload (don't use streaming URL)
+              fileUrl = documentUrl; // Use original URL, not streaming URL
+              console.log(
+                `📁 Using original Google Drive URL for upload: ${fileUrl}`
+              );
+            } catch (err: any) {
+              console.warn(
+                `⚠️ Google Drive API failed (likely not shared publicly): ${err.response?.status} - ${err.message}`
+              );
+
+              // 🔁 Fallback to `uc?export=download`
+              fileUrl = documentUrl; // Use the already converted URL
+              console.log(`📁 Using fallback Google Drive URL: ${fileUrl}`);
+            }
           }
         }
+
+        // 🔄 Fallback to HEAD request if still unknown
+        const knownBadExtensions = ['bin', '', undefined];
+
+        if (!fileExtension || knownBadExtensions.includes(fileExtension)) {
+          try {
+            const headResponse = await axios.head(documentUrl, {
+              timeout: 5000,
+            });
+            const mimeTypeFromHead = headResponse.headers['content-type'];
+
+            if (
+              mimeTypeFromHead &&
+              mimeTypeFromHead !== 'application/octet-stream'
+            ) {
+              const inferred = mime.extension(mimeTypeFromHead);
+              if (inferred) {
+                fileExtension = inferred.toLowerCase();
+                console.log(
+                  `📦 Inferred from HEAD content-type: ${fileExtension}`
+                );
+              } else {
+                console.warn(
+                  `⚠️ MIME type detected but could not infer extension: ${mimeTypeFromHead}`
+                );
+              }
+            } else {
+              console.warn(
+                `⚠️ HEAD response returned generic MIME type: ${mimeTypeFromHead}`
+              );
+            }
+          } catch (err) {
+            console.warn(
+              `⚠️ Failed to infer file extension via HEAD:`,
+              err instanceof Error ? err.message : err
+            );
+          }
+        }
+
+        // 🛡️ Final fallback — only override if there's no valid extension
+        const SUPPORTED_FILE_TYPES = ['pdf', 'mp4', 'zip', 'mp3', 'html'];
+        if (!fileExtension || !SUPPORTED_FILE_TYPES.includes(fileExtension)) {
+          console.warn(
+            `⚠️ Could not detect or unsupported file extension: ${fileExtension}`
+          );
+
+          try {
+            const url = new URL(documentUrl);
+            const extFromUrl =
+              url.pathname.split('.').pop()?.toLowerCase() || '';
+            if (SUPPORTED_FILE_TYPES.includes(extFromUrl)) {
+              fileExtension = extFromUrl;
+              console.log(
+                `✅ Recovered valid extension from URL: ${fileExtension}`
+              );
+            } else {
+              fileExtension = 'pdf'; // Safe default
+              console.log(`⚠️ Defaulting to fallback extension: pdf`);
+            }
+          } catch (e) {
+            fileExtension = 'pdf'; // Safe default
+            console.log(`⚠️ Defaulting to fallback extension: pdf`);
+          }
+        }
+
+        console.log(`✅ Final fileExtension resolved: [${fileExtension}]`);
       }
 
-      // Determine file extension and MIME type only if documentUrl exists
-      let mimeType = 'application/octet-stream'; // Default MIME type
+      // Determine MIME type based on URL type and file extension
+      let mimeType: string;
+      if (isYouTubeURL) {
+        mimeType = 'video/x-youtube';
+      } else if (fileId) {
+        // For Google Drive links, default to PDF
+        mimeType = 'application/pdf';
+      } else if (fileExtension === 'zip') {
+        mimeType = 'application/vnd.ekstep.html-archive';
+      } else {
+        mimeType = mime.lookup(fileExtension) || 'application/octet-stream';
+      }
 
-      if (documentUrl) {
-        try {
-          const url = new URL(documentUrl);
-          fileExtension = url.pathname.split('.').pop()?.toLowerCase() || '';
-        } catch (e) {
-          console.warn('Could not parse URL for file extension');
-        }
-
-        // Determine MIME type
-        mimeType = isYouTubeURL
-          ? 'video/x-youtube'
-          : fileExtension === 'zip'
-          ? 'application/vnd.ekstep.html-archive'
-          : mime.lookup(fileExtension) || 'application/octet-stream';
-
-        if (!this.validateMimeType(mimeType)) {
-          throw new Error(`MIME type ${mimeType} is not supported`);
-        }
+      if (!this.validateMimeType(mimeType)) {
+        console.error(`Invalid MIME type: ${mimeType}`);
+        throw new Error(`MIME type ${mimeType} is not supported by the system`);
       }
 
       // Create content payload
@@ -585,19 +875,134 @@ export class ContentBulkService {
   ) {
     try {
       console.log('Uploaded content flow start');
-      const payload = { request: { content: { fileUrl } } };
-      const response = await this.retryRequest(
-        () =>
-          axios.post(`/action/content/v3/upload/${contentId}`, payload, {
-            headers: this.getHeaders(userToken),
-          }),
-        undefined,
-        undefined,
-        'Upload Content'
-      );
-      return response.data;
+      console.log('File URL to upload:', fileUrl);
+
+      // Check if it's a YouTube URL (keep as URL)
+      const isYouTubeUrl =
+        fileUrl.includes('youtube.com') || fileUrl.includes('youtu.be');
+
+      if (isYouTubeUrl) {
+        console.log('YouTube URL detected, using multipart/form-data upload');
+
+        // Create form data for YouTube URLs
+        const formData = new FormData();
+        formData.append('fileUrl', fileUrl);
+        formData.append('mimeType', 'video/x-youtube');
+
+        const response = await this.retryRequest(
+          () =>
+            axios.post(`/action/content/v3/upload/${contentId}`, formData, {
+              headers: {
+                ...this.getHeaders(userToken),
+                'Content-Type': 'multipart/form-data',
+              },
+            }),
+          undefined,
+          undefined,
+          'Upload Content'
+        );
+        return response.data;
+      } else {
+        // For all other URLs (including Google Drive), download the file and upload as form data
+        console.log('Downloading file and uploading as form data');
+
+        // Download the file
+        const fileArrayBuffer = await this.downloadFileFromUrl(fileUrl);
+
+        // Double-check file size before creating form data
+        if (fileArrayBuffer.byteLength > this.MAX_FILE_SIZE) {
+          const sizeInMB = (fileArrayBuffer.byteLength / (1024 * 1024)).toFixed(
+            2
+          );
+          throw new Error(
+            `File size (${sizeInMB}MB) exceeds the maximum allowed size of 10MB. Please use a smaller file or compress the content.`
+          );
+        }
+
+        // Determine file name and mime type
+        let fileName = 'content';
+        let mimeType = 'application/octet-stream';
+
+        // Try to extract file name and extension from URL
+        try {
+          const url = new URL(fileUrl);
+          const pathParts = url.pathname.split('/');
+          const lastPart = pathParts[pathParts.length - 1];
+          if (lastPart && lastPart.includes('.')) {
+            fileName = lastPart;
+            const ext = lastPart.split('.').pop()?.toLowerCase();
+            if (ext) {
+              mimeType = mime.lookup(ext) || 'application/octet-stream';
+            }
+          }
+        } catch (error) {
+          console.warn('Could not parse URL for file name extraction:', error);
+        }
+
+        // For Google Drive URLs, try to get better file info
+        if (fileUrl.includes('drive.google.com')) {
+          const fileIdMatch =
+            fileUrl.match(/[?&]id=([^&]+)/) || fileUrl.match(/\/d\/([^/?]+)/);
+          if (fileIdMatch) {
+            const fileId = fileIdMatch[1];
+            const apiKey =
+              process.env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY ||
+              'AIzaSyD00Un42OrRpk2hEBEq7pdUGC3Ry54Wdq8';
+
+            try {
+              const metadata = await axios.get(
+                `https://www.googleapis.com/drive/v3/files/${fileId}`,
+                {
+                  params: {
+                    fields: 'name,mimeType',
+                    key: apiKey,
+                  },
+                }
+              );
+
+              if (metadata.data.name) {
+                fileName = metadata.data.name;
+              }
+              if (metadata.data.mimeType) {
+                mimeType = metadata.data.mimeType;
+              }
+            } catch (error) {
+              console.warn('Could not fetch Google Drive metadata:', error);
+            }
+          }
+        }
+
+        // Create form data
+        const formData = new FormData();
+        const blob = new Blob([fileArrayBuffer], { type: mimeType });
+        formData.append('file', blob, fileName);
+
+        // Upload using multipart/form-data
+        const response = await this.retryRequest(
+          () =>
+            axios.post(`/action/content/v3/upload/${contentId}`, formData, {
+              headers: {
+                ...this.getHeaders(userToken),
+                'Content-Type': 'multipart/form-data',
+              },
+            }),
+          undefined,
+          undefined,
+          'Upload Content'
+        );
+        return response.data;
+      }
     } catch (error) {
       console.error('Error during file upload:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Upload error details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: error.config?.url,
+          method: error.config?.method,
+        });
+      }
       throw error;
     }
   }

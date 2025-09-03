@@ -7,7 +7,7 @@ import { mockData } from './tenantConfig';
 
 const upload = multer({
   limits: {
-    fileSize: 2 * 1024 * 1024, // 2 MB limit
+    fileSize: 10 * 1024 * 1024, // 10 MB limit
   },
 });
 
@@ -29,11 +29,11 @@ const checkContentLength = (
 ) => {
   const contentLength = req.headers['content-length'];
 
-  if (contentLength && parseInt(contentLength) > 2 * 1024 * 1024) {
-    // 2 MB limit
+  if (contentLength && parseInt(contentLength) > 10 * 1024 * 1024) {
+    // 10 MB limit
     return res
       .status(413)
-      .json({ message: 'Payload too large. Maximum size is 2MB.' });
+      .json({ message: 'Payload too large. Maximum size is 10MB.' });
   }
   next();
 };

@@ -93,6 +93,16 @@ const ReviewContentSubmissions = () => {
             playerConfig.context.tags = [tenantConfig?.CHANNEL_ID];
             playerConfig.context.userData.firstName = firstName;
             playerConfig.context.userData.lastName = lastName || '';
+
+            // Debug video content
+            if (
+              data?.mimeType === 'video/mp4' ||
+              data?.mimeType === 'video/webm'
+            ) {
+              console.log('Video content detected:', data);
+              console.log('Video URL:', data.artifactUrl);
+              console.log('Player config for video:', playerConfig);
+            }
           }
           setContentDetails(data);
         }
