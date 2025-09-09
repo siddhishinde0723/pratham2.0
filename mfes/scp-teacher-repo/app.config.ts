@@ -74,9 +74,7 @@ export const DaysOfWeek = {
 export const Program = ['SCP'];
 
 export const tenantId =
-  (typeof window !== 'undefined' && localStorage.getItem('tenantId')) ||
-  process.env.NEXT_PUBLIC_TENANT_ID;
-
+  (typeof window !== 'undefined' && localStorage.getItem('tenantId'));
 if (!tenantId && typeof window !== 'undefined') {
   console.warn(
     'NEXT_PUBLIC_TENANT_ID is not set in the environment variables.'

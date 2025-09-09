@@ -7,16 +7,6 @@ export const mockData: Record<string, any> = {
     CONTENT_FRAMEWORK: 'Colab-framework',
     COLLECTION_FRAMEWORK: 'Colab-framework',
   },
-  '29f8c9a6-032f-48c7-a14a-9e3db3d7b76e': {
-    CHANNEL_ID: 'pos-channel',
-    CONTENT_FRAMEWORK: 'level1-framework',
-    COLLECTION_FRAMEWORK: 'pos-framework',
-  },
-  '6c8b810a-66c2-4f0d-8c0c-c025415a4414': {
-    CHANNEL_ID: 'youthnet-channel',
-    CONTENT_FRAMEWORK: 'level1-framework',
-    COLLECTION_FRAMEWORK: 'youthnet-framework',
-  },
   '6c386899-7a00-4733-8447-5ef925bbf700': {
     CHANNEL_ID: 'KEF-channel',
     CONTENT_FRAMEWORK: 'KEF-framework',

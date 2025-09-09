@@ -7,9 +7,9 @@ export interface userListParam {
   filters: {
     role?: string;
     status?: string;
-    states?: string;
-    districts?: string;
-    blocks?: string;
+    tenantId?: string; // Added tenantId back to filters
+    firstName?: string; // Added firstName for search functionality
+    // Removed state/district/block filters - only tenant ID will be sent
   };
   fields?: any;
   sort?: object;
@@ -26,13 +26,25 @@ export const userList = async ({
 }: userListParam): Promise<any> => {
   const apiUrl: string = API_ENDPOINTS.userList;
   try {
-    const response = await post(apiUrl, {
-      limit,
-      filters,
-      sort,
-      offset,
-      fields,
-    });
+    // Get tenant ID from localStorage
+    const tenantId =
+      typeof window !== 'undefined' ? localStorage.getItem('tenantId') : null;
+
+    // Simplified request - only send essential data
+    const requestData = {
+      limit: limit || 10,
+      filters: {
+        role: filters?.role,
+        status: filters?.status,
+        tenantId: filters?.tenantId || tenantId, // Include tenantId in request body
+        firstName: filters?.firstName, // Include firstName for search functionality
+        // Removed state, districts, blocks filters
+      },
+      sort: sort || ['firstName', 'asc'],
+      offset: offset || 0,
+    };
+
+    const response = await post(apiUrl, requestData);
     return response?.data?.result;
   } catch (error) {
     console.error('error in getting user list', error);
@@ -50,13 +62,25 @@ export const cohortMemberList = async ({
 }: userListParam): Promise<any> => {
   const apiUrl: string = API_ENDPOINTS.cohortMemberList;
   try {
-    const response = await post(apiUrl, {
-      limit,
-      filters,
-      sort,
-      offset,
-      fields,
-    });
+    // Get tenant ID from localStorage
+    const tenantId =
+      typeof window !== 'undefined' ? localStorage.getItem('tenantId') : null;
+
+    // Simplified request - only send essential data
+    const requestData = {
+      limit: limit || 10,
+      filters: {
+        role: filters?.role,
+        status: filters?.status,
+        tenantId: filters?.tenantId || tenantId, // Include tenantId in request body
+        firstName: filters?.firstName, // Include firstName for search functionality
+        // Removed state, districts, blocks filters
+      },
+      sort: sort || ['firstName', 'asc'],
+      offset: offset || 0,
+    };
+
+    const response = await post(apiUrl, requestData);
     return response?.data?.result;
   } catch (error) {
     console.error('error in getting user list', error);

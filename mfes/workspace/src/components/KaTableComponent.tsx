@@ -10,6 +10,59 @@ import { MIME_TYPE } from '@workspace/utils/app.config';
 import Image from 'next/image';
 import ActionIcon from './ActionIcon';
 import { Padding } from '@mui/icons-material';
+
+// Utility function to transform image URL from Azure blob to AWS S3
+const transformImageUrl = (imageUrl: string): string => {
+  if (!imageUrl) return '/logo.png';
+
+  if (imageUrl.includes('https://sunbirdsaaspublic.blob.core.windows.net')) {
+    // Handle double domain pattern
+    if (
+      imageUrl.includes(
+        'https://sunbirdsaaspublic.blob.core.windows.net/https://sunbirdsaaspublic.blob.core.windows.net'
+      )
+    ) {
+      // Extract everything after the second domain
+      const urlParts = imageUrl.split(
+        'https://sunbirdsaaspublic.blob.core.windows.net/https://sunbirdsaaspublic.blob.core.windows.net/'
+      );
+      if (urlParts.length > 1) {
+        const pathAfterSecondDomain = urlParts[1];
+        // Remove any existing content/content prefix to avoid duplication
+        let cleanPath = pathAfterSecondDomain.replace(
+          /^content\/content\//,
+          ''
+        );
+        // Remove sunbird-content-prod/schemas/content/ if present
+        cleanPath = cleanPath.replace(
+          /^sunbird-content-prod\/schemas\/content\//,
+          ''
+        );
+        // Transform to AWS S3 URL with content/content prefix
+        return `https://s3.ap-south-1.amazonaws.com/saas-prod/content/content/${cleanPath}`;
+      }
+    } else {
+      // Handle single domain pattern
+      const urlParts = imageUrl.split(
+        'https://sunbirdsaaspublic.blob.core.windows.net/'
+      );
+      if (urlParts.length > 1) {
+        const pathAfterDomain = urlParts[1];
+        // Remove any existing content/content prefix to avoid duplication
+        let cleanPath = pathAfterDomain.replace(/^content\/content\//, '');
+        // Remove sunbird-content-prod/schemas/content/ if present
+        cleanPath = cleanPath.replace(
+          /^sunbird-content-prod\/schemas\/content\//,
+          ''
+        );
+        // Transform to AWS S3 URL with content/content prefix
+        return `https://s3.ap-south-1.amazonaws.com/saas-prod/content/content/${cleanPath}`;
+      }
+    }
+  }
+
+  return imageUrl;
+};
 interface CustomTableProps {
   data: any[]; // Define a more specific type for your data if needed
   columns: Array<{
@@ -29,19 +82,14 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
   const theme = useTheme<any>();
   const [open, setOpen] = useState(false);
 
-  console.log(data);
-  console.log(columns);
-
   const handleClose = () => {
     setOpen(false);
   };
   const handleOpen = () => setOpen(true);
 
   const openEditor = (content: any) => {
-    console.log('content', content);
     const identifier = content?.identifier;
     let mode = content?.mode; // default mode from content, can be overwritten by tableTitle
-    console.log('mode', mode);
     switch (tableTitle) {
       case 'draft':
         mode = !mode ? 'edit' : mode;
@@ -94,7 +142,6 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
 
     // Save mode in localStorage
     localStorage.setItem('contentMode', mode);
-    console.log('content?.mimeType', content?.mimeType);
     // Generic routing for cases other than 'draft'
     if (content?.mimeType === MIME_TYPE.QUESTIONSET_MIME_TYPE) {
       router.push({ pathname: `/editor`, query: { identifier } });
@@ -137,7 +184,6 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
       MIME_TYPE.GENERIC_MIME_TYPE.includes(content?.mimeType)
     ) {
       localStorage.setItem('contentCreatedBy', content?.createdBy);
-      console.log(content);
       const pathname =
         tableTitle === 'upForReview'
           ? `/workspace/content/review`
@@ -148,7 +194,6 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
       MIME_TYPE.ECML_MIME_TYPE.includes(content?.mimeType)
     ) {
       localStorage.setItem('contentCreatedBy', content?.createdBy);
-      console.log(content);
       const pathname =
         tableTitle === 'upForReview'
           ? `/workspace/content/review`
@@ -162,7 +207,6 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
       router.push({ pathname: `/collection`, query: { identifier } });
     }
   };
-
   return (
     <>
       <KaTable
@@ -201,7 +245,7 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
                             }}
                           >
                             <img
-                              src={props.rowData.image || '/logo.png'}
+                              src={transformImageUrl(props.rowData.image)}
                               alt="Image"
                               style={{
                                 maxWidth: '100%',
@@ -209,6 +253,10 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
                                 objectFit: 'cover',
                                 borderRadius: '8px',
                               }}
+                              onError={(e) => {
+                                e.currentTarget.src = '/logo.png';
+                              }}
+                              onLoad={() => {}}
                             />
                           </Box>
                         ) : props.column.key === 'name' ? (
@@ -233,6 +281,9 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
                                 objectFit: 'cover',
                                 borderRadius: '8px',
                               }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
                             />
                           </Box>
                         ) : (
@@ -256,6 +307,9 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
                                 height: 'auto',
                                 objectFit: 'cover',
                                 borderRadius: '8px',
+                              }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
                               }}
                             />
                           </Box>
@@ -335,7 +389,6 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
                   );
                 }
               } else if (props.column.key === 'create-by') {
-                console.log('props.rowData ====>', props.rowData);
                 if (props?.rowData?.creator || props?.rowData?.author)
                   return (
                     <Typography

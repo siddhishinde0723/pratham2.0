@@ -8,6 +8,11 @@ interface DashboardContentProps {
 }
 
 interface content {
+  resource: any;
+  url: any;
+  access: any;
+  appicon: string;
+  posterImage: string;
   author?: any;
   creator?: any;
   name: string;

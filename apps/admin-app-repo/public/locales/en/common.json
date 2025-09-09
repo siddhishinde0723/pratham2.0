@@ -147,7 +147,16 @@
     "RETURN_TO_LOGIN": "Return to Login",
     "COHORT_CODE_EXISTS": "Code already exists",
     "NO_MENTOR_FOUND": "No Mentor Found",
-    "NO_MENTOR_LEAD_FOUND": "No Mentor Lead Found"
+    "NO_MENTOR_LEAD_FOUND": "No Mentor Lead Found",
+    "NO_CONTENT_REVIEWER_FOUND": "No Content Reviewer Found",
+    "NO_CONTENT_CREATOR_FOUND": "No Content Creator Found",
+    "NO_LEARNERS_FOUND": "No Learners Found",
+    "NO_DISTRICTS_FOUND": "No Districts Found",
+    "NO_FACILITATOR_FOUND": "No Facilitator Found",
+    "NO_STATE_FOUND": "No State Found",
+    "NO_VILLAGE_FOUND": "No Village Found",
+    "NO_STATE_LEAD_FOUND": "No State Lead Found",
+    "NO_BLOCK_FOUND": "No Block Found"
   },
   "LOGIN_PAGE": {
     "USERNAME": "Username",
@@ -231,7 +240,8 @@
     "LEARNER_CREATED_SUCCESSFULLY": "Learner has been successfully created!",
     "USER_CREDENTIALS_WILL_BE_SEND_SOON": "Learner is created, credentials will be sent soon",
     "LEARNER_UPDATED_SUCCESSFULLY": "Learner has been successfully updated!",
-    "EDIT_LEARNER": "Edit Learner"
+    "EDIT_LEARNER": "Edit Learner",
+    "NO_LEARNERS_FOUND": "No Learners Found"
   },
   "MENTORS": {
     "SEARCHBAR_PLACEHOLDER": "Search mentors..",
@@ -546,6 +556,7 @@
     "SEARCH_CONTENT_CREATOR": "Search content creator...",
     "EDIT_CONTENT_CREATOR": "Edit content creator",
     "CREATE_CONTENT_CREATOR": "Create content creator",
+    "CREATE_CONTENT_REVIEWER": "Create content reviewer",
     "EDIT_CONTENT_REVIEWER": "Edit content reviewer"
   },
 
@@ -638,6 +649,4 @@
   "TRANSGENDER": "Transgender",
   "dob": "DOB",
   "email": "Email"
-
-
 }

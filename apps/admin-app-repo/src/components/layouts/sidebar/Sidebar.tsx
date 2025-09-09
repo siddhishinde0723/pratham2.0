@@ -1,4 +1,4 @@
-import { ExpandLess, ExpandMore } from '@mui/icons-material';
+// Arrow icons removed
 import {
   Box,
   Collapse,
@@ -44,21 +44,23 @@ const Sidebar = ({
   const { t } = useTranslation();
   const lgUp = useMediaQuery((theme: any) => theme?.breakpoints?.up('lg'));
 
-  const [openMenus, setOpenMenus] = useState({});
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
+    manageUsers: true, // Keep Manage Users expanded by default
+  });
   const router = useRouter();
 
-  const handleToggle = (key) => {
+  const handleToggle = (key: string) => {
     setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const getActiveStyle = (link) =>
+  const getActiveStyle = (link: string) =>
     router.pathname === link
       ? { backgroundColor: '#FDBF34', color: 'black', borderRadius: '100px' }
       : {};
 
-  const menuItems = Object.entries(MENU_CONFIG[storedProgram] || {}).filter(
-    ([_, item]) => item.roles.includes(storedRole)
-  );
+  const menuItems = Object.entries(
+    (MENU_CONFIG as any)[storedProgram || ''] || {}
+  ).filter(([_, item]: [string, any]) => item.roles.includes(storedRole));
 
   // console.log('menuItems', JSON.stringify(menuItems));
 
@@ -69,8 +71,8 @@ const Sidebar = ({
       bgcolor="#F8EFDA"
       sx={{
         background: 'linear-gradient(to bottom, white, #F8EFDA)',
-        height:"100vh",
-        overflowY:'auto'
+        height: '100vh',
+        overflowY: 'auto',
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'center' }}>
@@ -78,10 +80,8 @@ const Sidebar = ({
       </Box>
 
       <Box mt={2}>
-        <List
-          component="nav"
-        >
-          {menuItems.map(([key, item]) => {
+        <List component="nav">
+          {menuItems.map(([key, item]: [string, any]) => {
             const hasSubMenu = item.subMenu && item.subMenu.length > 0;
             const isAllowed = item.roles.includes(storedRole);
 
@@ -91,11 +91,12 @@ const Sidebar = ({
               <div key={key}>
                 <ListItemButton
                   onClick={() => {
-                    if (hasSubMenu) {
+                    if (hasSubMenu && key !== 'manageUsers') {
                       handleToggle(key);
-                    } else {
+                    } else if (!hasSubMenu) {
                       router.push(item.link);
                     }
+                    // For manageUsers, do nothing on click - keep it always expanded
                   }}
                   style={getActiveStyle(item.link)}
                 >
@@ -108,21 +109,14 @@ const Sidebar = ({
                     />
                   </ListItemIcon>
                   <ListItemText primary={t(item.title)} />
-                  {hasSubMenu ? (
-                    openMenus[key] ? (
-                      <ExpandLess />
-                    ) : (
-                      <ExpandMore />
-                    )
-                  ) : null}
                 </ListItemButton>
 
                 {hasSubMenu && (
                   <Collapse in={openMenus[key]} timeout="auto" unmountOnExit>
                     <List component="div" disablePadding>
                       {item.subMenu
-                        .filter((sub) => sub.roles.includes(storedRole))
-                        .map((sub) => (
+                        .filter((sub: any) => sub.roles.includes(storedRole))
+                        .map((sub: any) => (
                           <ListItemButton
                             key={sub.link}
                             sx={{ pl: 4 }}

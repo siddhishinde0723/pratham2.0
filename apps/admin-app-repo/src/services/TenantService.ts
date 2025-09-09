@@ -1,15 +1,17 @@
-import Cookies from "js-cookie";
-import { fetchTenantConfig, TenantConfig } from "@/utils/fetchTenantConfig";
+import { fetchTenantConfig, TenantConfig } from '@/utils/fetchTenantConfig';
 
 class TenantService {
   private static instance: TenantService;
-  private tenantId: string = "";
+  private tenantId: string = '';
   private tenantConfig: TenantConfig | null = null;
 
   private constructor() {
-    const tenantId = Cookies.get("tenantId");
-    if (tenantId) {
-      this.tenantId = tenantId;
+    // Get tenant ID from localStorage (set during login)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const tenantId = localStorage.getItem('tenantId');
+      if (tenantId) {
+        this.tenantId = tenantId;
+      }
     }
   }
 
@@ -26,7 +28,10 @@ class TenantService {
 
   public setTenantId(tenantId: string) {
     this.tenantId = tenantId;
-    Cookies.set("tenantId", tenantId);
+    // Store in localStorage for consistency with login process
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem('tenantId', tenantId);
+    }
   }
 
   public async getTenantConfig(): Promise<TenantConfig> {
@@ -34,7 +39,7 @@ class TenantService {
       this.tenantConfig = await fetchTenantConfig(this.tenantId);
     }
     if (!this.tenantConfig) {
-      throw new Error("Failed to fetch tenant configuration");
+      throw new Error('Failed to fetch tenant configuration');
     }
     return this.tenantConfig;
   }

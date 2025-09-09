@@ -100,7 +100,7 @@ export default async function handler(
       const authApiToken =
         getCookie(req, 'authToken') || process.env.AUTH_API_TOKEN;
       const tenantId =
-        getCookie(req, 'tenantId') || process.env.NEXT_PUBLIC_TENANT_ID;
+        getCookie(req, 'tenantId') || localStorage.getItem('tenantId');
       const tenantConfig = mockData[tenantId as string];
       const CHANNEL_ID = tenantConfig?.CHANNEL_ID;
 

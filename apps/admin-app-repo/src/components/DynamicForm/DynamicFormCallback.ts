@@ -94,15 +94,10 @@ export const searchListData = async (
     filters,
   };
 
-  if (filters.firstName) {
-    debouncedGetList(data, setResponse, getListApiCall);
-  } else {
-    const resp = await getListApiCall(data);
-    // console.log('totalCount', result?.totalCount);
-    // console.log('userDetails', result?.getUserDetails);
-    setResponse({ result: resp });
-    console.log('Immediate API Call:', resp);
-  }
+  // Always make immediate API call for better user experience
+  const resp = await getListApiCall(data);
+  setResponse({ result: resp });
+  console.log('API Call with filters:', { filters, resp });
 };
 export const extractMatchingKeys = (row: any, schema: any) => {
   let result = {};

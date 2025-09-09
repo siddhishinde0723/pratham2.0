@@ -1,55 +1,18 @@
 export const ContentReviewerSearchSchema = {
-    type: 'object',
-    properties: {
-      state: {
-        type: 'string',
-        title: 'State',
-        enum: ['Select'],
-        enumNames: ['Select'],
-        api: {
-          url: `${process.env.NEXT_PUBLIC_MIDDLEWARE_URL}/fields/options/read`,
-          method: 'POST',
-          payload: { fieldName: 'state', sort: ['state_name', 'asc'] },
-          options: {
-            optionObj: 'result.values',
-            label: 'label',
-            value: 'value',
-          },
-          callType: 'initial',
-        },
-      },
-      firstName: {
-        type: 'string',
-        title: 'Search Key',
-      },
-      sortBy: {
-        type: 'string',
-        title: 'Sort By',
-        enum: ['asc', 'desc'],
-        enumNames: ['A-Z', 'Z-A'],
-      },
-      status: {
-        type: 'string',
-        title: 'Status',
-        enum: ['active', 'archived'],
-        enumNames: ['Active', 'Archived'],
-      },
+  type: 'object',
+  properties: {
+    firstName: {
+      type: 'string',
+      title: 'Search by Name',
+      description: 'Enter first name to search for content reviewers',
     },
-  };
-  
-  export const ContentReviewerUISchema = {
-    'ui:order': ['state', 'searchKey', 'sortBy'],
-  
-    state: {
-      'ui:widget': 'select',
-    },
-  
-    searchKey: {
-      'ui:widget': 'text',
-    },
-  
-    sortBy: {
-      'ui:widget': 'select',
-    },
-  };
-  
+  },
+};
+
+export const ContentReviewerUISchema = {
+  'ui:order': ['firstName'],
+  firstName: {
+    'ui:placeholder': 'Enter content reviewer name to search...',
+    'ui:widget': 'text',
+  },
+};

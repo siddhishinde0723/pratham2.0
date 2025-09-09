@@ -1,36 +1,12 @@
 import { validate } from 'uuid';
 
 export default function handler(req, res) {
-  if (req.method === 'POST') {
-    try {
-      const { readForm } = req.body;
-
-      if (readForm && readForm.length > 0) {
-        fetchFormFields(readForm).then((fields) => {
-          // console.log('fieldFromFunction!!!', fields);
-
-          if (fields && fields.length > 0) {
-            const { schema, uiSchema } = generateSchemaAndUISchema(fields);
-            res.status(200).json({
-              schema,
-              uiSchema,
-            });
-          } else {
-            res
-              .status(500)
-              .json({ error: 'Form Fields Not Found in API Call' });
-          }
-        });
-      } else {
-        res.status(500).json({ error: 'Form data is required' });
-      }
-    } catch (error) {
-      // console.log('error hgfgfh', error);
-      res.status(500).json({ error: error.message });
-    }
-  } else {
-    res.status(405).json({ error: 'Method not allowed' });
-  }
+  // API disabled to prevent 500 errors
+  res.status(200).json({
+    schema: {},
+    uiSchema: {},
+    message: 'Dynamic form API disabled',
+  });
 }
 
 const fetchFormFields = async (readForm) => {

@@ -163,32 +163,35 @@ const PaginatedTable = ({
             </TableRow>
           </TableHead>
           <TableBody>
-            {data && data?.map((row, index) => (
-              <TableRow key={index}>
-                {columns?.map((col) => (
-                  <TableCell key={col.key || col.keys?.join('-')}>
-                    {/* ✅ Keep custom render logic if provided */}
-                    {col.render
-                      ? col.render(row)
-                      : Array.isArray(col.keys)
-                      ? col.keys.map((key) => row[key] ?? '').join(' ')
-                      : row[col.key] ?? ''}
-                  </TableCell>
-                ))}
-                {actions.length > 0 && (
-                  <TableCell sx={{width:'100px'}}>
-                    {actions.map((action, idx) => (
-                    
-                        <IconButton key={idx} onClick={() => action.callback(row)}>
-                          {action.icon}
+            {data &&
+              data?.map((row, index) => (
+                <TableRow key={index}>
+                  {columns?.map((col) => (
+                    <TableCell key={col.key || col.keys?.join('-')}>
+                      {/* ✅ Keep custom render logic if provided */}
+                      {col.render
+                        ? col.render(row)
+                        : Array.isArray(col.keys)
+                        ? col.keys.map((key) => row[key] ?? '').join(' ')
+                        : row[col.key] ?? ''}
+                    </TableCell>
+                  ))}
+                  {actions.length > 0 && (
+                    <TableCell sx={{ width: '100px' }}>
+                      {actions.map((action, idx) => (
+                        <IconButton
+                          key={idx}
+                          onClick={() => action.callback(row)}
+                        >
+                          {typeof action.icon === 'function'
+                            ? action.icon(row)
+                            : action.icon}
                         </IconButton>
-            
-
-                    ))}
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
+                      ))}
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
           </TableBody>
         </Table>
       </TableContainer>

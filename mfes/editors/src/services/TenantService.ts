@@ -8,7 +8,8 @@ class TenantService {
   private storageKey: string;
 
   private constructor() {
-    this.tenantId = Cookies.get("tenantId") || process.env.NEXT_PUBLIC_TENANT_ID || "";
+    this.tenantId =
+      Cookies.get('tenantId') || localStorage.getItem('tenantId') || '';
     this.storageKey = `tenantConfig_${this.tenantId}`;
   }
 

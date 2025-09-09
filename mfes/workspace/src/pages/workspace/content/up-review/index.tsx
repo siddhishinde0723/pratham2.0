@@ -81,24 +81,24 @@ const [showHeader, setShowHeader] = useState<boolean | null>(null);
   }, [searchTerm]);
   useEffect(() => {
     const filteredArray = contentList.map((item: any) => ({
-      image: item?.appIcon,
-
-      name: item?.name,
-      description: item?.description,
-
+      image: item?.appIcon || item?.posterImage || item?.appicon,
       contentType: item.primaryCategory,
+      name: item.name,
+      primaryCategory: item.primaryCategory,
       lastUpdatedOn: timeAgo(item.lastUpdatedOn),
       status: item.status,
       identifier: item.identifier,
       mimeType: item.mimeType,
       mode: item.mode,
-      createdBy: item.createdBy,
       creator: item.creator,
-      author: item.author
-
-
-
-
+      description: item?.description,
+      state: item?.state,
+      author: item.author,
+      access: item.access,
+      url: item.url,
+      posterImage: item.posterImage,
+      appicon: item.appicon,
+      resource: item.resource,
     }));
     setData(filteredArray)
     console.log(filteredArray)

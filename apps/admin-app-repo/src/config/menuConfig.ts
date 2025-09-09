@@ -1,6 +1,30 @@
 import { Role, TenantName } from '@/utils/app.constant';
 
 export const MENU_CONFIG = {
+  'Key Education Foundation': {
+    manageUsers: {
+      title: 'Manage Users',
+      icon: '/images/group.svg',
+      roles: [Role.ADMIN, Role.CENTRAL_ADMIN],
+      subMenu: [
+        {
+          title: 'Learners',
+          link: '/learners',
+          roles: [Role.ADMIN, Role.CENTRAL_ADMIN],
+        },
+        {
+          title: 'Content Creator',
+          link: '/content-creator',
+          roles: [Role.ADMIN, Role.CENTRAL_ADMIN],
+        },
+        {
+          title: 'Content Reviewer',
+          link: '/content-reviewer',
+          roles: [Role.ADMIN, Role.CENTRAL_ADMIN],
+        },
+      ],
+    },
+  },
   [TenantName.SECOND_CHANCE_PROGRAM]: {
     batch: {
       title: 'Batch',

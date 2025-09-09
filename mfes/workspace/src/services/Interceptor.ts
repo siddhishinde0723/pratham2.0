@@ -2,7 +2,9 @@ import axios from 'axios';
 import { refresh } from './LoginService';
 import TenantService from './TenantService';
 
-const instance = axios.create();
+const instance = axios.create({
+  baseURL: typeof window !== 'undefined' ? window.location.origin : '',
+});
 
 const refreshToken = async () => {
   const refresh_token = localStorage.getItem('refreshToken');

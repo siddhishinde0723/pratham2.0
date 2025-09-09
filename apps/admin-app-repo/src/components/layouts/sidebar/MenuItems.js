@@ -39,7 +39,15 @@ const Menuitems = [
         title: 'SIDEBAR.LEARNERS',
         href: ['/learners'],
       },
-       {
+      {
+        title: 'SIDEBAR.CONTENT_CREATOR',
+        href: ['/content-creator'],
+      },
+      {
+        title: 'SIDEBAR.CONTENT_REVIEWER',
+        href: ['/content-reviewer'],
+      },
+      {
         title: 'SIDEBAR.MENTOR',
         href: ['/mentor'],
       },
@@ -74,7 +82,6 @@ const Menuitems = [
         title: 'Village',
         href: ['/village'],
       },
-     
     ],
   },
   {
@@ -124,7 +131,9 @@ export const getFilteredMenuItems = () => {
     }
 
     if (userInfo?.role === Role.SCTA || userInfo?.role === Role.CCTA) {
-      if (userInfo?.tenantData[0]?.tenantName != TenantName.SECOND_CHANCE_PROGRAM) {
+      if (
+        userInfo?.tenantData[0]?.tenantName != TenantName.SECOND_CHANCE_PROGRAM
+      ) {
         return Menuitems.filter((item) => item.title === 'SIDEBAR.WORKSPACE');
       }
       // For SCTA and CCTA, show only Course Planner and Workspace
@@ -136,82 +145,77 @@ export const getFilteredMenuItems = () => {
       );
     }
 
-if (
-  userInfo?.role === Role.ADMIN &&
-  userInfo?.tenantData[0]?.tenantName === TenantName.YOUTHNET
-) {
-  return Menuitems.filter(
-    (item) =>
-      item.title === 'SIDEBAR.MANAGE_USERS' ||
-    item.title === 'SIDEBAR.SUPPORT_REQUEST' ||
-      item.title === 'SIDEBAR.SUPPORT_REQUEST' ||
-       item.title === 'SIDEBAR.CERTIFICATE_ISSUANCE' || 
-         item.title === 'MASTER.MASTER'
-  ).map((item) => {
-    if (item.title === 'SIDEBAR.MANAGE_USERS' && item.subOptions) {
-      return {
-        ...item,
-        subOptions: item.subOptions.filter(
-          (subItem) =>
-            subItem.title === 'SIDEBAR.MENTOR' ||
-            subItem.title === 'SIDEBAR.MENTOR_LEADER'
-        ),
-      };
+    if (userInfo?.role === Role.ADMIN) {
+      // For ADMIN users, show only Manage Users tab
+      const manageUsersItem = Menuitems.find(
+        (item) => item.title === 'SIDEBAR.MANAGE_USERS'
+      );
+
+      if (manageUsersItem) {
+        if (manageUsersItem.subOptions) {
+          // For YouthNet tenant, show only Mentor and Mentor Leader
+          if (userInfo?.tenantData[0]?.tenantName === TenantName.YOUTHNET) {
+            return [
+              {
+                ...manageUsersItem,
+                subOptions: manageUsersItem.subOptions.filter(
+                  (subItem) =>
+                    subItem.title === 'SIDEBAR.MENTOR' ||
+                    subItem.title === 'SIDEBAR.MENTOR_LEADER'
+                ),
+              },
+            ];
+          }
+          // For Second Chance Program tenant, show Team Leaders, Facilitators, Learners
+          else if (
+            userInfo?.tenantData[0]?.tenantName ===
+            TenantName.SECOND_CHANCE_PROGRAM
+          ) {
+            return [
+              {
+                ...manageUsersItem,
+                subOptions: manageUsersItem.subOptions.filter(
+                  (subItem) =>
+                    subItem.title === 'SIDEBAR.TEAM_LEADERS' ||
+                    subItem.title === 'SIDEBAR.FACILITATORS' ||
+                    subItem.title === 'SIDEBAR.LEARNERS'
+                ),
+              },
+            ];
+          }
+          // For other tenants (like Key Education Foundation), show only Learners, Content Creator, Content Reviewer
+          else {
+            return [
+              {
+                ...manageUsersItem,
+                subOptions: manageUsersItem.subOptions.filter(
+                  (subItem) =>
+                    subItem.title === 'SIDEBAR.LEARNERS' ||
+                    subItem.title === 'SIDEBAR.CONTENT_CREATOR' ||
+                    subItem.title === 'SIDEBAR.CONTENT_REVIEWER'
+                ),
+              },
+            ];
+          }
+        }
+        return [manageUsersItem];
+      }
+
+      // Fallback: return empty array if Manage Users not found
+      return [];
     }
-    return item;
-  }).filter((item) => item.subOptions?.length || !item.subOptions);
-}
-
-if (
-  userInfo?.role === Role.ADMIN &&
-  userInfo?.tenantData[0]?.tenantName === TenantName.SECOND_CHANCE_PROGRAM
-) {
-  return Menuitems.map((item) => {
-    if (item.title === 'SIDEBAR.MANAGE_USERS' && item.subOptions) {
-      return {
-        ...item,
-        subOptions: item.subOptions.filter(
-          (subItem) =>
-            subItem.title === 'SIDEBAR.TEAM_LEADERS' ||
-            subItem.title === 'SIDEBAR.FACILITATORS' || 
-            subItem.title === 'SIDEBAR.LEARNERS'
-          
-        ),
-      };
-    }
-    return item;
-  }).filter((item) => item.title === 'SIDEBAR.MANAGE_USERS' || item.title === 'SIDEBAR.SUPPORT_REQUEST' ||  item.title === 'SIDEBAR.CENTERS' ||  item.title === 'SIDEBAR.CERTIFICATE_ISSUANCE' ||  item.title === 'MASTER.MASTER' );
-}
-
-
-
 
     if (
-      userInfo?.role === Role.ADMIN &&
+      userInfo?.role === Role.CENTRAL_ADMIN &&
       userInfo?.tenantData[0]?.tenantName === TenantName.SECOND_CHANCE_PROGRAM
     ) {
-      // Exclude Course Planner and Workspace for Admin and Central Admin
+      // Exclude Course Planner and Workspace for Central Admin
       return Menuitems.filter(
         (item) =>
           item.title !== 'SIDEBAR.COURSE_PLANNER' &&
           item.title !== 'SIDEBAR.WORKSPACE' &&
           item.title !== 'PROGRAM_MANAGEMENT.PROGRAMS' &&
           item.title !== 'SIDEBAR.MANAGE_NOTIFICATION'
-      );
-    }
-    if (
-      (userInfo?.role === Role.ADMIN ||
-        userInfo?.role === Role.CENTRAL_ADMIN) &&
-      userInfo?.tenantData[0]?.tenantName === TenantName.SECOND_CHANCE_PROGRAM
-    ) {
-      // Exclude Course Planner and Workspace for Admin and Central Admin
-      return Menuitems.filter(
-        (item) =>
-          item.title !== 'SIDEBAR.COURSE_PLANNER' &&
-          item.title !== 'SIDEBAR.WORKSPACE' &&
-          item.title !== 'SIDEBAR.CENTERS' &&
-          item.title !== 'SIDEBAR.MANAGE_USERS' && 
-          item.title !== 'SIDEBAR.CERTIFICATE_ISSUANCE'
       );
     }
 

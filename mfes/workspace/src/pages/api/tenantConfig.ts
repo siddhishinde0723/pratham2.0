@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { getCookie } from '@workspace/utils/cookieHelper';
 
 // Mock data
 export const mockData: Record<string, any> = {
@@ -7,16 +8,7 @@ export const mockData: Record<string, any> = {
     CONTENT_FRAMEWORK: 'Colab-framework',
     COLLECTION_FRAMEWORK: 'Colab-framework',
   },
-  '29f8c9a6-032f-48c7-a14a-9e3db3d7b76e': {
-    CHANNEL_ID: 'pos-channel',
-    CONTENT_FRAMEWORK: 'level1-framework',
-    COLLECTION_FRAMEWORK: 'pos-framework',
-  },
-  '6c8b810a-66c2-4f0d-8c0c-c025415a4414': {
-    CHANNEL_ID: 'youthnet-channel',
-    CONTENT_FRAMEWORK: 'level1-framework',
-    COLLECTION_FRAMEWORK: 'youthnet-framework',
-  },
+
   '6c386899-7a00-4733-8447-5ef925bbf700': {
     CHANNEL_ID: 'KEF-channel',
     CONTENT_FRAMEWORK: 'KEF-framework',
@@ -55,16 +47,41 @@ export const mockData: Record<string, any> = {
 };
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { tenantId } = req.query;
+  // Try to get tenant ID from multiple sources
+  const queryTenantId = req.query.tenantId as string;
+  const cookieTenantId = getCookie(req, 'tenantId');
+  const headerTenantId = req.headers['tenantid'] as string;
+  const envTenantId = localStorage.getItem('tenantId');
 
-  if (!tenantId || typeof tenantId !== 'string') {
+  // Use the first available tenant ID
+  const tenantId =
+    queryTenantId ||
+    cookieTenantId ||
+    headerTenantId ||
+    envTenantId ||
+    '6c386899-7a00-4733-8447-5ef925bbf700';
+
+  console.log('Tenant ID sources:', {
+    query: queryTenantId,
+    cookie: cookieTenantId,
+    header: headerTenantId,
+    env: envTenantId,
+    final: tenantId,
+  });
+
+  if (!tenantId) {
     return res.status(400).json({ error: 'Invalid or missing tenantId' });
   }
 
   const config = mockData[tenantId];
 
   if (!config) {
-    return res.status(404).json({ error: 'Tenant not found' });
+    console.log('Available tenant IDs:', Object.keys(mockData));
+    return res.status(404).json({
+      error: 'Tenant not found',
+      requestedTenantId: tenantId,
+      availableTenantIds: Object.keys(mockData),
+    });
   }
 
   return res.status(200).json(config);

@@ -30,15 +30,18 @@ export default async function handler(
   const BASE_URL = (
     process.env.NEXT_PUBLIC_BASE_URL ||
     process.env.NEXT_PUBLIC_MIDDLEWARE_URL ||
-    ''
+    'https://shiksha-dev-middleware.tekdinext.com'
   ).toString();
   if (!BASE_URL) {
     console.warn(
       'Proxy BASE_URL env not set. Please set NEXT_PUBLIC_BASE_URL to your middleware base, e.g., https://interface.tekdinext.com/interface/v1'
     );
   }
-  const tenantId =
-    getCookie(req, 'tenantId') || (process.env.NEXT_PUBLIC_TENANT_ID as string);
+  const tenantId = getCookie(req, 'tenantId');
+
+  if (!tenantId) {
+    return res.status(400).json({ error: 'Tenant ID not found in cookies' });
+  }
 
   const tenantConfig = mockData[tenantId];
 
@@ -117,6 +120,13 @@ export default async function handler(
       '/api/framework/v1/read/'
     );
   }
+
+  // if (pathString.startsWith('/action/channel/v1/read/')) {
+  //   pathString = pathString.replace(
+  //     '/action/channel/v1/read/',
+  //     '/api/channel/v1/read/'
+  //   );
+  // }
 
   const queryString = req.url?.includes('?') ? req.url.split('?')[1] : '';
   const targetUrl = `${BASE_URL}${pathString}${

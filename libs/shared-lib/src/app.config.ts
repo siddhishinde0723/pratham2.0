@@ -74,8 +74,7 @@ export const Program = ['Second Chance', 'secondchance'];
 
 //below line cause issue in react vite build as vite not able to access next env public variables
 export const tenantId =
-  (typeof window !== 'undefined' && localStorage.getItem('tenantId')) ||
-  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_TENANT_ID);
+  (typeof window !== 'undefined' && localStorage.getItem('tenantId'))
 
 if (!tenantId && typeof window !== 'undefined') {
   console.warn(

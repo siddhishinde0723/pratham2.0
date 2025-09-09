@@ -1,24 +1,18 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from 'react';
 // import FeatherIcon from "feather-icons-react";
-import { AppBar, Box, IconButton, Toolbar } from "@mui/material";
-import MenuItem from "@mui/material/MenuItem";
-import Select, { SelectChangeEvent } from "@mui/material/Select";
-import config from "../../../../config.json";
-import PropTypes from "prop-types";
-import Image from "next/image";
-import TranslateIcon from "@mui/icons-material/Translate";
-import Menu from "@mui/material/Menu";
-import SearchBar from "./SearchBar";
-import { useRouter } from "next/router";
-import deleteIcon from "../../../../public/images/Language_icon.png";
+import { AppBar, Box, IconButton, Toolbar } from '@mui/material';
+// Academic year imports removed
+import config from '../../../../config.json';
+import PropTypes from 'prop-types';
+import Image from 'next/image';
+import SearchBar from './SearchBar';
+import { useRouter } from 'next/router';
 
-import { useTranslation } from "next-i18next";
-import { createTheme, useTheme } from "@mui/material/styles";
-import Profile from "./Profile";
-import { AcademicYear } from "@/utils/Interfaces";
-import useStore from "@/store/store";
-import { useQueryClient } from "@tanstack/react-query";
-import { Role, TenantName } from "@/utils/app.constant";
+import { useTranslation } from 'next-i18next';
+import { createTheme, useTheme } from '@mui/material/styles';
+import Profile from './Profile';
+// Academic year imports removed
+import { Role, TenantName } from '@/utils/app.constant';
 import MenuIcon from '@mui/icons-material/Menu';
 
 const Header = ({
@@ -30,144 +24,24 @@ const Header = ({
 }: any) => {
   const { t } = useTranslation();
   const theme = useTheme<any>();
-  const [lang, setLang] = useState("");
-  const queryClient = useQueryClient();
-
   const router = useRouter();
-  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-  const open = Boolean(anchorEl);
-  const setIsActiveYearSelected = useStore(
-    (state: { setIsActiveYearSelected: any }) => state.setIsActiveYearSelected
-  );
 
-  const [selectedLanguage, setSelectedLanguage] = useState(lang);
-  const [userRole, setUserRole] = useState("");
-
-  const [academicYearList, setAcademicYearList] = useState<AcademicYear[]>([]);
-  const [selectedSessionId, setSelectedSessionId] = useState<string>("");
-
-  const [language, setLanguage] = useState(selectedLanguage);
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.localStorage) {
-      const lang = localStorage.getItem("preferredLanguage") || "en";
-      setLanguage(lang);
-      const storedList = localStorage.getItem("academicYearList");
-      try {
-        const parsedList = storedList ? JSON.parse(storedList) : [];
-        const modifiedList = parsedList.map(
-          (item: { isActive: any; session: any }) => {
-            if (item.isActive) {
-              return {
-                ...item,
-                session: `${item.session} (${t("COMMON.ACTIVE")})`,
-              };
-            }
-            return item;
-          }
-        );
-        setAcademicYearList(modifiedList);
-        const selectedAcademicYearId = localStorage.getItem("academicYearId");
-        setSelectedSessionId(selectedAcademicYearId ?? "");
-      } catch (error) {
-        console.error("Error parsing stored academic year list:", error);
-        setAcademicYearList([]);
-        setSelectedSessionId("");
-      }
-    }
-  }, [setLanguage]);
+  const [userRole, setUserRole] = useState('');
+  // Academic year useEffect removed
 
   useEffect(() => {
-    const storedUserData = localStorage.getItem("adminInfo");
+    const storedUserData = localStorage.getItem('adminInfo');
     if (storedUserData) {
       const userData = JSON.parse(storedUserData);
       setUserRole(userData.role);
     }
   }, []);
-  const handleSelectChange = (event: SelectChangeEvent) => {
-    setSelectedSessionId(event.target.value);
-    localStorage.setItem("academicYearId", event.target.value);
-    // Check if the selected academic year is active
-    const selectedYear = academicYearList?.find(
-      (year) => year.id === event.target.value
-    );
-    const isActive = selectedYear ? selectedYear.isActive : false;
-    // localStorage.setItem('isActiveYearSelected', JSON.stringify(isActive));
-    setIsActiveYearSelected(isActive);
+  // Academic year handleSelectChange function removed
 
-    queryClient.clear();
-    // window.location.reload();
-    const storedUserData = JSON.parse(
-      localStorage.getItem("adminInfo") || "{}"
-    );
-    // window.location.href = (storedUserData?.role === Role.SCTA || storedUserData?.role === Role.CCTA)?"/course-planner":"/centers";
-    const { locale } = router;
-    if (
-      storedUserData?.role === Role.SCTA ||
-      storedUserData?.role === Role.CCTA
-    ) {
-      if(storedUserData?.tenantData[0]?.tenantName != TenantName.SECOND_CHANCE_PROGRAM ) {
-        router.push("/workspace");
-      } else {
-        if (locale) 
-          router.push("/course-planner", undefined, { locale: locale });
-        else
-          router.push("/course-planner");
-      }
-    } else {
-      if (locale) {
-        if (storedUserData?.role === Role.CENTRAL_ADMIN && storedUserData?.tenantData[0]?.tenantName == TenantName.SECOND_CHANCE_PROGRAM) {
-          if (router.pathname === "/programs") window.location.reload();
-          else router.push("/programs", undefined, { locale: locale });
-        } else if ((storedUserData?.role === Role.CENTRAL_ADMIN ||
-                    storedUserData?.role === Role.ADMIN) && storedUserData?.tenantData[0]?.tenantName == TenantName.YOUTHNET){
-          if (router.pathname === "/mentor") window.location.reload();
-          else router.push("/mentor", undefined, { locale: locale });
-        } 
-        else if (storedUserData?.role === Role.ADMIN && storedUserData?.tenantData[0]?.tenantName == TenantName.SECOND_CHANCE_PROGRAM) {
-          if (router.pathname === "/centers") window.location.reload();
-          else router.push("/centers", undefined, { locale: locale });
-        }
-      } else {
-        if (storedUserData?.role === Role.CENTRAL_ADMIN && storedUserData?.tenantData[0]?.tenantName == TenantName.SECOND_CHANCE_PROGRAM) {
-          if (router.pathname === "/programs") window.location.reload();
-          else router.push("/programs");
-        } else if (storedUserData?.role === Role.ADMIN && storedUserData?.tenantData[0]?.tenantName == TenantName.SECOND_CHANCE_PROGRAM) {
-          if (router.pathname === "/centers") window.location.reload();
-          else router.push("/centers");
-        } else if ((storedUserData?.role === Role.CENTRAL_ADMIN ||
-                    storedUserData?.role === Role.ADMIN) && storedUserData?.tenantData[0]?.tenantName == TenantName.YOUTHNET) {
-          if (router.pathname === "/mentor") window.location.reload();
-          else router.push("/mentor", undefined, { locale: locale });
-        }
-      }
-    }
-  };
-
-  const handleChange = (event: SelectChangeEvent) => {
-    const newLocale = event.target.value;
-    setLanguage(newLocale);
-    if (typeof window !== "undefined" && window.localStorage) {
-      localStorage.setItem("preferredLanguage", newLocale);
-      router.replace(router.pathname, router.asPath, { locale: newLocale });
-    }
-  };
-  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-  const handleMenuItemClick = (newLocale: any) => {
-    setLanguage(newLocale);
-    if (typeof window !== "undefined" && window.localStorage) {
-      localStorage.setItem("preferredLanguage", newLocale);
-      router.replace(router.pathname, router.asPath, { locale: newLocale });
-    }
-    handleClose();
-  };
+  // Language functions removed
   return (
     <AppBar sx={sx} position={position} elevation={0} className={customClass}>
-      <Toolbar sx={{ gap: "15px" }}>
+      <Toolbar sx={{ gap: '15px' }}>
         <IconButton
           size="large"
           color="inherit"
@@ -175,17 +49,17 @@ const Header = ({
           onClick={toggleMobileSidebar}
           sx={{
             display: {
-              color:theme.palette.warning['A400'],
-              lg: "none",
-              xs: "flex",
-              "@media (max-width: 600px)": {
-                padding: "0px",
+              color: theme.palette.warning['A400'],
+              lg: 'none',
+              xs: 'flex',
+              '@media (max-width: 600px)': {
+                padding: '0px',
               },
             },
           }}
         >
           {/* {showIcon === false ? "" : <FeatherIcon icon="menu" size="20" />} */}
-          <MenuIcon/>
+          <MenuIcon />
         </IconButton>
         {/* ------------------------------------------- */}
         {/* Search Dropdown */}
@@ -198,102 +72,9 @@ const Header = ({
 
         <Box flexGrow={1} />
 
-        {userRole !== Role.CCTA &&
-          userRole !== Role.SCTA &&
-          userRole !== "" && (
-            <Box sx={{ flexBasis: "20%" }}>
-              {/* <FormControl className="drawer-select" sx={{ width: '100%' }}> */}
-              <Select
-                onChange={handleSelectChange}
-                value={selectedSessionId}
-                className="select-languages"
-                displayEmpty
-                sx={{
-                  borderRadius: "0.5rem",
-                  // color: theme.palette.warning['200'],
-                  width: "100%",
-                  marginBottom: "0rem",
-                  height: "30px",
-                  color: "#fff",
-                  border: "1px solid #fff",
-                  "& .MuiSvgIcon-root": {
-                    color: "#fff",
-                  },
-                }}
-              >
-                {academicYearList.map(({ id, session }) => (
-                  <MenuItem key={id} value={id}>
-                    {session}
-                  </MenuItem>
-                ))}
-              </Select>
-              {/* </FormControl> */}
-            </Box>
-          )}
+        {/* Academic Year dropdown removed */}
 
-        <Box
-          sx={{
-            display: "flex",
-            // gap:"10px",
-            backgroundColor: "white",
-            padding: "5px",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "20px",
-            width: "35px",
-            borderRadius: "10px",
-            cursor: "pointer",
-          }}
-          onClick={handleClick}
-        >
-          {/* <IconButton
-            aria-label="more"
-            id="long-button"
-            aria-controls={open ? "long-menu" : undefined}
-            aria-expanded={open ? "true" : undefined}
-            aria-haspopup="true"
-            onClick={handleClick}
-          >
-            <TranslateIcon />
-
-          </IconButton> */}
-          <Image src={deleteIcon} alt="" width={22} />
-        </Box>
-        <Menu
-          id="long-menu"
-          MenuListProps={{
-            "aria-labelledby": "long-button",
-          }}
-          anchorEl={anchorEl}
-          open={open}
-          onClose={handleClose}
-          PaperProps={{
-            style: {
-              // maxHeight: ITEM_HEIGHT * 4.5,
-              width: "20ch",
-            },
-          }}
-        >
-          {config.languages.map((lang) => (
-            <MenuItem
-              value={lang.code}
-              key={lang.code}
-              onClick={() => handleMenuItemClick(lang.code)}
-              sx={{
-                backgroundColor:
-                  lang.code === language ? "rgba(0, 0, 0, 0.08)" : "inherit",
-                "&:hover": {
-                  backgroundColor:
-                    lang.code === language
-                      ? "rgba(0, 0, 0, 0.12)"
-                      : "rgba(0, 0, 0, 0.08)",
-                },
-              }}
-            >
-              {lang.label}
-            </MenuItem>
-          ))}
-        </Menu>
+        {/* Language dropdown removed */}
         <Profile />
         {/* ------------------------------------------- */}
         {/* Profile Dropdown */}

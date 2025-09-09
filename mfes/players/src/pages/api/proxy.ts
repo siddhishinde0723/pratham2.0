@@ -17,7 +17,7 @@ export default async function handler(
 
   const BASE_URL = process.env.BASE_URL as string;
   const API_KEY = process.env.AUTH_API_TOKEN as string;
-  const NEXT_PUBLIC_TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID as string;
+  const NEXT_PUBLIC_TENANT_ID = localStorage.getItem('tenantId') as string;
   const NEXT_PUBLIC_CHANNEL_ID = process.env.NEXT_PUBLIC_CHANNEL_ID as string;
 
   const cookies = cookie.parse(req.headers.cookie || '');
@@ -41,6 +41,10 @@ export default async function handler(
       return res.status(200).json(genericEditorSaveFormResponse);
     }
     if (action === 'review' && subType === 'resource') {
+      console.log(
+        'genericEditorReviewFormResponse ==>',
+        genericEditorReviewFormResponse
+      );
       return res.status(200).json(genericEditorReviewFormResponse);
     }
     if (action === 'requestforchanges' && subType === 'resource') {
@@ -75,7 +79,9 @@ export default async function handler(
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
-        tenantId: NEXT_PUBLIC_TENANT_ID,
+        ...(localStorage.getItem('tenantId') && {
+          tenantId: localStorage.getItem('tenantId')!,
+        }),
         'X-Channel-Id': NEXT_PUBLIC_CHANNEL_ID,
       },
       ...(method === 'POST' || method === 'PATCH'

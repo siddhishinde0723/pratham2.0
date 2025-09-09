@@ -623,8 +623,31 @@ export class ContentBulkService {
       const uniqueCode = uuidv4();
       let fileUrl: string = documentUrl || '';
 
+      // Fetch framework details to determine if it's topic-based or board-based
+      let isTopicFramework = false;
+      try {
+        const frameworkDetails = await getFrameworkDetails(this.framework);
+        const frameworkData = frameworkDetails?.result?.framework;
+
+        if (frameworkData?.categories) {
+          const hasTopic = frameworkData.categories.some(
+            (cat: any) => cat.code === 'topic'
+          );
+          const hasBoard = frameworkData.categories.some(
+            (cat: any) => cat.code === 'board'
+          );
+          // If framework has topic but no board, it's a topic-based framework
+          isTopicFramework = hasTopic && !hasBoard;
+        }
+      } catch (error) {
+        console.warn(
+          'Could not fetch framework details, defaulting to include all fields:',
+          error
+        );
+      }
+
       // Prepare additional fields
-      const additionalFields = {
+      const additionalFields: any = {
         description: record.cont_description || '',
         domain: this.toArray(record.domain),
         primaryUser: this.toArray(record.primary_user),
@@ -635,7 +658,6 @@ export class ContentBulkService {
         isContentMigrated: 1,
         oldSystemContentId: record.old_system_content_id || '',
         contentType: 'Resource',
-        subject: this.toArray(record.subject || record.subjects),
         topic: this.toArray(record.topic),
         subTopic: this.toArray(record.sub_category),
         keywords: this.toArray(record.cont_tagwords),
@@ -653,12 +675,21 @@ export class ContentBulkService {
         appicon: record.image
           ? `${this.imageBaseUrl}/detail/${record.image}`
           : '',
-        // Framework-specific fields - board as string, medium/gradeLevel as arrays
-        board: record.board || '',
-        medium: record.medium ? this.toArray(record.medium) : [],
-        gradeLevel: record.gradeLevel ? this.toArray(record.gradeLevel) : [],
-        // Note: subject is already handled above as 'subjects'
       };
+
+      // Only include board, medium, gradeLevel, subject for non-topic frameworks
+      if (!isTopicFramework) {
+        additionalFields.board = record.board || '';
+        additionalFields.medium = record.medium
+          ? this.toArray(record.medium)
+          : [];
+        additionalFields.gradeLevel = record.gradeLevel
+          ? this.toArray(record.gradeLevel)
+          : [];
+        additionalFields.subject = this.toArray(
+          record.subject || record.subjects
+        );
+      }
 
       // Handle Google Drive URLs and file type detection
       let fileExtension = '';
@@ -670,8 +701,9 @@ export class ContentBulkService {
 
         // Convert Google Drive URL to download URL if needed
         if (documentUrl.includes('drive.google.com')) {
+          console.log('🔍 Original Google Drive URL:', documentUrl);
           documentUrl = this.convertGoogleDriveUrl(documentUrl);
-          console.log('Converted documentUrl to download URL:', documentUrl);
+          console.log('🔄 Converted documentUrl to download URL:', documentUrl);
         }
 
         const googleDriveMatch = documentUrl.match(
@@ -681,57 +713,37 @@ export class ContentBulkService {
           /drive\.google\.com\/uc\?export=download&id=([^&]+)/
         );
 
+        console.log('🔍 Google Drive URL patterns matched:');
+        console.log('  - File/d/ pattern:', googleDriveMatch);
+        console.log('  - UC export pattern:', googleDriveDownloadMatch);
+
         if (googleDriveMatch) {
           fileId = googleDriveMatch[1];
+          console.log('📁 Extracted file ID from file/d/ pattern:', fileId);
         } else if (googleDriveDownloadMatch) {
           fileId = googleDriveDownloadMatch[1];
+          console.log('📁 Extracted file ID from uc export pattern:', fileId);
+        } else {
+          console.log('❌ No Google Drive file ID found in URL:', documentUrl);
         }
 
-        // First try using the Google Drive API to fetch metadata
+        // Skip Google Drive API validation and use URL directly
         if (fileId) {
-          const apiKey =
-            process.env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY ||
-            'AIzaSyD00Un42OrRpk2hEBEq7pdUGC3Ry54Wdq8';
-          console.log('🔑 API Key available:', !!apiKey);
-          console.log('🔑 API Key length:', apiKey?.length);
+          console.log(
+            '📁 Skipping Google Drive API validation for file ID:',
+            fileId
+          );
+          console.log(
+            '📁 Using direct URL approach - server will handle file download'
+          );
 
-          if (!apiKey) {
-            console.warn(
-              '⚠️ Google Drive API key is missing, using fallback URL'
-            );
-            fileUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-          } else {
-            try {
-              const metadata = await axios.get(
-                `https://www.googleapis.com/drive/v3/files/${fileId}`,
-                {
-                  params: {
-                    fields: 'name,mimeType',
-                    key: apiKey,
-                  },
-                }
-              );
+          // Use the converted download URL directly
+          fileUrl = documentUrl; // Use the already converted URL
+          console.log(`📁 Using Google Drive URL for upload: ${fileUrl}`);
 
-              const { name, mimeType } = metadata.data;
-              const extFromName = name.split('.').pop()?.toLowerCase() || '';
-              const extFromMime = mime.extension(mimeType);
-              fileExtension = extFromName || extFromMime || '';
-
-              // ✅ Keep the original Google Drive URL for upload (don't use streaming URL)
-              fileUrl = documentUrl; // Use original URL, not streaming URL
-              console.log(
-                `📁 Using original Google Drive URL for upload: ${fileUrl}`
-              );
-            } catch (err: any) {
-              console.warn(
-                `⚠️ Google Drive API failed (likely not shared publicly): ${err.response?.status} - ${err.message}`
-              );
-
-              // 🔁 Fallback to `uc?export=download`
-              fileUrl = documentUrl; // Use the already converted URL
-              console.log(`📁 Using fallback Google Drive URL: ${fileUrl}`);
-            }
-          }
+          // Set default extension for Google Drive files
+          fileExtension = 'pdf'; // Default to PDF for Google Drive files
+          console.log('📁 Defaulting to PDF extension for Google Drive file');
         }
 
         // 🔄 Fallback to HEAD request if still unknown
@@ -882,12 +894,25 @@ export class ContentBulkService {
         fileUrl.includes('youtube.com') || fileUrl.includes('youtu.be');
 
       if (isYouTubeUrl) {
-        console.log('YouTube URL detected, using multipart/form-data upload');
+        console.log(
+          'YouTube URL detected, using multipart/form-data with fileUrl and file'
+        );
 
-        // Create form data for YouTube URLs
+        // For YouTube URLs, we need to send both fileUrl and a dummy file
+        // First, let's create a dummy file (empty or minimal content)
+        const dummyContent = 'YouTube video content';
+        const dummyBlob = new Blob([dummyContent], { type: 'text/plain' });
+
+        // Create form data with fileUrl, mimeType, and dummy file
         const formData = new FormData();
         formData.append('fileUrl', fileUrl);
         formData.append('mimeType', 'video/x-youtube');
+        formData.append('file', dummyBlob, 'youtube_video.txt');
+
+        console.log('📤 YouTube upload form data:');
+        console.log('  - fileUrl:', fileUrl);
+        console.log('  - mimeType: video/x-youtube');
+        console.log('  - file: youtube_video.txt (dummy)');
 
         const response = await this.retryRequest(
           () =>
@@ -903,13 +928,49 @@ export class ContentBulkService {
         );
         return response.data;
       } else {
-        // For all other URLs (including Google Drive), download the file and upload as form data
-        console.log('Downloading file and uploading as form data');
+        // For all other URLs (including Google Drive), use fileUrl and mimeType (same format as YouTube)
+        console.log('Using fileUrl and mimeType for upload (no file download)');
 
-        // Download the file
+        // Determine mime type from URL extension
+        let mimeType = 'application/octet-stream';
+
+        // Try to extract file extension from URL
+        try {
+          const url = new URL(fileUrl);
+          const pathParts = url.pathname.split('/');
+          const lastPart = pathParts[pathParts.length - 1];
+          if (lastPart && lastPart.includes('.')) {
+            const ext = lastPart.split('.').pop()?.toLowerCase();
+            if (ext) {
+              mimeType = mime.lookup(ext) || 'application/octet-stream';
+            }
+          }
+        } catch (error) {
+          console.warn(
+            'Could not parse URL for file extension extraction:',
+            error
+          );
+        }
+
+        // For Google Drive URLs, default to PDF mime type
+        if (fileUrl.includes('drive.google.com')) {
+          console.log(
+            '📁 Google Drive URL detected in upload, defaulting to PDF mime type'
+          );
+          console.log('📁 Google Drive URL:', fileUrl);
+          mimeType = 'application/pdf';
+        }
+
+        console.log('📤 Upload details:');
+        console.log('  - File URL:', fileUrl);
+        console.log('  - MIME Type:', mimeType);
+        console.log('  - Content ID:', contentId);
+
+        // Download the file first
+        console.log('📥 Downloading file from URL:', fileUrl);
         const fileArrayBuffer = await this.downloadFileFromUrl(fileUrl);
 
-        // Double-check file size before creating form data
+        // Check file size
         if (fileArrayBuffer.byteLength > this.MAX_FILE_SIZE) {
           const sizeInMB = (fileArrayBuffer.byteLength / (1024 * 1024)).toFixed(
             2
@@ -919,63 +980,38 @@ export class ContentBulkService {
           );
         }
 
-        // Determine file name and mime type
+        // Determine file name
         let fileName = 'content';
-        let mimeType = 'application/octet-stream';
-
-        // Try to extract file name and extension from URL
         try {
           const url = new URL(fileUrl);
           const pathParts = url.pathname.split('/');
           const lastPart = pathParts[pathParts.length - 1];
           if (lastPart && lastPart.includes('.')) {
             fileName = lastPart;
-            const ext = lastPart.split('.').pop()?.toLowerCase();
-            if (ext) {
-              mimeType = mime.lookup(ext) || 'application/octet-stream';
-            }
           }
         } catch (error) {
           console.warn('Could not parse URL for file name extraction:', error);
         }
 
-        // For Google Drive URLs, try to get better file info
+        // For Google Drive URLs, use a default filename
         if (fileUrl.includes('drive.google.com')) {
-          const fileIdMatch =
-            fileUrl.match(/[?&]id=([^&]+)/) || fileUrl.match(/\/d\/([^/?]+)/);
-          if (fileIdMatch) {
-            const fileId = fileIdMatch[1];
-            const apiKey =
-              process.env.NEXT_PUBLIC_GOOGLE_DRIVE_API_KEY ||
-              'AIzaSyD00Un42OrRpk2hEBEq7pdUGC3Ry54Wdq8';
-
-            try {
-              const metadata = await axios.get(
-                `https://www.googleapis.com/drive/v3/files/${fileId}`,
-                {
-                  params: {
-                    fields: 'name,mimeType',
-                    key: apiKey,
-                  },
-                }
-              );
-
-              if (metadata.data.name) {
-                fileName = metadata.data.name;
-              }
-              if (metadata.data.mimeType) {
-                mimeType = metadata.data.mimeType;
-              }
-            } catch (error) {
-              console.warn('Could not fetch Google Drive metadata:', error);
-            }
-          }
+          fileName = 'google_drive_file.pdf';
         }
 
-        // Create form data
+        console.log('📤 File download complete:');
+        console.log('  - File Name:', fileName);
+        console.log('  - File Size:', fileArrayBuffer.byteLength, 'bytes');
+        console.log('  - MIME Type:', mimeType);
+
+        // Create form data with file and mimeType (matching your working API format)
         const formData = new FormData();
         const blob = new Blob([fileArrayBuffer], { type: mimeType });
         formData.append('file', blob, fileName);
+        formData.append('mimeType', mimeType);
+
+        console.log('📤 Form data created with:');
+        console.log('  - file:', fileName, '(blob)');
+        console.log('  - mimeType:', mimeType);
 
         // Upload using multipart/form-data
         const response = await this.retryRequest(

@@ -16,8 +16,8 @@ import { Button } from '@mui/material';
 import SimpleModal from '@/components/SimpleModal';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import { deleteUser } from '@/services/UserService';
-import editIcon from '../../public/images/editIcon.svg';
-import deleteIcon from '../../public/images/deleteIcon.svg';
+import LockIcon from '@mui/icons-material/Lock';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
 import Image from 'next/image';
 import {
   extractMatchingKeys,
@@ -25,7 +25,7 @@ import {
   searchListData,
 } from '@/components/DynamicForm/DynamicFormCallback';
 import { FormContext } from '@/components/DynamicForm/DynamicFormConstant';
-import AddEditUser from '@/components/EntityForms/AddEditUser/AddEditUser';
+import AddUserForm from '@/components/AddUserForm';
 import TenantService from '@/services/TenantService';
 
 const ContentReviewer = () => {
@@ -42,13 +42,9 @@ const ContentReviewer = () => {
   const [response, setResponse] = useState({});
   const [currentPage, setCurrentPage] = useState(0);
   const [openModal, setOpenModal] = React.useState<boolean>(false);
-  const [isEdit, setIsEdit] = useState(false);
-  const [editableUserId, setEditableUserId] = useState('');
 
   const { t, i18n } = useTranslation();
-  const storedUserData = JSON.parse(
-    localStorage.getItem('adminInfo') || '{}'
-  );
+  const storedUserData = JSON.parse(localStorage.getItem('adminInfo') || '{}');
 
   useEffect(() => {
     if (response?.result?.totalCount !== 0) {
@@ -91,11 +87,27 @@ const ContentReviewer = () => {
   };
 
   const searchData = async (formData: any, newPage: any) => {
-    const staticFilter = { role: RoleName.CONTENT_REVIEWER, tenantId: TenantService.getTenantId() };
-    const { sortBy } = formData;
+    // Get tenant ID from localStorage to filter users by tenant
+    const tenantId = localStorage.getItem('tenantId');
+    const staticFilter = {
+      role: RoleName.CONTENT_REVIEWER,
+      tenantId: tenantId,
+    };
+    const { sortBy, firstName } = formData;
     const staticSort = ['firstName', sortBy || 'asc'];
-    await searchListData(
+
+    // Add firstName to formData if provided for search
+    const searchFormData = firstName ? { ...formData, firstName } : formData;
+
+    console.log('Content Reviewer searchData called with:', {
       formData,
+      searchFormData,
+      staticFilter,
+      firstName,
+    });
+
+    await searchListData(
+      searchFormData,
       newPage,
       staticFilter,
       pageLimit,
@@ -124,159 +136,133 @@ const ContentReviewer = () => {
         color: row.status === 'active' ? 'green' : 'red',
       }),
     },
-    {
-      key: 'STATE',
-      label: 'State',
-      render: (row) => {
-        const state =
-          row.customFields.find((field) => field.label === 'STATE')
-            ?.selectedValues[0]?.value || '-';
-        return `${state}`;
-      },
-    }
+    // State column removed for ADMIN users
   ];
 
   const scpCustomColumns = [
-      {
-        key: 'BOARD',
-        label: 'Board',
-        render: (row) => {
-          const board =
-            row.customFields.find((field) => field.label === 'BOARD')
-              ?.selectedValues[0]?.value || '-';
-          return `${board}`;
-        },
+    {
+      key: 'BOARD',
+      label: 'Board',
+      render: (row) => {
+        const board =
+          row.customFields.find((field) => field.label === 'BOARD')
+            ?.selectedValues[0]?.value || '-';
+        return `${board}`;
       },
-      {
-        key: 'MEDIUM',
-        label: 'Medium',
-        render: (row) => {
-          const medium =
-            row.customFields.find((field) => field.label === 'MEDIUM')
-              ?.selectedValues[0]?.value || '-';
-          return `${medium}`;
-        },
+    },
+    {
+      key: 'MEDIUM',
+      label: 'Medium',
+      render: (row) => {
+        const medium =
+          row.customFields.find((field) => field.label === 'MEDIUM')
+            ?.selectedValues[0]?.value || '-';
+        return `${medium}`;
       },
-      {
-        key: 'GRADE',
-        label: 'Grade',
-        render: (row) => {
-          const grade =
-            row.customFields.find((field) => field.label === 'GRADE')
-              ?.selectedValues[0]?.value || '-';
-          return `${grade}`;
-        },
+    },
+    {
+      key: 'GRADE',
+      label: 'Grade',
+      render: (row) => {
+        const grade =
+          row.customFields.find((field) => field.label === 'GRADE')
+            ?.selectedValues[0]?.value || '-';
+        return `${grade}`;
       },
-      {
-        key: 'SUBJECT',
-        label: 'subject',
-        render: (row) => {
-          const subject =
-            row.customFields.find((field) => field.label === 'SUBJECT')
-              ?.selectedValues[0]?.value || '-';
-          return `${subject}`;
-        },
-      }
-    ]
+    },
+    {
+      key: 'SUBJECT',
+      label: 'subject',
+      render: (row) => {
+        const subject =
+          row.customFields.find((field) => field.label === 'SUBJECT')
+            ?.selectedValues[0]?.value || '-';
+        return `${subject}`;
+      },
+    },
+  ];
 
-    const youthnetCustomColumns = [
-      {
-        key: 'DOMAIN',
-        label: 'Domain',
-        render: (row) => {
-          const domain =
-            row.customFields.find((field) => field.label === 'DOMAIN')
-              ?.selectedValues[0]?.value || '-';
-          return `${domain}`;
-        },
+  const youthnetCustomColumns = [
+    {
+      key: 'DOMAIN',
+      label: 'Domain',
+      render: (row) => {
+        const domain =
+          row.customFields.find((field) => field.label === 'DOMAIN')
+            ?.selectedValues[0]?.value || '-';
+        return `${domain}`;
       },
-      {
-        key: 'SUB-DOMAIN',
-        label: 'Sub Domain',
-        render: (row) => {
-          const subDomain =
-            row.customFields.find((field) => field.label === 'SUB-DOMAIN')
-              ?.selectedValues[0]?.value || '-';
-          return `${subDomain}`;
-        },
+    },
+    {
+      key: 'SUB-DOMAIN',
+      label: 'Sub Domain',
+      render: (row) => {
+        const subDomain =
+          row.customFields.find((field) => field.label === 'SUB-DOMAIN')
+            ?.selectedValues[0]?.value || '-';
+        return `${subDomain}`;
       },
-      {
-        key: 'STREAM',
-        label: 'Stream',
-        render: (row) => {
-          const stream =
-            row.customFields.find((field) => field.label === 'STREAM')
-              ?.selectedValues[0]?.value || '-';
-          return `${stream}`;
-        }
-      }
-    ]
-    if (storedUserData.tenantData[0].tenantName === TenantName.SECOND_CHANCE_PROGRAM) {
-      columns = [...columns, ...scpCustomColumns]
-    } else if (storedUserData.tenantData[0].tenantName === TenantName.YOUTHNET) {
-      columns = [...columns, ...youthnetCustomColumns]
-    }
+    },
+    {
+      key: 'STREAM',
+      label: 'Stream',
+      render: (row) => {
+        const stream =
+          row.customFields.find((field) => field.label === 'STREAM')
+            ?.selectedValues[0]?.value || '-';
+        return `${stream}`;
+      },
+    },
+  ];
+  if (
+    storedUserData.tenantData[0].tenantName === TenantName.SECOND_CHANCE_PROGRAM
+  ) {
+    columns = [...columns, ...scpCustomColumns];
+  } else if (storedUserData.tenantData[0].tenantName === TenantName.YOUTHNET) {
+    columns = [...columns, ...youthnetCustomColumns];
+  }
 
   // Define actions
   const actions = [
     {
-      icon: (
+      icon: (row) => (
         <Box
           sx={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             cursor: 'pointer',
-            backgroundColor: 'rgb(227, 234, 240)',
+            backgroundColor:
+              row.status === 'active'
+                ? 'rgb(227, 234, 240)'
+                : 'rgb(255, 235, 238)',
             padding: '10px',
+            borderRadius: '4px',
           }}
         >
-          <Image src={editIcon} alt="" />
-        </Box>
-      ),
-      callback: (row: any) => {
-        console.log('row:', row);
-        console.log('AddSchema', addSchema);
-        console.log('AddUISchema', addUiSchema);
-
-        let tempFormData = extractMatchingKeys(row, addSchema);
-        console.log('tempFormData', tempFormData);
-        setPrefilledAddFormData(tempFormData);
-        setIsEdit(true);
-        setEditableUserId(row?.userId);
-        handleOpenModal();
-      },
-    },
-    {
-      icon: (
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            cursor: 'pointer',
-            backgroundColor: 'rgb(227, 234, 240)',
-            padding: '10px',
-          }}
-        >
-          {' '}
-          <Image src={deleteIcon} alt="" />
+          {row.status === 'active' ? (
+            <LockOpenIcon sx={{ color: 'green' }} />
+          ) : (
+            <LockIcon sx={{ color: 'red' }} />
+          )}
         </Box>
       ),
       callback: async (row: any) => {
         console.log('row:', row);
-        setEditableUserId(row?.userId);
         const userId = row?.userId;
-        const response = await deleteUser(
-          userId, {
-            userData: {
-              status: Status.ARCHIVED
-            }
-          }
-        );
-        setPrefilledFormData({});
-        searchData(prefilledFormData, currentPage);
-        setOpenModal(false);
+        const newStatus = row.status === 'active' ? 'archived' : 'active';
+
+        const response = await deleteUser(userId, {
+          userData: {
+            status: newStatus,
+          },
+        });
+
+        if (response) {
+          setPrefilledFormData({});
+          searchData(prefilledFormData, currentPage);
+          setOpenModal(false);
+        }
       },
     },
   ];
@@ -347,8 +333,6 @@ const ContentReviewer = () => {
             color="primary"
             onClick={() => {
               setPrefilledAddFormData({});
-              setIsEdit(false);
-              setEditableUserId('');
               handleOpenModal();
             }}
           >
@@ -360,39 +344,18 @@ const ContentReviewer = () => {
           open={openModal}
           onClose={handleCloseModal}
           showFooter={false}
-          modalTitle={
-            isEdit
-              ? t('CONTENT_REVIEWERS.UPDATE_CONTENT_REVIEWER')
-              : t('CONTENT_REVIEWERS.NEW_CONTENT_REVIEWER')
-          }
+          modalTitle={t('CONTENT_CREATOR_REVIEWER.CREATE_CONTENT_REVIEWER')}
         >
-          <AddEditUser
-            SuccessCallback={() => {
+          <AddUserForm
+            userType="content-reviewer"
+            onSuccess={() => {
               setPrefilledFormData({});
               searchData({}, 0);
               setOpenModal(false);
             }}
-            schema={addSchema}
-            uiSchema={addUiSchema}
-            editPrefilledFormData={prefilledAddFormData}
-            isEdit={isEdit}
-            editableUserId={editableUserId}
-            UpdateSuccessCallback={() => {
-              setPrefilledFormData({});
-              searchData(prefilledFormData, currentPage);
+            onCancel={() => {
               setOpenModal(false);
             }}
-            extraFields={extraFields}
-            extraFieldsUpdate={extraFieldsUpdate}
-            successUpdateMessage={successUpdateMessage}
-            telemetryUpdateKey={telemetryUpdateKey}
-            failureUpdateMessage={failureUpdateMessage}
-            successCreateMessage={successCreateMessage}
-            telemetryCreateKey={telemetryCreateKey}
-            failureCreateMessage={failureCreateMessage}
-            notificationKey={notificationKey}
-            notificationMessage={notificationMessage}
-            notificationContext={notificationContext}
           />
         </SimpleModal>
 

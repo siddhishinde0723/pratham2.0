@@ -242,7 +242,7 @@ const [showHeader, setShowHeader] = useState<boolean | null>(null);
 
   useEffect(() => {
     const filteredArray = contentList.map((item) => ({
-      image: item?.appIcon,
+      image: item?.appIcon || item?.posterImage || item?.appicon,
       contentType: item.primaryCategory,
       name: item.name,
       primaryCategory: item.primaryCategory,
@@ -251,7 +251,15 @@ const [showHeader, setShowHeader] = useState<boolean | null>(null);
       identifier: item.identifier,
       mimeType: item.mimeType,
       mode: item.mode,
+      creator: item.creator,
       description: item?.description,
+      state: item?.state,
+      author: item.author,
+      access: item.access,
+      url: item.url,
+      posterImage: item.posterImage,
+      appicon: item.appicon,
+      resource: item.resource,
     }));
     setData(filteredArray);
     console.log(filteredArray);

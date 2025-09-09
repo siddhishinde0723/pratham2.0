@@ -19,7 +19,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (doId) {
         const baseURL = process.env.NEXT_PUBLIC_MIDDLEWARE_URL || "";
         const authApiToken = getCookie(req, "authToken") || process.env.AUTH_API_TOKEN;
-        const tenantId = getCookie(req, "tenantId") || process.env.NEXT_PUBLIC_TENANT_ID;
+        const tenantId =
+          getCookie(req, 'tenantId') || localStorage.getItem('tenantId');
 
         console.log("Auth Token:", authApiToken);
         console.log("Tenant ID:", tenantId);
