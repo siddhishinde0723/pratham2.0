@@ -150,13 +150,13 @@ const CreatePage = () => {
         }); // Removed an extra comma
       },
     },
-    {
-      title: 'New Resource',
-      description:
-        ' Create different resource like story, game, activity, audio, video using the inbuild authoring tools.',
-      icon: <SchoolOutlinedIcon fontSize="large" />,
-      onClick: openResourceEditor,
-    },
+    // {
+    //   title: 'New Resource',
+    //   description:
+    //     ' Create different resource like story, game, activity, audio, video using the inbuild authoring tools.',
+    //   icon: <SchoolOutlinedIcon fontSize="large" />,
+    //   onClick: openResourceEditor,
+    // },
     // {
     //   title: 'Course Assessment',
     //   description:
