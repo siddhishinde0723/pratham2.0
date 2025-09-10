@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -106,7 +108,7 @@ const BulkUpload: React.FC = () => {
   const [dynamicHeaders, setDynamicHeaders] = useState<string[]>([]);
   const [isLoadingFramework, setIsLoadingFramework] = useState(true);
 
-  const tenantConfig = useTenantConfig();
+  const { tenantConfig, isLoading, error } = useTenantConfig();
 
   useEffect(() => {
     const headerValue = localStorage.getItem('showHeader');

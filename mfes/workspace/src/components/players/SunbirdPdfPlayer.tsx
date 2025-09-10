@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @nx/enforce-module-boundaries */
 import "reflect-metadata";
 import React, { useEffect } from "react";
 import { useRef } from "react";

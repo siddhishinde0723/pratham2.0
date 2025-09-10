@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import 'reflect-metadata';
 import React, { useEffect, useRef, useState } from 'react';
 import { getTelemetryEvents, handleExitEvent } from '@workspace/utils/Helper';

@@ -4,16 +4,15 @@ import {
   AccordionSummary,
   AccordionDetails,
   Typography,
-  Link,
   Box,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { getContentHierarchy } from '@workspace/services/ContentService';
+import { getContentHierarchy } from '../../services/ContentService';
 import { useRouter } from 'next/router';
-import Loader from '@workspace/components/Loader';
+import Loader from '../../components/Loader';
 
 const RecursiveAccordion = ({ data }: { data: any[] }) => {
-  let router = useRouter();
+  const router = useRouter();
   const queryParams = router.query;
   const { identifier, ...otherQueryParams } = queryParams;
 
@@ -30,7 +29,7 @@ const RecursiveAccordion = ({ data }: { data: any[] }) => {
                 fontWeight: 'bold',
                 borderBottom: '1px solid #ddd',
                 paddingBottom: '4px',
-                paddingLeft: '4px'
+                paddingLeft: '4px',
               }}
             >
               {node.name}
@@ -42,7 +41,9 @@ const RecursiveAccordion = ({ data }: { data: any[] }) => {
           <Box
             className="facilitator-bg"
             sx={{
-              backgroundImage: `url(${node?.appIcon ? node.appIcon : '/decorationBg.png'})`,
+              backgroundImage: `url(${
+                node?.appIcon ? node.appIcon : '/decorationBg.png'
+              })`,
               position: 'relative',
               marginLeft: `${(level - 1) * 2}px`, // Indentation for resources
               cursor: 'pointer',
@@ -51,13 +52,12 @@ const RecursiveAccordion = ({ data }: { data: any[] }) => {
               backgroundSize: 'cover',
               backgroundPosition: 'center',
             }}
-            onClick={() => 
+            onClick={() =>
               router.push({
-                pathname: '/workspace/content/review', 
-                query: { ...otherQueryParams, identifier: node.identifier }
+                pathname: '/workspace/content/review',
+                query: { ...otherQueryParams, identifier: node.identifier },
               })
             }
-            
           ></Box>
         ) : (
           <Accordion sx={{ marginLeft: `${(level - 1) * 2}px` }}>
@@ -76,7 +76,7 @@ const RecursiveAccordion = ({ data }: { data: any[] }) => {
     ));
   };
 
-  return <Box>{renderAccordion(data)}</Box>
+  return <Box>{renderAccordion(data)}</Box>;
 };
 
 export default function CourseHierarchy() {
@@ -98,7 +98,7 @@ export default function CourseHierarchy() {
           doId,
         });
         setLoading(true);
-        const hierarchyData = hierarchyResponse?.data?.result?.content;
+        const hierarchyData = (hierarchyResponse as any)?.data?.result?.content;
         setCourseHierarchyData([hierarchyData]);
 
         console.log('hierarchyData:', hierarchyData);
@@ -108,7 +108,7 @@ export default function CourseHierarchy() {
         console.error('Error fetching solution details:', error);
         throw error;
       } finally {
-        setLoading(false); 
+        setLoading(false);
       }
     };
 
@@ -118,10 +118,8 @@ export default function CourseHierarchy() {
   }, [doId]);
 
   if (loading) {
-    return (
-      <Loader showBackdrop={true} loadingText="Loading" />
-    );
+    return <Loader showBackdrop={true} loadingText="Loading" />;
   }
 
-  return <RecursiveAccordion data={courseHierarchyData} />
+  return <RecursiveAccordion data={courseHierarchyData} />;
 }

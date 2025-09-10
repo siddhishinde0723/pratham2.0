@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -9,6 +9,12 @@ import {
   useTheme,
 } from '@mui/material';
 import { useRouter } from 'next/router';
+import Cookies from 'js-cookie';
+import {
+  getLocalStoredUserName,
+  syncUserDataToCookies,
+  needsUserDataSync,
+} from '../services/LocalStorageService';
 
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 const loginUrl = process.env.NEXT_PUBLIC_ADMIN_LOGIN_URL;
@@ -19,12 +25,25 @@ const WorkspaceHeader = () => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const theme = useTheme<any>();
+
+  // Sync user data from localStorage to cookies on component mount
+  useEffect(() => {
+    if (needsUserDataSync()) {
+      console.log('WorkspaceHeader: User data sync needed, performing sync...');
+      syncUserDataToCookies();
+    }
+  }, []);
+
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
 
   const handleMenuClose = () => {
-    localStorage.clear();
+    Cookies.remove('token');
+    Cookies.remove('refreshToken');
+    Cookies.remove('userId');
+    Cookies.remove('userData');
+    Cookies.remove('adminInfo');
     window.location.href = '/logout';
     // setAnchorEl(null);
     // if (loginUrl) {
@@ -37,7 +56,7 @@ const WorkspaceHeader = () => {
     setAnchorEl(null);
   };
 
-  const userName = localStorage.getItem('name') || 'Anonymous';
+  const userName = getLocalStoredUserName();
 
   return (
     <Box

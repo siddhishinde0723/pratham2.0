@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import React from "react";
 import SunbirdPdfPlayer from "@workspace/components/players/SunbirdPdfPlayer";
 import SunbirdVideoPlayer from "@workspace/components/players/SunbirdVideoPlayer";

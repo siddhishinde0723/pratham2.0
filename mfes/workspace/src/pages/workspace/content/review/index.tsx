@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import Players from '@workspace/components/players/Players';
 import V1Player from '@workspace/components/V1-Player/V1Player';
 import {
@@ -34,7 +35,7 @@ const userFullName = getLocalStoredUserName() || 'Anonymous User';
 const [firstName, lastName] = userFullName.split(' ');
 
 const ReviewContentSubmissions = () => {
-  const tenantConfig = useTenantConfig();
+  const { tenantConfig, isLoading, error } = useTenantConfig();
   const [isContentInteractiveType, setIsContentInteractiveType] =
     useState(false);
   const router = useRouter();
@@ -145,7 +146,9 @@ const ReviewContentSubmissions = () => {
 
   const confirmPublishContent = async (checkedItems: string[]) => {
     try {
-      const response = await publishContent(identifier, checkedItems);
+      const response = await publishContent(identifier as string, {
+        publishChecklist: checkedItems,
+      });
       console.log('Published successfully:', response);
       // Add toaster success message here
       setOpenConfirmationPopup(false);
@@ -167,7 +170,9 @@ const ReviewContentSubmissions = () => {
 
   const handleSubmitComment = async (checkedItems: string[], comment: any) => {
     try {
-      const response = await submitComment(identifier, comment, checkedItems);
+      const response = await submitComment(identifier as string, comment, {
+        rejectReasons: checkedItems,
+      });
       console.log('Comment submitted successfully:', response);
       // Add toaster success message here
       setOpenCommentPopup(false);
@@ -202,7 +207,7 @@ const ReviewContentSubmissions = () => {
       ContentStatus.PUBLISHED,
       Editor.CONTENT,
       '',
-      identifier,
+      identifier as string,
       contentDetails,
       router
     );
@@ -211,7 +216,7 @@ const ReviewContentSubmissions = () => {
       ContentStatus.REJECTED,
       Editor.CONTENT,
       comment,
-      identifier,
+      identifier as string,
       contentDetails,
       router
     );

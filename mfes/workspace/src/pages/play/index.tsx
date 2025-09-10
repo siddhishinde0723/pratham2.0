@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import V1Player from '@workspace/components/V1-Player/V1Player';
 import { getLocalStoredUserName } from '@workspace/services/LocalStorageService';
 import { fetchContent } from '@workspace/services/PlayerService';
@@ -12,7 +13,7 @@ const userFullName = getLocalStoredUserName() || 'Anonymous User';
 const [firstName, lastName] = userFullName.split(' ');
 
 const ReviewContentSubmissions = () => {
-  const tenantConfig = useTenantConfig();
+  const { tenantConfig, isLoading, error } = useTenantConfig();
   const router = useRouter();
   const { identifier } = router.query;
 

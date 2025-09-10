@@ -10,8 +10,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { getFormFields } from '@workspace/services/ContentService';
-import { Publish } from '@workspace/utils/app.constant';
+import { getFormFields } from '../services/ContentService';
+import { Publish } from '../utils/app.constant';
 import React, { useEffect, useState } from 'react';
 interface ConfirmActionPopupProps {
   open: boolean;
@@ -69,7 +69,8 @@ const ConfirmActionPopup: React.FC<ConfirmActionPopupProps> = ({
         if (open) {
           const data = await getFormFields();
 
-          const contents = data?.result?.form?.data?.fields[0]?.contents;
+          const contents = (data as any)?.result?.form?.data?.fields[0]
+            ?.contents;
           let usabilityCheckList: any = [];
           let contentDetailsCheckList: any = [];
           contents.forEach((item: any) => {
@@ -84,8 +85,7 @@ const ConfirmActionPopup: React.FC<ConfirmActionPopupProps> = ({
         }
       } catch (err) {
         console.error('data', err);
-      } finally {
-      }
+      } finally { /* empty */ }
     };
     fetchFields();
   }, [open]);

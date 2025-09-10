@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import KaTableComponent from '@workspace/components/KaTableComponent';
 import Loader from '@workspace/components/Loader';
 import PaginationComponent from '@workspace/components/PaginationComponent';
@@ -53,7 +54,7 @@ const columns = [
   },
 ];
 const ContentsPage = () => {
-  const tenantConfig = useTenantConfig();
+  const { tenantConfig, isLoading, error } = useTenantConfig();
   const theme = useTheme<any>();
   const router = useRouter();
   const [showHeader, setShowHeader] = useState<boolean | null>(null);

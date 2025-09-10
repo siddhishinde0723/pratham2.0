@@ -9,29 +9,39 @@ export interface TenantConfig {
  * - Supports both client & server environments
  * - Accepts `tenantId` explicitly (optional)
  */
-export const fetchTenantConfig = async (tenantId?: string, req?: any): Promise<TenantConfig | null> => {
+export const fetchTenantConfig = async (
+  tenantId?: string,
+  req?: any
+): Promise<TenantConfig | null> => {
   try {
     // If `tenantId` is not provided, get it dynamically from TenantService
     console.log('fetchTenantConfig: tenantId', tenantId);
-    const resolvedTenantId = localStorage.getItem('tenantId');
+    const resolvedTenantId =
+      typeof window !== 'undefined' && window.localStorage
+        ? localStorage.getItem('tenantId')
+        : null;
 
     if (!resolvedTenantId) {
-      console.error("Tenant ID is required but not found");
+      console.error('Tenant ID is required but not found');
       return null;
     }
 
     // Fetch from API with the tenantId
-    const response = await fetch(`/api/tenantConfig?tenantId=${resolvedTenantId}`, {
-      method: "GET",
-      credentials: "include", // Ensures cookies are sent in client requests
-    });
+    const response = await fetch(
+      `/api/tenantConfig?tenantId=${resolvedTenantId}`,
+      {
+        method: 'GET',
+        credentials: 'include', // Ensures cookies are sent in client requests
+      }
+    );
 
-    if (!response.ok) throw new Error("Tenant not found");
+    if (!response.ok) throw new Error('Tenant not found');
 
-    const { CHANNEL_ID, CONTENT_FRAMEWORK, COLLECTION_FRAMEWORK } = await response.json();
+    const { CHANNEL_ID, CONTENT_FRAMEWORK, COLLECTION_FRAMEWORK } =
+      await response.json();
     return { CHANNEL_ID, CONTENT_FRAMEWORK, COLLECTION_FRAMEWORK };
   } catch (error) {
-    console.error("Error fetching tenant config:", error);
+    console.error('Error fetching tenant config:', error);
     return null;
   }
 };

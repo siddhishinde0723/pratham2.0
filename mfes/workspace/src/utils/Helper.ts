@@ -1,26 +1,28 @@
+/* eslint-disable @typescript-eslint/no-inferrable-types */
+/* eslint-disable @typescript-eslint/no-this-alias */
 export const timeAgo = (dateString: string) => {
   const now: any = new Date();
   const date: any = new Date(dateString);
   const secondsAgo = Math.floor((now - date) / 1000);
 
   const intervals = [
-    { label: "year", seconds: 31536000 },
-    { label: "month", seconds: 2592000 },
-    { label: "week", seconds: 604800 },
-    { label: "day", seconds: 86400 },
-    { label: "hour", seconds: 3600 },
-    { label: "minute", seconds: 60 },
-    { label: "second", seconds: 1 },
+    { label: 'year', seconds: 31536000 },
+    { label: 'month', seconds: 2592000 },
+    { label: 'week', seconds: 604800 },
+    { label: 'day', seconds: 86400 },
+    { label: 'hour', seconds: 3600 },
+    { label: 'minute', seconds: 60 },
+    { label: 'second', seconds: 1 },
   ];
 
   for (const interval of intervals) {
     const count = Math.floor(secondsAgo / interval.seconds);
     if (count > 0) {
-      return `${count} ${interval.label}${count !== 1 ? "s" : ""} ago`;
+      return `${count} ${interval.label}${count !== 1 ? 's' : ''} ago`;
     }
   }
 
-  return "just now";
+  return 'just now';
 };
 
 export const debounce = <T extends (...args: any[]) => any>(
@@ -41,7 +43,7 @@ export const debounce = <T extends (...args: any[]) => any>(
 };
 
 export const handleExitEvent = () => {
-  const previousPage = sessionStorage.getItem("previousPage");
+  const previousPage = sessionStorage.getItem('previousPage');
   if (previousPage) {
     window.location.href = previousPage;
   } else {
@@ -63,10 +65,10 @@ export const getOptionsByCategory = (frameworks: any, categoryCode: string) => {
   }));
 };
 export const getTelemetryEvents = (eventData: any, contentType: string) => {
-  console.log("getTelemetryEvents hit");
+  console.log('getTelemetryEvents hit');
 
   if (!eventData || !eventData.object || !eventData.object.id) {
-    console.error("Invalid event data");
+    console.error('Invalid event data');
     return;
   }
 
@@ -90,9 +92,9 @@ export const getTelemetryEvents = (eventData: any, contentType: string) => {
 };
 export const formatDate = (dateString: string) => {
   const date = new Date(dateString);
-  return date.toLocaleDateString("en-US", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
+  return date.toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
   });
 };

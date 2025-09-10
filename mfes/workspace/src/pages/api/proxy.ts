@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import { NextApiRequest, NextApiResponse } from 'next';
 import {
   genericEditorSaveFormResponse,
@@ -121,12 +122,22 @@ export default async function handler(
     );
   }
 
-  // if (pathString.startsWith('/action/channel/v1/read/')) {
-  //   pathString = pathString.replace(
-  //     '/action/channel/v1/read/',
-  //     '/api/channel/v1/read/'
-  //   );
-  // }
+  if (pathString.startsWith('/action/channel/v1/read/')) {
+    console.log('Proxy: Transforming channel path from:', pathString);
+    pathString = pathString.replace(
+      '/action/channel/v1/read/',
+      '/api/channel/v1/read/'
+    );
+    console.log('Proxy: Transformed channel path to:', pathString);
+  }
+
+  console.log('Proxy: Processing request:', {
+    method,
+    path: pathString,
+    tenantId,
+    channelId: CHANNEL_ID,
+    baseUrl: BASE_URL,
+  });
 
   const queryString = req.url?.includes('?') ? req.url.split('?')[1] : '';
   const targetUrl = `${BASE_URL}${pathString}${

@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
@@ -92,13 +93,13 @@ const InteractiveEditor: React.FC = () => {
     const contentChannel = data?.channel || tenantConfig?.CHANNEL_ID;
     const contentFramework = data?.framework || tenantConfig?.CONTENT_FRAMEWORK;
     if (typeof window !== 'undefined') {
-      window['context'] = _.cloneDeep(
+      (window as any).context = _.cloneDeep(
         editorConfig.CONTENT_EDITOR.WINDOW_CONTEXT
       );
       if (identifier) {
-        window['context'].contentId = identifier;
+        (window as any).context.contentId = identifier;
       }
-      window['context'].user = {
+      (window as any).context.user = {
         id: getLocalStoredUserId(),
         name: getLocalStoredUserName() || 'Anonymous User',
         orgIds: [contentChannel],
@@ -106,27 +107,29 @@ const InteractiveEditor: React.FC = () => {
           [contentChannel]: contentChannel,
         },
       };
-      window['context'].uid = getLocalStoredUserId();
-      window['context'].contextRollUp.l1 = contentChannel;
-      window['context'].tags = [contentChannel];
-      window['context'].channel = contentChannel;
-      window['context'].framework = contentFramework;
+      (window as any).context.uid = getLocalStoredUserId();
+      (window as any).context.contextRollUp.l1 = contentChannel;
+      (window as any).context.tags = [contentChannel];
+      (window as any).context.channel = contentChannel;
+      (window as any).context.framework = contentFramework;
     }
   };
 
   const setWindowConfig = () => {
     if (typeof window !== 'undefined') {
-      window['config'] = _.cloneDeep(editorConfig.CONTENT_EDITOR.WINDOW_CONFIG);
-      window['config'].build_number = buildNumber;
-      window['config'].headerLogo = '/logo.png';
-      window['config'].lock = {};
-      window['config'].enableTelemetryValidation = false;
-      window['config'].videoMaxSize = videoMaxSize;
-      window['config'].cloudStorage = {
-       provider: 'aws',
+      (window as any).config = _.cloneDeep(
+        editorConfig.CONTENT_EDITOR.WINDOW_CONFIG
+      );
+      (window as any).config.build_number = buildNumber;
+      (window as any).config.headerLogo = '/logo.png';
+      (window as any).config.lock = {};
+      (window as any).config.enableTelemetryValidation = false;
+      (window as any).config.videoMaxSize = videoMaxSize;
+      (window as any).config.cloudStorage = {
+        provider: 'aws',
         // provider: 'azure',
         presigned_headers: {
-           'x-amz-acl': 'private',
+          'x-amz-acl': 'private',
           // 'x-ms-blob-type': 'BlockBlob', // This header sets access control; it's specific to AWS S3.
         },
       };

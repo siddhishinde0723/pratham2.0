@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-empty-function */
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useState } from 'react';
 import { Table as KaTable } from 'ka-table';
 import { DataType, EditingMode, SortingMode } from 'ka-table/enums';
@@ -10,6 +13,7 @@ import { MIME_TYPE } from '@workspace/utils/app.config';
 import Image from 'next/image';
 import ActionIcon from './ActionIcon';
 import { Padding } from '@mui/icons-material';
+import Cookies from 'js-cookie';
 
 // Utility function to transform image URL from Azure blob to AWS S3
 const transformImageUrl = (imageUrl: string): string => {
@@ -93,7 +97,7 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
     switch (tableTitle) {
       case 'draft':
         mode = !mode ? 'edit' : mode;
-        localStorage.setItem('contentMode', mode);
+        Cookies.set('contentMode', mode);
 
         // Use draft-specific routing
         if (content?.mimeType === MIME_TYPE.QUESTIONSET_MIME_TYPE) {
@@ -140,8 +144,8 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
         break;
     }
 
-    // Save mode in localStorage
-    localStorage.setItem('contentMode', mode);
+    // Save mode in cookies
+    Cookies.set('contentMode', mode);
     // Generic routing for cases other than 'draft'
     if (content?.mimeType === MIME_TYPE.QUESTIONSET_MIME_TYPE) {
       router.push({ pathname: `/editor`, query: { identifier } });
@@ -183,7 +187,7 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
       content?.mimeType &&
       MIME_TYPE.GENERIC_MIME_TYPE.includes(content?.mimeType)
     ) {
-      localStorage.setItem('contentCreatedBy', content?.createdBy);
+      Cookies.set('contentCreatedBy', content?.createdBy);
       const pathname =
         tableTitle === 'upForReview'
           ? `/workspace/content/review`
@@ -193,7 +197,7 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
       content?.mimeType &&
       MIME_TYPE.ECML_MIME_TYPE.includes(content?.mimeType)
     ) {
-      localStorage.setItem('contentCreatedBy', content?.createdBy);
+      Cookies.set('contentCreatedBy', content?.createdBy);
       const pathname =
         tableTitle === 'upForReview'
           ? `/workspace/content/review`

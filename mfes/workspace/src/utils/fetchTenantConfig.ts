@@ -18,27 +18,34 @@ export const fetchTenantConfig = async (
     let resolvedTenantId = tenantId;
 
     if (!resolvedTenantId && typeof window !== 'undefined') {
-      // Try localStorage first
-      const storedTenantId = localStorage.getItem('tenantId');
-      if (storedTenantId) {
-        resolvedTenantId = storedTenantId;
+      // Try cookies first (SSR-safe)
+      const cookies = document.cookie.split(';');
+      const tenantCookie = cookies.find((cookie) =>
+        cookie.trim().startsWith('tenantId=')
+      );
+      if (tenantCookie) {
+        resolvedTenantId = tenantCookie.split('=')[1];
       }
 
-      // If not in localStorage, try to get from cookies
+      // If not in cookies, check localStorage and migrate
       if (!resolvedTenantId) {
-        const cookies = document.cookie.split(';');
-        const tenantCookie = cookies.find((cookie) =>
-          cookie.trim().startsWith('tenantId=')
-        );
-        if (tenantCookie) {
-          resolvedTenantId = tenantCookie.split('=')[1];
+        const localStorageTenantId = localStorage.getItem('tenantId');
+        if (localStorageTenantId) {
+          console.log(
+            'Migrating tenant ID from localStorage to cookies in fetchTenantConfig'
+          );
+          resolvedTenantId = localStorageTenantId;
+          // Set in cookies for future use
+          document.cookie = `tenantId=${localStorageTenantId}; expires=${new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000
+          ).toUTCString()}; path=/; secure; SameSite=Strict`;
         }
       }
     }
 
     // No fallback - tenant ID should be set properly
     if (!resolvedTenantId) {
-      console.warn('No tenant ID found in localStorage or cookies');
+      console.warn('No tenant ID found in cookies');
       return null;
     }
 

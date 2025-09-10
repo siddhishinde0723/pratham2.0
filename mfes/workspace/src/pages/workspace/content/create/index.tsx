@@ -1,50 +1,62 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../../../../components/Layout';
 import { Typography, Box, useTheme, Paper, Grid } from '@mui/material';
-import ContentCard from '../../../../components/ContentCard';
-import DescriptionIcon from '@mui/icons-material/Description';
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
-import UploadIcon from '@mui/icons-material/Upload';
 import { useRouter } from 'next/router';
 import {
   createCourse,
   createQuestionSet,
-  createResourceContent,
-} from '@workspace/services/ContentService';
+} from '../../../../services/ContentService';
 import QuizOutlinedIcon from '@mui/icons-material/QuizOutlined';
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
 import VideoLibraryOutlinedIcon from '@mui/icons-material/VideoLibraryOutlined';
-import largeVideoIcon from '/public/150+.png';
-import Image from 'next/image';
 import WorkspaceText from '../../../../components/WorkspaceText';
-import { getLocalStoredUserId } from '@workspace/services/LocalStorageService';
-import useTenantConfig from '@workspace/hooks/useTenantConfig';
-import WorkspaceHeader from '@workspace/components/WorkspaceHeader';
+import { getLocalStoredUserId } from '../../../../services/LocalStorageService';
+import useTenantConfig from '../../../../hooks/useTenantConfig';
+import WorkspaceHeader from '../../../../components/WorkspaceHeader';
+import Cookies from 'js-cookie';
+import TenantSetup from '../../../../components/TenantSetup';
 
 const CreatePage = () => {
-  const tenantConfig = useTenantConfig();
+  const { tenantConfig, isLoading, error } = useTenantConfig();
   const theme = useTheme();
   const [selectedKey, setSelectedKey] = useState('create');
   const [showHeader, setShowHeader] = useState<boolean | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userId = getLocalStoredUserId();
+    if (typeof window !== 'undefined') {
+      const token = Cookies.get('token');
+      const userId = getLocalStoredUserId();
 
-    const headerValue = localStorage.getItem('showHeader');
-    setShowHeader(headerValue === 'true');
+      // Check cookies first, then localStorage for showHeader
+      let headerValue = Cookies.get('showHeader');
+      if (!headerValue) {
+        const localStorageValue = localStorage.getItem('showHeader');
+        if (localStorageValue) {
+          headerValue = localStorageValue;
+          // Migrate to cookies if found in localStorage
+          Cookies.set('showHeader', localStorageValue, {
+            expires: 7,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+          });
+          console.log('Migrated showHeader from localStorage to cookies');
+        }
+      }
 
-    if (token && userId) {
-      document.cookie = `authToken=${token}; path=/; secure; SameSite=Strict`;
-      document.cookie = `userId=${userId}; path=/; secure; SameSite=Strict`;
+      setShowHeader(headerValue === 'true');
+
+      if (token && userId) {
+        document.cookie = `authToken=${token}; path=/; secure; SameSite=Strict`;
+        document.cookie = `userId=${userId}; path=/; secure; SameSite=Strict`;
+      }
     }
   }, []);
 
   const fetchData = async () => {
     try {
       const response = await createQuestionSet(
-        tenantConfig?.COLLECTION_FRAMEWORK
+        tenantConfig?.COLLECTION_FRAMEWORK || ''
       );
       console.log('Question set created successfully:', response);
 
@@ -65,11 +77,12 @@ const CreatePage = () => {
   const fetchCollectionData = async () => {
     try {
       const userId = getLocalStoredUserId();
+      if (!userId) return;
       const response = await createCourse(
         userId,
-        tenantConfig?.CHANNEL_ID,
-        tenantConfig?.CONTENT_FRAMEWORK,
-        tenantConfig?.COLLECTION_FRAMEWORK
+        tenantConfig?.CHANNEL_ID || '',
+        tenantConfig?.CONTENT_FRAMEWORK || '',
+        tenantConfig?.COLLECTION_FRAMEWORK || ''
       );
       console.log('Course set created successfully:', response);
 
@@ -87,34 +100,35 @@ const CreatePage = () => {
     fetchCollectionData();
   };
 
-  const fetchResourceContentData = async (contentType: string) => {
-    try {
-      const userId = getLocalStoredUserId();
-      const response = await createResourceContent(
-        userId,
-        contentType,
-        tenantConfig?.CHANNEL_ID,
-        tenantConfig?.CONTENT_FRAMEWORK
-      );
-      console.log('Resource created successfully:', response);
+  // const fetchResourceContentData = async (contentType: string) => {
+  //   try {
+  //     const userId = getLocalStoredUserId();
+  //     if (!userId) return;
+  //     const response = await createResourceContent(
+  //       userId,
+  //       contentType,
+  //       tenantConfig?.CHANNEL_ID || '',
+  //       tenantConfig?.CONTENT_FRAMEWORK || ''
+  //     );
+  //     console.log('Resource created successfully:', response);
 
-      const identifier = response?.result?.identifier;
-      router.push({
-        pathname: `/resource-editor`,
-        query: { identifier },
-      });
-    } catch (error) {
-      console.error('Error creating Resource:', error);
-    }
-  };
+  //     const identifier = response?.result?.identifier;
+  //     router.push({
+  //       pathname: `/resource-editor`,
+  //       query: { identifier },
+  //     });
+  //   } catch (error) {
+  //     console.error('Error creating Resource:', error);
+  //   }
+  // };
 
-  const openResourceEditor = () => {
-    fetchResourceContentData('Resource');
-  };
+  // const openResourceEditor = () => {
+  //   fetchResourceContentData('Resource');
+  // };
 
-  const openCourseAssessmentEditor = () => {
-    fetchResourceContentData('SelfAssess');
-  };
+  // const openCourseAssessmentEditor = () => {
+  //   fetchResourceContentData('SelfAssess');
+  // };
 
   const cardData = [
     {
@@ -141,7 +155,7 @@ const CreatePage = () => {
     {
       title: 'Create New Large Content', // Added "Create" to the title
       description: 'Create videos and documents larger than 150mb', // Updated description
-      icon: <img src={'/150+.png'} alt="large-video" height={35} width={70} />, // Correct as is
+      icon: <img src={'/150+.png'} alt="large-video" height={35} width={70} />,
       onClick: () => {
         sessionStorage.setItem('previousPage', window.location.href); // No change needed
         router.push({
@@ -165,6 +179,32 @@ const CreatePage = () => {
     //   onClick: openCourseAssessmentEditor,
     // },
   ];
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <>
+        {showHeader && <WorkspaceHeader />}
+        <Layout selectedKey={selectedKey} onSelect={setSelectedKey}>
+          <Box sx={{ padding: '20px', textAlign: 'center' }}>
+            <Typography>Loading tenant configuration...</Typography>
+          </Box>
+        </Layout>
+      </>
+    );
+  }
+
+  // Show error state with tenant setup
+  if (error) {
+    return (
+      <>
+        {showHeader && <WorkspaceHeader />}
+        <Layout selectedKey={selectedKey} onSelect={setSelectedKey}>
+          <TenantSetup />
+        </Layout>
+      </>
+    );
+  }
 
   return (
     <>

@@ -1,5 +1,7 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCookie } from '@workspace/utils/cookieHelper';
+import Cookies from 'js-cookie';
 
 // Mock data
 export const mockData: Record<string, any> = {
@@ -51,7 +53,10 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const queryTenantId = req.query.tenantId as string;
   const cookieTenantId = getCookie(req, 'tenantId');
   const headerTenantId = req.headers['tenantid'] as string;
-  const envTenantId = localStorage.getItem('tenantId');
+  const envTenantId =
+    typeof window !== 'undefined'
+      ? Cookies.get('tenantId') || localStorage.getItem('tenantId')
+      : null;
 
   // Use the first available tenant ID
   const tenantId =

@@ -1,9 +1,11 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import multer, { MulterError } from 'multer';
 import FormData from 'form-data';
 import axios from 'axios';
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { getCookie } from '@workspace/utils/cookieHelper';
 import { mockData } from './tenantConfig';
+import Cookies from 'js-cookie';
 
 const upload = multer({
   limits: {
@@ -100,7 +102,10 @@ export default async function handler(
       const authApiToken =
         getCookie(req, 'authToken') || process.env.AUTH_API_TOKEN;
       const tenantId =
-        getCookie(req, 'tenantId') || localStorage.getItem('tenantId');
+        getCookie(req, 'tenantId') ||
+        (typeof window !== 'undefined'
+          ? Cookies.get('tenantId') || localStorage.getItem('tenantId')
+          : null);
       const tenantConfig = mockData[tenantId as string];
       const CHANNEL_ID = tenantConfig?.CHANNEL_ID;
 

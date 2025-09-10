@@ -71,7 +71,10 @@ const CollectionEditor: React.FC = () => {
 
   useEffect(() => {
     const storedFullName = getLocalStoredUserName();
-    const storedMode = localStorage.getItem('contentMode');
+    const storedMode =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('contentMode')
+        : null;
     setMode(storedMode || 'edit');
     setFullName(storedFullName ?? 'Anonymous User');
 
@@ -283,7 +286,9 @@ const CollectionEditor: React.FC = () => {
             } else {
               window.history.back();
             }
-            localStorage.removeItem('contentMode');
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('contentMode');
+            }
 
             window.addEventListener(
               'popstate',

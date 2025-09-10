@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import { getTelemetryEvents } from '@workspace/utils/Helper';
 import React, { useRef, useEffect, useState } from 'react';
 

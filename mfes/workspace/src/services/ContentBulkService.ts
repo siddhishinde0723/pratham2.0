@@ -39,7 +39,7 @@ interface ContentRecord {
 
 export const getPrimaryCategory = async (channelId: string) => {
   try {
-    const response = await axios.get(`/api/channel/v1/read/${channelId}`);
+    const response = await axios.get(`/action/channel/v1/read/${channelId}`);
     return response?.data?.result;
   } catch (e) {
     console.error('getPrimaryCategory error:', e);
@@ -49,7 +49,9 @@ export const getPrimaryCategory = async (channelId: string) => {
 
 export const getFrameworkDetails = async (frameworkId: string) => {
   try {
-    const response = await axios.get(`/api/framework/v1/read/${frameworkId}`);
+    const response = await axios.get(
+      `/action/framework/v3/read/${frameworkId}`
+    );
     return response?.data;
   } catch (error) {
     console.error('Error in getting Framework Details', error);

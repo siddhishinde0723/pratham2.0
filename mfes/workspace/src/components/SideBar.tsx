@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import AppsOutlinedIcon from '@mui/icons-material/AppsOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -26,15 +27,22 @@ import React, { useEffect, useState } from 'react';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
 import logo from '/public/logo.png';
 import { Role } from '@workspace/utils/app.constant';
-import { getLocalStoredUserRole } from '@workspace/services/LocalStorageService';
+import Cookies from 'js-cookie';
+import {
+  getLocalStoredUserRole,
+  syncUserDataToCookies,
+  needsUserDataSync,
+} from '@workspace/services/LocalStorageService';
 import { TENANT_DATA } from '@workspace/utils/app.constant';
 import TenantService from '@workspace/services/TenantService';
 const route = process.env.NEXT_PUBLIC_WORKSPACE_ROUTES;
 
-let isAdmin: boolean;
-if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-  isAdmin = localStorage.getItem('adminInfo') ? true : false;
-}
+const getIsAdmin = (): boolean => {
+  if (typeof window !== 'undefined') {
+    return Cookies.get('adminInfo') ? true : false;
+  }
+  return false;
+};
 
 interface SidebarProps {
   selectedKey: string;
@@ -53,9 +61,33 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
   const [showHeader, setShowHeader] = useState<boolean | null>(null);
 
   useEffect(() => {
+    // Check if user data sync is needed and perform it
+    if (needsUserDataSync()) {
+      console.log('SideBar: User data sync needed, performing sync...');
+      syncUserDataToCookies();
+    }
+
     setUserRole(getLocalStoredUserRole());
-    const userData = localStorage.getItem('userData');
-    const headerValue = localStorage.getItem('showHeader');
+    const userData = Cookies.get('userData');
+
+    // Check cookies first, then localStorage for showHeader
+    let headerValue = Cookies.get('showHeader');
+    if (!headerValue) {
+      const localStorageValue = localStorage.getItem('showHeader');
+      if (localStorageValue) {
+        headerValue = localStorageValue;
+        // Migrate to cookies if found in localStorage
+        Cookies.set('showHeader', localStorageValue, {
+          expires: 7,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+        });
+        console.log(
+          'SideBar: Migrated showHeader from localStorage to cookies'
+        );
+      }
+    }
+
     setShowHeader(headerValue === 'true');
     const tenant = userData ? JSON.parse(userData) : null;
     setTenantName(tenant?.tenantData[0]?.tenantName);
@@ -131,7 +163,7 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
     }
 
     router.push(`/workspace/content/${key}`);
-    localStorage.setItem('selectedFilters', JSON.stringify([]));
+    Cookies.set('selectedFilters', JSON.stringify([]));
     onSelect(key);
     if (isMobile) {
       setDrawerOpen(false); // Close drawer after selecting in mobile view
@@ -143,8 +175,8 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
   };
 
   const goBack = () => {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const userInfo = JSON.parse(localStorage.getItem('adminInfo') || '{}');
+    if (typeof window !== 'undefined') {
+      const userInfo = JSON.parse(Cookies.get('adminInfo') || '{}');
       console.log('userInfo', userInfo);
       if (userInfo?.role === Role.SCTA || userInfo?.role === Role.CCTA) {
         // router.push("/course-planner");
@@ -283,7 +315,7 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
             sx={{
               margin: 2,
               cursor: 'pointer',
-              color: isAdmin ? 'white' : 'black',
+              color: getIsAdmin() ? 'white' : 'black',
             }}
             onClick={toggleDrawer}
           />

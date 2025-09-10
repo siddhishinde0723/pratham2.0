@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import dynamic from 'next/dynamic';
 import React from 'react';
 

@@ -51,3 +51,5 @@ mfes/workspace/public/content-editor
 # ignore env
 .env
 .env.local
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
