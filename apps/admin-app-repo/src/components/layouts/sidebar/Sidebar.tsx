@@ -23,7 +23,7 @@ import Menuitems from './MenuItems';
 import { getFilteredMenuItems } from './MenuItems';
 
 //menu config dynamic
-import { MENU_CONFIG } from '../../../config/menuConfig';
+import { MENU_CONFIG, getMenuConfigForTenant } from '../../../config/menuConfig';
 import Link from 'next/link';
 
 const Sidebar = ({
@@ -58,9 +58,11 @@ const Sidebar = ({
       ? { backgroundColor: '#FDBF34', color: 'black', borderRadius: '100px' }
       : {};
 
-  const menuItems = Object.entries(
-    (MENU_CONFIG as any)[storedProgram || ''] || {}
-  ).filter(([_, item]: [string, any]) => item.roles.includes(storedRole));
+  // Get menu config dynamically for any tenant
+  const tenantMenuConfig = getMenuConfigForTenant(storedProgram || '');
+  const menuItems = Object.entries(tenantMenuConfig || {}).filter(
+    ([_, item]: [string, any]) => item.roles.includes(storedRole)
+  );
 
   // console.log('menuItems', JSON.stringify(menuItems));
 

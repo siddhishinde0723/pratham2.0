@@ -75,17 +75,14 @@ export const DaysOfWeek = {
 export const Program = ['Second Chance', 'secondchance'];
 
 //below line cause issue in react vite build as vite not able to access next env public variables
-export const getTenantId = () => {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    return localStorage.getItem('tenantId');
-  }
-  return null;
-};
-
-export const tenantId = getTenantId();
+export const tenantId =
+  (typeof window !== 'undefined' && localStorage.getItem('tenantId')) ||
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_TENANT_ID);
 
 if (!tenantId && typeof window !== 'undefined') {
-  console.warn('TENANT_ID is not set in the environment variables.');
+  console.warn(
+    'TENANT_ID is not set in the environment variables.'
+  );
 }
 
 export enum AssessmentType {

@@ -1,14 +1,5 @@
 import React from 'react';
-import dynamic from 'next/dynamic';
-
-// Dynamically import ContentEditor to prevent SSR issues
-const ContentEditor = dynamic(
-  () => import('@shared-lib').then((mod) => mod.ContentEditor),
-  {
-    ssr: false,
-    loading: () => <div>Loading editor...</div>,
-  }
-);
+import { ContentEditor } from '@shared-lib';
 
 const ResourseEditor = () => {
   return <ContentEditor />;

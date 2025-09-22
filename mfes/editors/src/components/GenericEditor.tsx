@@ -10,6 +10,7 @@ declare global {
 import { useRouter } from "next/router";
 import $ from "jquery";
 import _ from "lodash";
+import Cookies from "js-cookie";
 import "izimodal/css/iziModal.css";
 import "izimodal/js/iziModal.js";
 import editorConfig from "./editor.config.json";
@@ -130,8 +131,13 @@ const GenericEditor: React.FC = () => {
     }
 
     try {
+      // Check both cookies and localStorage for contentMode to determine the correct mode
+      const cookieMode = typeof window !== 'undefined' ? Cookies.get('contentMode') : null;
+      const localStorageMode = typeof window !== 'undefined' ? localStorage.getItem('contentMode') : null;
+      const mode = cookieMode || localStorageMode || 'edit';
+      
       const response = await fetch(
-        `/action/content/v3/read/${contentId}?fields=createdBy,status,mimeType,contentType,resourceType,collaborators,contentDisposition,primaryCategory,framework,channel,targetFWIds&mode=edit`
+        `/action/content/v3/read/${contentId}?fields=createdBy,status,mimeType,contentType,resourceType,collaborators,contentDisposition,primaryCategory,framework,channel,targetFWIds&mode=${mode}`
       );
 
       if (!response.ok) {

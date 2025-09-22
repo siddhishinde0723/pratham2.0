@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import _ from 'lodash';
+import Cookies from 'js-cookie';
 import 'izimodal/js/iziModal';
 import editorConfig from './editor.config.json';
 import useTenantConfig from '../hooks/useTenantConfig';
@@ -55,8 +56,13 @@ const InteractiveEditor: React.FC = () => {
     }
 
     try {
+      // Check both cookies and localStorage for contentMode to determine the correct mode
+      const cookieMode = typeof window !== 'undefined' ? Cookies.get('contentMode') : null;
+      const localStorageMode = typeof window !== 'undefined' ? localStorage.getItem('contentMode') : null;
+      const mode = cookieMode || localStorageMode || 'edit';
+      
       const response = await fetch(
-        `/action/content/v3/read/${contentId}?mode=edit`
+        `/action/content/v3/read/${contentId}?mode=${mode}`
       );
 
       if (!response.ok) {

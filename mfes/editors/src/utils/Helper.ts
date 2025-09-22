@@ -86,7 +86,10 @@ export const getTelemetryEvents = (eventData: any, contentType: string) => {
 
   console.log(`${eid}Telemetry`, telemetryData);
 
-  localStorage.setItem(telemetryKey, JSON.stringify(telemetryData));
+  // SSR-safe localStorage access
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.setItem(telemetryKey, JSON.stringify(telemetryData));
+  }
 };
 export const formatDate = (dateString: string) => {
   const date = new Date(dateString);

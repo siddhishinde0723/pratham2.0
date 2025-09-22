@@ -183,7 +183,7 @@ export const getFilteredMenuItems = () => {
               },
             ];
           }
-          // For other tenants (like Key Education Foundation), show only Learners, Content Creator, Content Reviewer
+          // For all other tenants, show universal admin menu: Learners, Content Creator, Content Reviewer
           else {
             return [
               {

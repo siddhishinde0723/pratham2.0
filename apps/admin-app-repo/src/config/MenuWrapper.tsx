@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
-import { MENU_CONFIG } from '../config/menuConfig';
-import { PUBLIC_ROUTES, ROLE_BASED_ROUTES } from '../config/routesConfig';
+import { getMenuConfigForTenant } from '../config/menuConfig';
+import { PUBLIC_ROUTES, ROLE_BASED_ROUTES, getRoleBasedRoutes } from '../config/routesConfig';
 
 const MenuWrapper = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
@@ -26,17 +26,17 @@ const MenuWrapper = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     if (!user) return;
 
-    // ✅ 1. Get all allowed menu routes (including submenu)
-    const allowedMenuRoutes = Object.values(MENU_CONFIG[user.program] || {})
-      .filter((item) => item.roles.includes(user.role))
-      .flatMap((item) => [
+    // ✅ 1. Get all allowed menu routes using dynamic function
+    const menuConfig = getMenuConfigForTenant(user.program);
+    const allowedMenuRoutes = Object.values(menuConfig || {})
+      .filter((item: any) => item.roles.includes(user.role))
+      .flatMap((item: any) => [
         item.link,
-        ...(item.subMenu?.map((sub) => sub.link) || []),
+        ...(item.subMenu?.map((sub: any) => sub.link) || []),
       ]);
 
-    // ✅ 2. Get program-specific routes from ROLE_BASED_ROUTES
-    const programSpecificRoutes =
-      ROLE_BASED_ROUTES[user.program]?.[user.role] || [];
+    // ✅ 2. Get program-specific routes using dynamic function
+    const programSpecificRoutes = getRoleBasedRoutes(user.program, user.role);
 
     // ✅ 3. Handle dynamic routes like /course-hierarchy/[identifier]
     const isDynamicAllowed = programSpecificRoutes.some((route) =>
@@ -61,8 +61,19 @@ const MenuWrapper = ({ children }: { children: React.ReactNode }) => {
     // console.log('router.pathname isAllowedRoute', isAllowedRoute);
     // console.log('router.pathname isDynamicAllowed', isDynamicAllowed);
 
-    // ✅ 6. Final route validation
-    if (!isPublicRoute && !isAllowedRoute && !isDynamicAllowed) {
+    // Debug logging
+    console.log('MenuWrapper Debug:', {
+      pathname: router.pathname,
+      user,
+      allowedMenuRoutes,
+      programSpecificRoutes,
+      isPublicRoute,
+      isAllowedRoute,
+      isDynamicAllowed
+    });
+
+    // ✅ 6. Final route validation - only redirect if not already on unauthorized page
+    if (!isPublicRoute && !isAllowedRoute && !isDynamicAllowed && router.pathname !== '/unauthorized') {
       router.replace('/unauthorized');
     }
   }, [user, router.pathname]);

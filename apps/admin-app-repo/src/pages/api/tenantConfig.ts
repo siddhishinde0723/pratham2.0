@@ -46,6 +46,11 @@ export const mockData: Record<string, any> = {
      CHANNEL_ID: 'shikshagrahanew-channel',
     CONTENT_FRAMEWORK: 'shikshagrahanew-framework',
     COLLECTION_FRAMEWORK: 'shikshagrahanew-framework',
+  },
+  '6ee099fa-6875-4acf-b271-04f72ef4d7ab':{
+    CHANNEL_ID: 'kenya-channel',
+    CONTENT_FRAMEWORK: 'kenya-framework',
+    COLLECTION_FRAMEWORK: 'kenya-framework',
   }
 };
 

@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import { v4 as uuidv4 } from "uuid";
+import Cookies from "js-cookie";
 import { CLOUD_STORAGE_URL } from "../utils/app.config";
 import {
   getLocalStoredUserId,
   getLocalStoredUserName,
-  getLocalStoredUserSpecificBoard
+  getLocalStoredUserSpecificBoard,
+  getLocalStoredUserRole
 } from "../services/LocalStorageService";
 import { fetchCCTAList } from "../services/userServices";
 import { sendCredentialService } from "../services/NotificationService";
@@ -25,7 +27,10 @@ const QuestionSetEditor: React.FC = () => {
   useEffect(() => {
     const storedFullName = getLocalStoredUserName();
     const storedUserId = getLocalStoredUserId();
-    const storedMode = localStorage.getItem("contentMode");
+    // Check both cookies and localStorage for contentMode
+    const cookieMode = Cookies.get('contentMode');
+    const localStorageMode = localStorage.getItem("contentMode");
+    const storedMode = cookieMode || localStorageMode;
     setMode(storedMode || "edit");
     setFullName(storedFullName ?? "Anonymous User");
 
@@ -42,6 +47,7 @@ const QuestionSetEditor: React.FC = () => {
         firstName: firstName || "Anonymous",
         lastName: lastName || "Anonymous",
         orgIds: [tenantConfig?.CHANNEL_ID],
+        role: getLocalStoredUserRole(), // Add user role to context
       },
       identifier: identifier,
       sid: uuidv4(),
@@ -96,10 +102,22 @@ const QuestionSetEditor: React.FC = () => {
       contentPolicyUrl: "/term-of-use.html",
       assetProxyUrl: "/assets/public/",
       commonFrameworkLicenseUrl: "https://creativecommons.org/licenses/",
+      // Add additional configuration for button control
+      showSubmitForReview: mode === 'edit',
+      showSaveAsDraft: mode === 'edit',
+      showPublish: mode === 'review',
+      showReject: mode === 'review',
+      showRequestChanges: mode === 'review',
+      // Add user role-based configuration
+      userRole: getLocalStoredUserRole(),
+      isReviewer: mode === 'review',
+      isCreator: mode === 'edit',
     },
   };
 
-  console.log('questionSetEditorConfig ====>', questionSetEditorConfig)
+  console.log('QuestionSetEditor - questionSetEditorConfig ====>', questionSetEditorConfig);
+  console.log('QuestionSetEditor - Current mode ====>', mode);
+  console.log('QuestionSetEditor - Mode type ====>', typeof mode);
 
   const editorRef = useRef<HTMLDivElement | null>(null);
   const isAppendedRef = useRef(false);
@@ -208,6 +226,10 @@ const QuestionSetEditor: React.FC = () => {
         JSON.stringify(questionSetEditorConfig)
       );
 
+      // Add additional debugging
+      console.log('QuestionSetEditor - Setting editor-config:', JSON.stringify(questionSetEditorConfig, null, 2));
+      console.log('QuestionSetEditor - Mode being passed:', mode);
+
       questionsetEditorElement.addEventListener(
         "editorEmitter",
         (event: any) => {
@@ -220,7 +242,14 @@ const QuestionSetEditor: React.FC = () => {
           ) {
             if (event.detail?.action === "submitContent") {
               console.log("collection");
-             window.history.back(); 
+              // Redirect based on mode: reviewers go to up-review, creators go back
+              if (mode === 'review') {
+                // Reviewer mode - redirect to up for review page
+                router.push('/workspace/content/up-review');
+              } else {
+                // Creator mode - go back to previous page
+                window.history.back();
+              }
               // sendReviewNotification({
               //   contentId: identifier,
               //   creator: getLocalStoredUserName(),
@@ -234,7 +263,17 @@ const QuestionSetEditor: React.FC = () => {
             } 
             else if (event.detail?.action === "publishContent")
             {
-              sendCreatorNotification()
+              sendCreatorNotification();
+              // Redirect based on mode: reviewers go to up-review, creators go back
+              setTimeout(() => {
+                if (mode === 'review') {
+                  // Reviewer mode - redirect to up for review page
+                  router.push('/workspace/content/up-review');
+                } else {
+                  // Creator mode - go back to previous page
+                  window.history.back();
+                }
+              }, 2000); // Wait 2 seconds to show success message
             }
             else if(event.detail?.action === "rejectContent")
             {

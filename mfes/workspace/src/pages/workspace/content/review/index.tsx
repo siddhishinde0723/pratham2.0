@@ -156,6 +156,10 @@ const ReviewContentSubmissions = () => {
 
       if (getLocalStoredUserRole() === Role.CCTA) {
         setPublishOpenToast(true);
+        // Redirect reviewer back to up for review page after showing success message
+        setTimeout(() => {
+          router.push({ pathname: `/workspace/content/up-review` });
+        }, 3000); // Wait 3 seconds to show the success message
         // sendContentPublishNotification()
       } else {
         setPublishOpenToast(true);

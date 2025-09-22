@@ -11,9 +11,12 @@ export interface TenantConfig {
  */
 export const fetchTenantConfig = async (tenantId?: string, req?: any): Promise<TenantConfig | null> => {
   try {
-    // If `tenantId` is not provided, get it dynamically from TenantService
-    const resolvedTenantId = localStorage.getItem('tenantId');
-
+    // If `tenantId` is not provided, get it dynamically from localStorage (SSR-safe)
+    let resolvedTenantId = tenantId;
+    
+    if (!resolvedTenantId && typeof window !== 'undefined' && window.localStorage) {
+      resolvedTenantId = localStorage.getItem('tenantId') || '';
+    }
 
     if (!resolvedTenantId) {
       console.error("Tenant ID is required but not found");

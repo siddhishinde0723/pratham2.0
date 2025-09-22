@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 import { v4 as uuidv4 } from 'uuid';
+import Cookies from 'js-cookie';
 import { CLOUD_STORAGE_URL } from '../utils/app.config';
 import {
   getLocalStoredUserName,
   getLocalStoredUserId,
   getLocalStoredUserSpecificBoard,
+  getLocalStoredUserRole
 } from '../services/LocalStorageService';
 import { fetchCCTAList } from '../services/userServices';
 import { sendCredentialService } from '../services/NotificationService';
@@ -71,10 +73,12 @@ const CollectionEditor: React.FC = () => {
 
   useEffect(() => {
     const storedFullName = getLocalStoredUserName();
-    const storedMode =
-      typeof window !== 'undefined'
-        ? localStorage.getItem('contentMode')
-        : null;
+    // Check both cookies and localStorage for contentMode
+    const cookieMode = Cookies.get('contentMode');
+    const localStorageMode = typeof window !== 'undefined'
+      ? localStorage.getItem('contentMode')
+      : null;
+    const storedMode = cookieMode || localStorageMode;
     setMode(storedMode || 'edit');
     setFullName(storedFullName ?? 'Anonymous User');
 
@@ -90,6 +94,7 @@ const CollectionEditor: React.FC = () => {
         firstName: firstName || 'Anonymous',
         lastName: lastName || 'User',
         orgIds: [tenantConfig?.CHANNEL_ID],
+        role: getLocalStoredUserRole(), // Add user role to context
       },
       identifier: identifier,
       channel: tenantConfig?.CHANNEL_ID,
@@ -129,8 +134,27 @@ const CollectionEditor: React.FC = () => {
       showAddCollaborator: false,
       enableBulkUpload: false,
       contentPolicyUrl: '/term-of-use.html',
+      editableFields: {
+        sourcingreview: [],
+        orgreview: [],
+        review: [],
+      },
+      // Add additional configuration for button control
+      showSubmitForReview: mode === 'edit',
+      showSaveAsDraft: mode === 'edit',
+      showPublish: mode === 'review',
+      showReject: mode === 'review',
+      showRequestChanges: mode === 'review',
+      // Add user role-based configuration
+      userRole: getLocalStoredUserRole(),
+      isReviewer: mode === 'review',
+      isCreator: mode === 'edit',
     },
   };
+
+  console.log('CollectionEditor - editorConfig ====>', editorConfig);
+  console.log('CollectionEditor - Current mode ====>', mode);
+  console.log('CollectionEditor - Mode type ====>', typeof mode);
 
   const sendContentPublishNotification = () =>
     sendContentNotification(
@@ -256,6 +280,10 @@ const CollectionEditor: React.FC = () => {
         JSON.stringify(editorConfig)
       );
 
+      // Add additional debugging
+      console.log('CollectionEditor - Setting editor-config:', JSON.stringify(editorConfig, null, 2));
+      console.log('CollectionEditor - Mode being passed:', mode);
+
       collectionEditorElement.addEventListener(
         'editorEmitter',
         (event: any) => {
@@ -268,7 +296,14 @@ const CollectionEditor: React.FC = () => {
           ) {
             if (event.detail?.action === 'submitContent') {
               console.log('collection');
-              window.history.back();
+              // Redirect based on mode: reviewers go to up-review, creators go back
+              if (mode === 'review') {
+                // Reviewer mode - redirect to up for review page
+                router.push('/workspace/content/up-review');
+              } else {
+                // Creator mode - go back to previous page
+                window.history.back();
+              }
               // sendReviewNotification({
               //   contentId: identifier,
               //   creator: getLocalStoredUserName(),
@@ -280,9 +315,19 @@ const CollectionEditor: React.FC = () => {
               //     console.error('Error in sendReviewNotification:', error);
               //   });
             } else if (event.detail?.action === 'publishContent') {
-              // sendContentPublishNotification();
+              sendContentPublishNotification();
+              // Redirect based on mode: reviewers go to up-review, creators go back
+              setTimeout(() => {
+                if (mode === 'review') {
+                  // Reviewer mode - redirect to up for review page
+                  router.push('/workspace/content/up-review');
+                } else {
+                  // Creator mode - go back to previous page
+                  window.history.back();
+                }
+              }, 2000); // Wait 2 seconds to show success message
             } else if (event.detail?.action === 'rejectContent') {
-              // sendContentRejectNotification();
+              sendContentRejectNotification();
             } else {
               window.history.back();
             }

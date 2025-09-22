@@ -5,20 +5,22 @@ import TenantService from './TenantService';
 const instance = axios.create();
 
 const refreshToken = async () => {
-  const refresh_token = localStorage.getItem('refreshToken');
-  if (refresh_token !== '' && refresh_token !== null) {
-    try {
-      const response = await refresh({ refresh_token });
-      if (response) {
-        const accessToken = response?.result?.access_token;
-        const newRefreshToken = response?.result?.refresh_token;
-        localStorage.setItem('token', accessToken);
-        localStorage.setItem('refreshToken', newRefreshToken);
-        return accessToken;
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const refresh_token = localStorage.getItem('refreshToken');
+    if (refresh_token !== '' && refresh_token !== null) {
+      try {
+        const response = await refresh({ refresh_token });
+        if (response) {
+          const accessToken = response?.result?.access_token;
+          const newRefreshToken = response?.result?.refresh_token;
+          localStorage.setItem('token', accessToken);
+          localStorage.setItem('refreshToken', newRefreshToken);
+          return accessToken;
+        }
+      } catch (error) {
+        console.error('Token refresh failed:', error);
+        throw error;
       }
-    } catch (error) {
-      console.error('Token refresh failed:', error);
-      throw error;
     }
   }
 };

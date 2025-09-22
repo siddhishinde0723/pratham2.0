@@ -61,6 +61,10 @@ const CreatePage = () => {
       console.log('Question set created successfully:', response);
 
       const identifier = response?.result?.identifier;
+      
+      // Set contentMode to 'edit' for new content creation
+      Cookies.set('contentMode', 'edit');
+      
       router.push({
         pathname: `/editor`,
         query: { identifier },
@@ -87,6 +91,10 @@ const CreatePage = () => {
       console.log('Course set created successfully:', response);
 
       const identifier = response?.result?.identifier;
+      
+      // Set contentMode to 'edit' for new content creation
+      Cookies.set('contentMode', 'edit');
+      
       router.push({
         pathname: `/collection`,
         query: { identifier },
@@ -149,6 +157,8 @@ const CreatePage = () => {
       icon: <VideoLibraryOutlinedIcon fontSize="large" />,
       onClick: () => {
         sessionStorage.setItem('previousPage', window.location.href);
+        // Set contentMode to 'edit' for new content creation
+        Cookies.set('contentMode', 'edit');
         router.push('/upload-editor');
       },
     },
@@ -158,6 +168,8 @@ const CreatePage = () => {
       icon: <img src={'/150+.png'} alt="large-video" height={35} width={70} />,
       onClick: () => {
         sessionStorage.setItem('previousPage', window.location.href); // No change needed
+        // Set contentMode to 'edit' for new content creation
+        Cookies.set('contentMode', 'edit');
         router.push({
           pathname: '/upload-editor',
           query: { editorforlargecontent: 'true' }, // No change needed

@@ -92,6 +92,7 @@ export default async function handler(
         case 'Colab-framework':
         case 'oblf-framework':
         case 'shikshagrahanew-framework':
+        case 'kenya-framework':
           return res.status(200).json(genericEditorReviewFormResponseshiksha);
 
         case 'badal-framework':

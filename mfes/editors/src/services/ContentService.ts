@@ -10,7 +10,7 @@ const userId = getLocalStoredUserId();
 console.log("userId ==>", userId);
 
 export const getPrimaryCategory = async (channelId: any) => {
-  const apiURL = `/api/channel/v1/read/${channelId}`;
+  const apiURL = `/action/channel/v1/read/${channelId}`;
   try {
     const response = await get(apiURL);
     return response?.data?.result;
