@@ -2,6 +2,12 @@ export interface TenantConfig {
   CHANNEL_ID: string;
   CONTENT_FRAMEWORK: string;
   COLLECTION_FRAMEWORK: string;
+  LOGO_CONFIG?: {
+    sidebar?: string;
+    login?: string;
+    favicon?: string;
+    alt?: string;
+  };
 }
 
 /**
@@ -45,11 +51,13 @@ export const fetchTenantConfig = async (
 
     // No fallback - tenant ID should be set properly
     if (!resolvedTenantId) {
-      console.warn('No tenant ID found in cookies');
+      console.warn('Workspace fetchTenantConfig: No tenant ID found in cookies');
       return null;
     }
+    
+    console.log('Workspace fetchTenantConfig: Using tenant ID:', resolvedTenantId);
 
-    console.log('Fetching tenant config for ID:', resolvedTenantId);
+    console.log('Workspace fetchTenantConfig: Fetching tenant config for ID:', resolvedTenantId);
 
     // Fetch from API with the tenantId
     const response = await fetch(
@@ -59,6 +67,9 @@ export const fetchTenantConfig = async (
         credentials: 'include', // Ensures cookies are sent in client requests
       }
     );
+    
+    console.log('Workspace fetchTenantConfig: Response status:', response.status);
+    console.log('Workspace fetchTenantConfig: Response ok:', response.ok);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -66,9 +77,13 @@ export const fetchTenantConfig = async (
       throw new Error(`Tenant not found: ${response.status}`);
     }
 
-    const { CHANNEL_ID, CONTENT_FRAMEWORK, COLLECTION_FRAMEWORK } =
-      await response.json();
-    return { CHANNEL_ID, CONTENT_FRAMEWORK, COLLECTION_FRAMEWORK };
+    const responseData = await response.json();
+    console.log('Workspace fetchTenantConfig: Response data:', responseData);
+    
+    const { CHANNEL_ID, CONTENT_FRAMEWORK, COLLECTION_FRAMEWORK, LOGO_CONFIG } = responseData;
+    const result = { CHANNEL_ID, CONTENT_FRAMEWORK, COLLECTION_FRAMEWORK, LOGO_CONFIG };
+    console.log('Workspace fetchTenantConfig: Parsed result:', result);
+    return result;
   } catch (error) {
     console.error('Error fetching tenant config:', error);
     return null;

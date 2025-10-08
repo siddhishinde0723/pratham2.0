@@ -86,6 +86,13 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
   const theme = useTheme<any>();
   const [open, setOpen] = useState(false);
 
+  // Ensure data has unique identifiers for React keys
+  const processedData = data?.map((item: any, index: number) => ({
+    ...item,
+    // Ensure each item has a unique identifier for React keys
+    identifier: item.identifier || item.id || `row-${index}`,
+  })) || [];
+
   const handleClose = () => {
     setOpen(false);
   };
@@ -215,9 +222,9 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
     <>
       <KaTable
         columns={columns}
-        data={data}
+        data={processedData}
         // editingMode={EditingMode.Cell}
-        rowKeyField={'id'}
+        rowKeyField={'identifier'}
         sortingMode={SortingMode.Single}
         childComponents={{
           cellText: {

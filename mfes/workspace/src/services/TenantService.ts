@@ -1,17 +1,22 @@
-import Cookies from 'js-cookie';
 import { fetchTenantConfig, TenantConfig } from '../utils/fetchTenantConfig';
-import { getTenantId, setTenantId } from '../utils/tenantUtils';
 
 class TenantService {
   private static instance: TenantService;
   private tenantId = '';
-  private tenantConfig?: TenantConfig; // Use optional type instead of null
+  private tenantConfig: TenantConfig | null = null; // Use null to match fetchTenantConfig return type
   private storageKey: string;
 
   private constructor() {
-    // Initialize with empty tenant ID - will be set dynamically
-    this.tenantId = '';
+    // Get tenant ID from localStorage (set during login)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const tenantId = localStorage.getItem('tenantId');
+      console.log('Workspace TenantService: Constructor - localStorage tenantId:', tenantId);
+      if (tenantId) {
+        this.tenantId = tenantId;
+      }
+    }
     this.storageKey = `tenantConfig_${this.tenantId}`;
+    console.log('Workspace TenantService: Constructor - Final tenantId:', this.tenantId);
   }
 
   public static getInstance(): TenantService {
@@ -22,75 +27,28 @@ class TenantService {
   }
 
   public getTenantId(): string {
-    // Initialize tenant ID if not set and we're on client side
-    if (!this.tenantId && typeof window !== 'undefined') {
-      this.initializeTenantId();
-    }
+    console.log('Workspace TenantService: getTenantId called, returning:', this.tenantId);
     return this.tenantId;
   }
 
-  private initializeTenantId(): void {
-    if (typeof window === 'undefined') return;
 
-    // Get from cookies using utility function
-    const tenantId = getTenantId() || '';
-
+  public setTenantId(tenantId: string) {
     this.tenantId = tenantId;
-    this.storageKey = `tenantConfig_${this.tenantId}`;
-  }
-
-  public setTenantId(tenantId: string): void {
-    this.tenantId = tenantId;
-    this.storageKey = `tenantConfig_${this.tenantId}`;
-
-    // Store in cookies using utility function
-    setTenantId(tenantId);
-
-    // Clear cached config when tenant ID changes
-    this.tenantConfig = undefined;
+    // Store in localStorage for consistency with login process
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem('tenantId', tenantId);
+    }
   }
 
   public async getTenantConfig(): Promise<TenantConfig> {
-    // Initialize tenant ID if not set
-    if (!this.tenantId && typeof window !== 'undefined') {
-      this.initializeTenantId();
+    if (!this.tenantConfig) {
+      this.tenantConfig = await fetchTenantConfig(this.tenantId);
     }
-
-    if (!this.tenantId) {
-      throw new Error('Tenant ID not set. Please set tenant ID first.');
-    }
-
-    // 1. Return if already in memory
-    if (this.tenantConfig) {
-      return this.tenantConfig;
-    }
-
-    // 2. Check cookies (SSR-safe)
-    if (typeof window !== 'undefined') {
-      const cachedConfig = Cookies.get(this.storageKey);
-      if (cachedConfig) {
-        this.tenantConfig = JSON.parse(cachedConfig) as TenantConfig;
-        return this.tenantConfig;
-      }
-    }
-
-    // 3. Fetch from API and store in memory + cookies
-    const fetchedConfig = await fetchTenantConfig(this.tenantId);
-    if (!fetchedConfig) {
+    if (!this.tenantConfig) {
       throw new Error('Failed to fetch tenant configuration');
     }
-
-    this.tenantConfig = fetchedConfig;
-
-    // Store in cookies (SSR-safe)
-    if (typeof window !== 'undefined') {
-      Cookies.set(this.storageKey, JSON.stringify(fetchedConfig), {
-        expires: 1,
-      }); // 1 day cache
-    }
-
     return this.tenantConfig;
   }
 }
 
-export default TenantService;
+export default TenantService.getInstance();

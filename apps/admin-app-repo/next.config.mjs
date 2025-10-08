@@ -32,6 +32,15 @@ const nextConfig = {
   experimental: {
     esmExternals: false,
   },
+  webpack: (config, { dev, isServer }) => {
+    if (dev && !isServer) {
+      config.watchOptions = {
+        poll: 1000,
+        aggregateTimeout: 300,
+      };
+    }
+    return config;
+  },
   async rewrites() {
     // Get environment variables with fallbacks
     const WORKSPACE_BASE_URL = process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL || 'http://localhost:3001';

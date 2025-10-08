@@ -13,6 +13,7 @@ export interface CreateAccountRequest {
   gender: string;
   firstName: string;
   lastName: string;
+  mobile?: string; // Add mobile field as optional
   tenantCohortRoleMapping: TenantCohortRoleMapping[];
 }
 

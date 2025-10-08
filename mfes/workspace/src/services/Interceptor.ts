@@ -36,7 +36,7 @@ instance.interceptors.request.use(
     }
     // Only set tenant ID on client side
     if (typeof window !== 'undefined') {
-      config.headers.tenantid = TenantService.getInstance().getTenantId();
+      config.headers.tenantid = TenantService.getTenantId();
     }
     return config;
   },

@@ -23,7 +23,7 @@ const coursePlannerStore = create(
     }),
     {
       name: "adminApp",
-      getStorage: () => localStorage,
+      storage: typeof window !== 'undefined' ? localStorage : undefined,
     }
   )
 );

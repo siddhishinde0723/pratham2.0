@@ -27,7 +27,7 @@ const taxonomyStore = create(
     }),
     {
       name: "taxonomy",
-      getStorage: () => localStorage,
+      storage: typeof window !== 'undefined' ? localStorage : undefined,
     }
   )
 );

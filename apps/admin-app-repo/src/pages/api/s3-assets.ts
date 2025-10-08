@@ -21,6 +21,16 @@ export default async function handler(
 ) {
   const { method } = req;
   
+  // Handle OPTIONS request for CORS preflight
+  if (method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+    return res.status(200).end();
+  }
+  
   if (method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -75,7 +85,7 @@ export default async function handler(
   });
 
   try {
-    // Forward the request to S3 (public bucket, no authentication required)
+    // Forward the request to S3 with proper headers
     const response = await fetch(s3Url, {
       method: 'GET',
       headers: {
@@ -84,6 +94,11 @@ export default async function handler(
         'Accept-Language': req.headers['accept-language'] || 'en-US,en;q=0.9',
         'Cache-Control': 'no-cache',
         'Referer': req.headers['referer'] || 'http://localhost:3002',
+        'Origin': req.headers['origin'] || 'http://localhost:3002',
+        // Add CORS headers for cross-origin requests
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
       },
     });
 
@@ -114,6 +129,12 @@ export default async function handler(
     // Set appropriate headers
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+    
+    // Add CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
     
     // Copy other relevant headers
     const headersToForward = ['etag', 'last-modified', 'content-length'];

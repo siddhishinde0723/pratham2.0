@@ -21,11 +21,10 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import Image from 'next/image';
 import { useRouter } from 'next/router';
 import React, { useEffect, useState } from 'react';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
-import logo from '/public/logo.png';
+import DynamicLogo from './DynamicLogo';
 import { Role } from '@workspace/utils/app.constant';
 import Cookies from 'js-cookie';
 import {
@@ -203,7 +202,7 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
         sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
       >
         {showHeader ? (
-          <img src="/logo.png" alt="logo" height={60} />
+          <DynamicLogo type="sidebar" width={60} height={60} fallbackSrc="/assets/images/logo.png" />
         ) : (
           <Box sx={{ textAlign: 'center', mt: 2 }}>
             <Typography

@@ -28,7 +28,7 @@ import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import config from '../../config.json';
-import appLogo from '../../public/images/appLogo.png';
+import DynamicLogo from '../components/DynamicLogo';
 import Loader from '../components/Loader';
 import { useDirection } from '../hooks/useDirection';
 import { login } from '../services/LoginService';
@@ -454,11 +454,12 @@ const LoginPage = () => {
           <Box
             sx={{ width: '55%', '@media (max-width: 400px)': { width: '95%' } }}
           >
-            <Image
-              src={appLogo}
-              alt="App Logo"
+            <DynamicLogo
+              type="login"
+              width={200}
               height={80}
-              layout="responsive"
+              fallbackSrc="/images/appLogo.png"
+              style={{ width: '100%', height: 'auto' }}
             />
           </Box>
         </Box>
@@ -549,11 +550,12 @@ const LoginPage = () => {
                         '@media (max-width: 700px)': { width: '95%' },
                       }}
                     >
-                      <Image
-                        src={appLogo}
-                        alt="App Logo"
+                      <DynamicLogo
+                        type="login"
+                        width={200}
                         height={80}
-                        layout="responsive"
+                        fallbackSrc="/images/appLogo.png"
+                        style={{ width: '100%', height: 'auto' }}
                       />
                     </Box>
                   </Box>

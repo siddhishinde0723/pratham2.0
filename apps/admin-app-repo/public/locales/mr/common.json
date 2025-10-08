@@ -191,6 +191,11 @@
     "HI": "नमस्कार",
     "DASHBOARD": "डॅशबोर्ड",
     "MANAGE_USERS": "वापरकर्त्यांचे व्यवस्थापन करा",
+    "GROUPS": "गट",
+    "GROUPS_OVERVIEW": "गटांचे विहंगावलोकन",
+    "CREATE_GROUPS": "गट तयार करा",
+    "ADD_USERS_TO_GROUPS": "गटात वापरकर्ते जोडा",
+    "ADD_CONTENT_TO_GROUPS": "गटात सामग्री जोडा",
     "COURSE_PLANNER": "अभ्यासक्रम नियोजक",
     "COHORTS": "गट",
     "FACILITATORS": "प्रशिक्षक",
@@ -476,5 +481,24 @@
     "EDIT_CONTENT_CREATOR": "सामग्री निर्माता संपादित करा",
     "CREATE_CONTENT_CREATOR": "सामग्री निर्माता तयार करा",
     "EDIT_CONTENT_REVIEWER": "सामग्री पुनरावलोकनकर्ता संपादित करा"
+  },
+  "GROUPS": {
+    "GROUPS": "गट",
+    "CREATE_GROUPS": "गट तयार करा",
+    "ADD_USERS_TO_GROUPS": "गटात वापरकर्ते जोडा",
+    "ADD_CONTENT_TO_GROUPS": "गटात सामग्री जोडा",
+    "GROUP_NAME": "गटाचे नाव",
+    "GROUP_DESCRIPTION": "गटाचे वर्णन",
+    "SELECT_GROUP": "गट निवडा",
+    "SELECT_USERS": "वापरकर्ते निवडा",
+    "SELECT_CONTENT": "सामग्री निवडा",
+    "GROUP_CREATED_SUCCESSFULLY": "गट यशस्वीरित्या तयार केला!",
+    "GROUP_UPDATED_SUCCESSFULLY": "गट यशस्वीरित्या अपडेट केला!",
+    "USERS_ADDED_TO_GROUP_SUCCESSFULLY": "वापरकर्ते गटात यशस्वीरित्या जोडले!",
+    "CONTENT_ADDED_TO_GROUP_SUCCESSFULLY": "सामग्री गटात यशस्वीरित्या जोडली!",
+    "NO_GROUPS_FOUND": "कोणतेही गट सापडले नाहीत",
+    "SEARCHBAR_PLACEHOLDER": "गट शोधा...",
+    "NEW_GROUP": "नवीन गट",
+    "EDIT_GROUP": "गट संपादित करा"
   }
 }

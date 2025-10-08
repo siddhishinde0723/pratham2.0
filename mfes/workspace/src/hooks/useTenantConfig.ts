@@ -14,14 +14,14 @@ const useTenantConfig = () => {
         setError(null);
 
         // Check if tenant ID is available before trying to fetch config
-        const tenantId = TenantService.getInstance().getTenantId();
+        const tenantId = TenantService.getTenantId();
         if (!tenantId) {
           console.warn('Tenant ID not set, skipping tenant config fetch');
           setError('Tenant ID not set');
           return;
         }
 
-        const config = await TenantService.getInstance().getTenantConfig();
+        const config = await TenantService.getTenantConfig();
         setTenantConfig(config);
       } catch (err) {
         console.error('Error fetching tenant config:', err);

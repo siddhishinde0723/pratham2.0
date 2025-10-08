@@ -1,4 +1,4 @@
-const baseurl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL;
+const baseurl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL || 'https://shiksha-dev-interface.tekdinext.com/interface/v1';
 
 export const API_ENDPOINTS = {
   contentRead: (doId: string) => `${baseurl}/api/content/v1/read/${doId}?fields=artifactUrl`,

@@ -43,6 +43,11 @@
     "HI": "ନମସ୍କାର",
     "DASHBOARD": "ଡ୍ୟାସବୋର୍ଡ",
     "MANAGE_USERS": "ଉପଭୋକ୍ତାମାନଙ୍କୁ ପରିଚାଳନା କରନ୍ତୁ",
+    "GROUPS": "ଗୋଷ୍ଠୀମାନେ",
+    "GROUPS_OVERVIEW": "ଗୋଷ୍ଠୀମାନଙ୍କର ସମୀକ୍ଷା",
+    "CREATE_GROUPS": "ଗୋଷ୍ଠୀ ସୃଷ୍ଟି କରନ୍ତୁ",
+    "ADD_USERS_TO_GROUPS": "ଗୋଷ୍ଠୀରେ ଉପଭୋକ୍ତା ଯୋଡନ୍ତୁ",
+    "ADD_CONTENT_TO_GROUPS": "ଗୋଷ୍ଠୀରେ ବିଷୟବସ୍ତୁ ଯୋଡନ୍ତୁ",
     "COURSE_PLANNER": "ପାଠ୍ୟକ୍ରମ ପ୍ରଣାଳୀକାରୀ",
     "COHORTS": "ଗୋଷ୍ଠୀମାନେ",
     "FACILITATORS": "ସହଜକାରୀମାନେ",
@@ -166,8 +171,24 @@
     "YEAR_OF_ JOINING_SCP": "SCP ମଧ୍ୟରେ ସାମିଲ ହେବାର ବର୍ଷ",
     "ASSIGN_CENTERS": "କେନ୍ଦ୍ର ସୁପର୍ଦ୍ଦ କରନ୍ତୁ"
    
+  },
+  "GROUPS": {
+    "GROUPS": "ଗୋଷ୍ଠୀମାନେ",
+    "CREATE_GROUPS": "ଗୋଷ୍ଠୀ ସୃଷ୍ଟି କରନ୍ତୁ",
+    "ADD_USERS_TO_GROUPS": "ଗୋଷ୍ଠୀରେ ଉପଭୋକ୍ତା ଯୋଡନ୍ତୁ",
+    "ADD_CONTENT_TO_GROUPS": "ଗୋଷ୍ଠୀରେ ବିଷୟବସ୍ତୁ ଯୋଡନ୍ତୁ",
+    "GROUP_NAME": "ଗୋଷ୍ଠୀର ନାମ",
+    "GROUP_DESCRIPTION": "ଗୋଷ୍ଠୀର ବର୍ଣ୍ଣନା",
+    "SELECT_GROUP": "ଗୋଷ୍ଠୀ ଚୟନ କରନ୍ତୁ",
+    "SELECT_USERS": "ଉପଭୋକ୍ତା ଚୟନ କରନ୍ତୁ",
+    "SELECT_CONTENT": "ବିଷୟବସ୍ତୁ ଚୟନ କରନ୍ତୁ",
+    "GROUP_CREATED_SUCCESSFULLY": "ଗୋଷ୍ଠୀ ସଫଳତାର ସହ ସୃଷ୍ଟି ହେଲା!",
+    "GROUP_UPDATED_SUCCESSFULLY": "ଗୋଷ୍ଠୀ ସଫଳତାର ସହ ଅଦ୍ୟତନ ହେଲା!",
+    "USERS_ADDED_TO_GROUP_SUCCESSFULLY": "ଉପଭୋକ୍ତାମାନେ ଗୋଷ୍ଠୀରେ ସଫଳତାର ସହ ଯୋଡାଗଲେ!",
+    "CONTENT_ADDED_TO_GROUP_SUCCESSFULLY": "ବିଷୟବସ୍ତୁ ଗୋଷ୍ଠୀରେ ସଫଳତାର ସହ ଯୋଡାଗଲା!",
+    "NO_GROUPS_FOUND": "କୌଣସି ଗୋଷ୍ଠୀ ମିଳିଲା ନାହିଁ",
+    "SEARCHBAR_PLACEHOLDER": "ଗୋଷ୍ଠୀ ଖୋଜନ୍ତୁ...",
+    "NEW_GROUP": "ନୂତନ ଗୋଷ୍ଠୀ",
+    "EDIT_GROUP": "ଗୋଷ୍ଠୀ ସମ୍ପାଦନା କରନ୍ତୁ"
   }
- 
-  
-  
 }

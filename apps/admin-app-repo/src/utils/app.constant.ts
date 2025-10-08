@@ -55,6 +55,7 @@ export enum Role {
 export enum TenantName {
   SECOND_CHANCE_PROGRAM = 'Second Chance Program',
   YOUTHNET = 'YouthNet',
+  SWADHAAR = 'Swadhaar',
 }
 
 export enum Status {

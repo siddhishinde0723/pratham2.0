@@ -1,4 +1,3 @@
-// Arrow icons removed
 import {
   Box,
   Collapse,
@@ -12,6 +11,8 @@ import {
   useMediaQuery,
   ListItemButton,
 } from '@mui/material';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useTranslation } from 'next-i18next';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
@@ -46,6 +47,7 @@ const Sidebar = ({
 
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
     manageUsers: true, // Keep Manage Users expanded by default
+    groups: false, // Groups menu collapsed by default
   });
   const router = useRouter();
 
@@ -93,12 +95,15 @@ const Sidebar = ({
               <div key={key}>
                 <ListItemButton
                   onClick={() => {
-                    if (hasSubMenu && key !== 'manageUsers') {
+                    if (hasSubMenu) {
                       handleToggle(key);
                     } else if (!hasSubMenu) {
-                      router.push(item.link);
+                      try {
+                        router.push(item.link);
+                      } catch (error) {
+                        console.error('Navigation error:', error);
+                      }
                     }
-                    // For manageUsers, do nothing on click - keep it always expanded
                   }}
                   style={getActiveStyle(item.link)}
                 >
@@ -111,6 +116,9 @@ const Sidebar = ({
                     />
                   </ListItemIcon>
                   <ListItemText primary={t(item.title)} />
+                  {hasSubMenu && (
+                    openMenus[key] ? <ExpandLessIcon /> : <ExpandMoreIcon />
+                  )}
                 </ListItemButton>
 
                 {hasSubMenu && (
@@ -122,7 +130,13 @@ const Sidebar = ({
                           <ListItemButton
                             key={sub.link}
                             sx={{ pl: 4 }}
-                            onClick={() => router.push(sub.link)}
+                            onClick={() => {
+                              try {
+                                router.push(sub.link);
+                              } catch (error) {
+                                console.error('Navigation error:', error);
+                              }
+                            }}
                             style={getActiveStyle(sub.link)}
                           >
                             <ListItemText primary={t(sub.title)} />

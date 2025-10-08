@@ -172,6 +172,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
         gender: formData.gender,
         firstName: formData.firstName,
         lastName: formData.lastName,
+        mobile: formData.phone, // Add mobile field from form phone input
         tenantCohortRoleMapping: [
           {
             tenantId: tenantId,

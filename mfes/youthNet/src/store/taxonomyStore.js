@@ -30,7 +30,7 @@ const taxonomyStore = create(
 
     {
       name: 'taxonomyTeacher',
-      getStorage: () => localStorage,
+      storage: typeof window !== 'undefined' ? localStorage : undefined,
       // storage: typeof window !== 'undefined' ? localStorage : undefined,
     }
   )

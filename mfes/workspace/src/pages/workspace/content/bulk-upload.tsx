@@ -193,6 +193,7 @@ const BulkUpload: React.FC = () => {
             'cont_url',
             'cont_tagwords',
             'content_language',
+            'cont_dwurl'
           ];
 
           // Add framework-specific headers if they exist

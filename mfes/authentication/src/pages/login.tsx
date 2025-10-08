@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import React, { useEffect, useRef, useState } from 'react';
-import appLogo from '../../public/images/appLogo.png';
+import DynamicLogo from '../components/DynamicLogo';
 import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'next-i18next';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
@@ -177,11 +177,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           <Box
             sx={{ width: '55%', '@media (max-width: 400px)': { width: '95%' } }}
           >
-            <Image
-              src={appLogo}
-              alt="App Logo"
+            <DynamicLogo
+              type="login"
+              width={200}
               height={80}
-              layout="responsive"
+              fallbackSrc="/images/appLogo.png"
+              style={{ width: '100%', height: 'auto' }}
             />
           </Box>
         </Box>
@@ -272,11 +273,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                         '@media (max-width: 700px)': { width: '95%' },
                       }}
                     >
-                      <Image
-                        src={appLogo}
-                        alt="App Logo"
+                      <DynamicLogo
+                        type="login"
+                        width={200}
                         height={80}
-                        layout="responsive"
+                        fallbackSrc="/images/appLogo.png"
+                        style={{ width: '100%', height: 'auto' }}
                       />
                     </Box>
                   </Box>

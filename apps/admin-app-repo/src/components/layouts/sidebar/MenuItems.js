@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import masterIcon from '../../../../public/images/database.svg';
 import centerIcon from '../../../../public/images/centers.svg';
 import dashboardIcon from '../../../../public/images/dashboard.svg';

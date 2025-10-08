@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid';
 import mime from 'mime-types';
+import * as pako from 'pako';
 import { getLocalStoredUserId } from './LocalStorageService';
 
 const userId = getLocalStoredUserId();
@@ -253,7 +254,86 @@ export class ContentBulkService {
     return false;
   }
 
-  private readonly MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB limit to match server
+  private readonly MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB limit to accommodate larger files
+  private readonly SERVER_MAX_SIZE = 10 * 1024 * 1024; // 10MB server limit
+
+  /**
+   * Compress file data using gzip compression
+   */
+  private compressFile(data: ArrayBuffer, mimeType: string): ArrayBuffer {
+    try {
+      console.log(`Compressing file data (${mimeType})...`);
+      const originalSize = data.byteLength;
+      console.log(`Original file size: ${originalSize} bytes`);
+      
+      // Convert ArrayBuffer to Uint8Array for compression
+      const uint8Array = new Uint8Array(data);
+      console.log(`Converted to Uint8Array: ${uint8Array.length} bytes`);
+      
+      // Use different compression levels based on file type
+      let compressionLevel: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | -1 = 6; // Default compression level
+      
+      if (mimeType.includes('pdf') || mimeType.includes('application/')) {
+        compressionLevel = 9; // Maximum compression for PDFs and documents
+      } else if (mimeType.includes('text/')) {
+        compressionLevel = 6; // Standard compression for text
+      }
+      
+      console.log(`Using compression level: ${compressionLevel}`);
+      
+      // Try compression with error handling
+      let compressed;
+      try {
+        compressed = pako.gzip(uint8Array, { level: compressionLevel });
+        console.log(`Compression successful: ${compressed.length} bytes`);
+      } catch (compressionError) {
+        console.error('Pako compression failed:', compressionError);
+        // Try with lower compression level
+        console.log('Trying with lower compression level...');
+        compressed = pako.gzip(uint8Array, { level: 1 });
+        console.log(`Fallback compression successful: ${compressed.length} bytes`);
+      }
+      
+      const compressedSize = compressed.byteLength;
+      const compressionRatio = ((originalSize - compressedSize) / originalSize * 100).toFixed(2);
+      
+      console.log(`Compression complete: ${(originalSize / 1024 / 1024).toFixed(2)}MB → ${(compressedSize / 1024 / 1024).toFixed(2)}MB (${compressionRatio}% reduction)`);
+      
+      // If compression didn't help much, return original data
+      if (compressedSize >= originalSize * 0.95) {
+        console.log('Compression not effective, file may already be compressed');
+        console.log('Returning original data - file may need to be manually compressed');
+        return data;
+      }
+      
+      return compressed.buffer;
+    } catch (error) {
+      console.error('Compression failed:', error);
+      console.error('Error details:', error);
+      throw new Error(`Failed to compress file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Check if file type can be compressed effectively
+   */
+  private canCompressEffectively(mimeType: string): boolean {
+    const compressibleTypes = [
+      'text/',
+      'application/json',
+      'application/xml',
+      'application/javascript',
+      'application/x-javascript',
+      'application/pdf', // PDFs can sometimes be compressed
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument',
+      'image/svg+xml',
+      'application/octet-stream' // Try compression for unknown types
+    ];
+    
+    // Always try compression for files over server limit
+    return true; // Try compression for all file types
+  }
 
   private async downloadFileFromUrl(url: string): Promise<ArrayBuffer> {
     try {
@@ -282,50 +362,98 @@ export class ContentBulkService {
             params: { key: apiKey },
             responseType: 'arraybuffer',
             timeout: 30000,
-            maxContentLength: this.MAX_FILE_SIZE, // Use 2MB limit
+            maxContentLength: this.MAX_FILE_SIZE, // Use 50MB limit
           }
         );
 
-        // Check file size before proceeding
-        if (response.data.byteLength > this.MAX_FILE_SIZE) {
-          const sizeInMB = (response.data.byteLength / (1024 * 1024)).toFixed(
-            2
-          );
-          throw new Error(
-            `File size (${sizeInMB}MB) exceeds the maximum allowed size of 10MB. Please use a smaller file or compress the content.`
-          );
+        // Check file size and compress if needed
+        let fileData = response.data;
+        const originalSize = fileData.byteLength;
+        
+        if (originalSize > this.SERVER_MAX_SIZE) {
+          console.log(`File size (${(originalSize / 1024 / 1024).toFixed(2)}MB) exceeds server limit (10MB). Attempting compression...`);
+          
+          // Try to get MIME type for compression decision
+          const mimeType = response.headers['content-type'] || 'application/octet-stream';
+          
+          if (this.canCompressEffectively(mimeType)) {
+            try {
+              fileData = this.compressFile(fileData, mimeType);
+              
+              if (fileData.byteLength > this.SERVER_MAX_SIZE) {
+                const compressedSizeMB = (fileData.byteLength / 1024 / 1024).toFixed(2);
+                throw new Error(
+                  `File is too large even after compression (${compressedSizeMB}MB). Please use a smaller file or compress it manually.`
+                );
+              }
+              
+              console.log('File compressed successfully for upload');
+            } catch (compressionError: any) {
+              throw new Error(
+                `File size (${(originalSize / 1024 / 1024).toFixed(2)}MB) exceeds server limit and cannot be compressed. Please use a smaller file.`
+              );
+            }
+          } else {
+            throw new Error(
+              `File size (${(originalSize / 1024 / 1024).toFixed(2)}MB) exceeds server limit and file type cannot be compressed effectively. Please use a smaller file.`
+            );
+          }
         }
 
         console.log(
           'File downloaded successfully via Google Drive API, size:',
-          response.data.byteLength,
+          fileData.byteLength,
           'bytes'
         );
-        return response.data;
+        return fileData;
       } else {
         // For non-Google Drive URLs, use direct download
         const response = await axios.get(url, {
           responseType: 'arraybuffer',
           timeout: 30000, // 30 seconds timeout
-          maxContentLength: this.MAX_FILE_SIZE, // Use 10MB limit
+          maxContentLength: this.MAX_FILE_SIZE, // Use 50MB limit
         });
 
-        // Check file size before proceeding
-        if (response.data.byteLength > this.MAX_FILE_SIZE) {
-          const sizeInMB = (response.data.byteLength / (1024 * 1024)).toFixed(
-            2
-          );
-          throw new Error(
-            `File size (${sizeInMB}MB) exceeds the maximum allowed size of 10MB. Please use a smaller file or compress the content.`
-          );
+        // Check file size and compress if needed
+        let fileData = response.data;
+        const originalSize = fileData.byteLength;
+        
+        if (originalSize > this.SERVER_MAX_SIZE) {
+          console.log(`File size (${(originalSize / 1024 / 1024).toFixed(2)}MB) exceeds server limit (10MB). Attempting compression...`);
+          
+          // Try to get MIME type for compression decision
+          const mimeType = response.headers['content-type'] || 'application/octet-stream';
+          
+          if (this.canCompressEffectively(mimeType)) {
+            try {
+              fileData = this.compressFile(fileData, mimeType);
+              
+              if (fileData.byteLength > this.SERVER_MAX_SIZE) {
+                const compressedSizeMB = (fileData.byteLength / 1024 / 1024).toFixed(2);
+                throw new Error(
+                  `File is too large even after compression (${compressedSizeMB}MB). Please use a smaller file or compress it manually.`
+                );
+              }
+              
+              console.log('File compressed successfully for upload');
+            } catch (compressionError: any) {
+              throw new Error(
+                `File size (${(originalSize / 1024 / 1024).toFixed(2)}MB) exceeds server limit and cannot be compressed. Please use a smaller file.`
+              );
+            }
+          } else {
+            throw new Error(
+              `File size (${(originalSize / 1024 / 1024).toFixed(2)}MB) exceeds server limit and file type cannot be compressed effectively. Please use a smaller file.`
+            );
+          }
         }
 
         console.log(
           'File downloaded successfully, size:',
-          response.data.byteLength,
+          fileData.byteLength,
           'bytes'
         );
-        return response.data;
+        return fileData;
       }
     } catch (error) {
       console.error('Error downloading file:', error);
@@ -337,9 +465,23 @@ export class ContentBulkService {
         });
 
         // Handle specific error cases
+        if (error.response?.status === 404) {
+          const fileIdMatch = url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^/?]+)/);
+          const fileId = fileIdMatch ? fileIdMatch[1] : 'unknown';
+          throw new Error(
+            `Google Drive file not found (404). Please check if the file exists and is publicly accessible. File ID: ${fileId}. Original URL: ${url}`
+          );
+        }
+        if (error.response?.status === 403) {
+          const fileIdMatch = url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^/?]+)/);
+          const fileId = fileIdMatch ? fileIdMatch[1] : 'unknown';
+          throw new Error(
+            `Access denied to Google Drive file (403). Please ensure the file is publicly accessible. File ID: ${fileId}. Original URL: ${url}`
+          );
+        }
         if (error.response?.status === 413) {
           throw new Error(
-            'File size exceeds the maximum allowed size of 10MB. Please use a smaller file.'
+            'File size exceeds the maximum allowed size of 50MB. Please use a smaller file.'
           );
         }
       }
@@ -978,7 +1120,7 @@ export class ContentBulkService {
             2
           );
           throw new Error(
-            `File size (${sizeInMB}MB) exceeds the maximum allowed size of 10MB. Please use a smaller file or compress the content.`
+            `File size (${sizeInMB}MB) exceeds the maximum allowed size of 50MB. Please use a smaller file or compress the content.`
           );
         }
 

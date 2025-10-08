@@ -18,7 +18,6 @@ import Checkbox from '@mui/material/Checkbox';
 import Image from 'next/image';
 import Loader from '../components/Loader';
 import MenuItem from '@mui/material/MenuItem';
-import appLogo from '../../public/images/appLogo.png';
 import config from '../../config.json';
 import { getUserId, login, getTenant } from '../services/LoginService';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
@@ -256,7 +255,7 @@ const LoginPage = () => {
               (item) => item.isActive
             );
             const activeSessionId = activeSession ? activeSession.id : '';
-            localStorage.setItem('academicYearId', activeSessionId);
+            localStorage.setItem('academicYearId', 'edf1d200-21d8-417e-b844-1d04f92435f4');
             if (activeSessionId) {
               setIsActiveYearSelected(true);
               // router.push("/centers");
@@ -359,6 +358,10 @@ const LoginPage = () => {
               if (tenantId) {
                 TenantService.setTenantId(tenantId);
                 localStorage.setItem('tenantId', tenantId);
+                
+                // Set default academic year ID for all group operations
+                localStorage.setItem('academicYearId', 'edf1d200-21d8-417e-b844-1d04f92435f4');
+                console.log('Academic Year ID set in localStorage during login');
 
                 const response = await getTenant();
                 console.log('response', response);
@@ -457,12 +460,13 @@ const LoginPage = () => {
           <Box
             sx={{ width: '55%', '@media (max-width: 400px)': { width: '95%' } }}
           >
-            <Image
-              src={appLogo}
-              alt="App Logo"
-              height={80}
-              layout="responsive"
-            />
+                  <Image
+                    src="/images/appLogo.png"
+                    alt="Logo"
+                    width={200}
+                    height={80}
+                    style={{ width: '100%', height: 'auto' }}
+                  />
           </Box>
         </Box>
       </Box>
@@ -545,10 +549,11 @@ const LoginPage = () => {
                   }}
                 >
                   <Image
-                    src={appLogo}
-                    alt="App Logo"
+                    src="/images/appLogo.png"
+                    alt="Logo"
+                    width={200}
                     height={80}
-                    layout="responsive"
+                    style={{ width: '100%', height: 'auto' }}
                   />
                 </Box>
               </Box>

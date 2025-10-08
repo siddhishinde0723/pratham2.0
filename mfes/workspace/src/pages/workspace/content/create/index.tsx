@@ -5,6 +5,7 @@ import { useRouter } from 'next/router';
 import {
   createCourse,
   createQuestionSet,
+  createResourceContent,
 } from '../../../../services/ContentService';
 import QuizOutlinedIcon from '@mui/icons-material/QuizOutlined';
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined';
@@ -108,35 +109,35 @@ const CreatePage = () => {
     fetchCollectionData();
   };
 
-  // const fetchResourceContentData = async (contentType: string) => {
-  //   try {
-  //     const userId = getLocalStoredUserId();
-  //     if (!userId) return;
-  //     const response = await createResourceContent(
-  //       userId,
-  //       contentType,
-  //       tenantConfig?.CHANNEL_ID || '',
-  //       tenantConfig?.CONTENT_FRAMEWORK || ''
-  //     );
-  //     console.log('Resource created successfully:', response);
+  const fetchResourceContentData = async (contentType: string) => {
+    try {
+      const userId = getLocalStoredUserId();
+      if (!userId) return;
+      const response = await createResourceContent(
+        userId,
+        contentType,
+        tenantConfig?.CHANNEL_ID || '',
+        tenantConfig?.CONTENT_FRAMEWORK || ''
+      );
+      console.log('Resource created successfully:', response);
 
-  //     const identifier = response?.result?.identifier;
-  //     router.push({
-  //       pathname: `/resource-editor`,
-  //       query: { identifier },
-  //     });
-  //   } catch (error) {
-  //     console.error('Error creating Resource:', error);
-  //   }
-  // };
+      const identifier = response?.result?.identifier;
+      router.push({
+        pathname: `/resource-editor`,
+        query: { identifier },
+      });
+    } catch (error) {
+      console.error('Error creating Resource:', error);
+    }
+  };
 
-  // const openResourceEditor = () => {
-  //   fetchResourceContentData('Resource');
-  // };
+  const openResourceEditor = () => {
+    fetchResourceContentData('Resource');
+  };
 
-  // const openCourseAssessmentEditor = () => {
-  //   fetchResourceContentData('SelfAssess');
-  // };
+  const openCourseAssessmentEditor = () => {
+    fetchResourceContentData('SelfAssess');
+  };
 
   const cardData = [
     {
@@ -175,7 +176,7 @@ const CreatePage = () => {
           query: { editorforlargecontent: 'true' }, // No change needed
         }); // Removed an extra comma
       },
-    },
+    }
     // {
     //   title: 'New Resource',
     //   description:

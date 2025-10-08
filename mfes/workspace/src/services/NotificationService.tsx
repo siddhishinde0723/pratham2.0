@@ -30,7 +30,7 @@ export const sendCredentialService = async ({
 
   const headers: Record<string, string> = {
     Authorization: `Bearer ${getLocalStoredToken()}`,
-    tenantid: TenantService.getInstance().getTenantId(),
+    tenantid: TenantService.getTenantId(),
     'Content-Type': 'application/json',
   };
 

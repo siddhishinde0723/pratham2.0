@@ -17,7 +17,7 @@ const useStore = create(
     }),
     {
       name: "adminAppStore",
-      getStorage: () => localStorage,
+      storage: typeof window !== 'undefined' ? localStorage : undefined,
     }
   )
 );
