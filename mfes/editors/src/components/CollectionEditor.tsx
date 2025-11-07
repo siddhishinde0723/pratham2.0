@@ -104,9 +104,9 @@ const CollectionEditor: React.FC = () => {
       uid: getLocalStoredUserId(),
       additionalCategories: [],
       pdata: {
-        id: 'pratham.admin.portal',
+        id: 'shiksha.admin.portal',
         ver: '1.0.0',
-        pid: 'pratham-portal',
+        pid: 'shiksha-portal',
       },
       contextRollup: {
         l1: tenantConfig?.CHANNEL_ID,
@@ -115,7 +115,7 @@ const CollectionEditor: React.FC = () => {
       cdata: [
         {
           id: tenantConfig?.CHANNEL_ID,
-          type: 'pratham-portal',
+          type: 'shiksha-portal',
         },
       ],
       timeDiff: 5,

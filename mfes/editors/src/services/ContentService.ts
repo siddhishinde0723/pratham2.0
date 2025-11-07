@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-inferrable-types */
+/* eslint-disable no-var */
+/* eslint-disable no-useless-catch */
 import {
   getLocalStoredUserId,
   getLocalStoredUserRole,

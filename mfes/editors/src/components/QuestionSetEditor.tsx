@@ -55,9 +55,9 @@ const QuestionSetEditor: React.FC = () => {
       uid: getLocalStoredUserId(),
       channel: tenantConfig?.CHANNEL_ID,
       pdata: {
-        id: "pratham.admin.portal",
+        id: "shiksha.admin.portal",
         ver: "1.0.0",
-        pid: "pratham-portal",
+        pid: "shiksha-portal",
       },
       contextRollup: {
         l1: tenantConfig?.CHANNEL_ID,
@@ -66,7 +66,7 @@ const QuestionSetEditor: React.FC = () => {
       cdata: [
         {
           id: tenantConfig?.CHANNEL_ID,
-          type: "pratham-portal",
+          type: "shiksha-portal",
         },
       ],
       timeDiff: 5,
