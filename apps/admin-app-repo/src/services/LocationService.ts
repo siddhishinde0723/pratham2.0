@@ -38,19 +38,25 @@ interface LocationApiRequest {
 }
 
 class LocationService {
-  private baseUrl = 'https://shiksha-dev-interface.tekdinext.com/interface/v1/fields/options/read';
-  
+  private baseUrl = `${process.env.NEXT_PUBLIC_MIDDLEWARE_URL}/fields/options/read`;
+
   private getAuthToken(): string {
-    // Get token from localStorage (same key used in AuthContext)
     if (typeof window !== 'undefined' && window.localStorage) {
       return localStorage.getItem('token') || '';
     }
     return '';
   }
 
+  private getTenantId(): string {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return localStorage.getItem('tenantId') || '';
+    }
+    return '';
+  }
+
   private toProperCase(str: string): string {
     if (!str) return str;
-    
+
     // Convert to proper case: "BLOCK NAME" -> "Block name"
     return str
       .toLowerCase()
@@ -62,33 +68,40 @@ class LocationService {
   private async makeRequest(requestData: LocationApiRequest): Promise<LocationApiResponse> {
     try {
       const token = this.getAuthToken();
-      
+      const tenantId = this.getTenantId();
+
       if (!token) {
         throw new Error('Authentication token not found. Please login again.');
       }
-      
-      console.log('Location API Request:', {
+
+      if (!tenantId) {
+        console.warn('Tenant ID not found in localStorage.');
+      }
+
+      console.log('📡 Location API Request:', {
         url: this.baseUrl,
         method: 'POST',
         headers: {
-          'accept': '*/*',
-          'Authorization': `Bearer ${token.substring(0, 20)}...`,
+          accept: '*/*',
+          Authorization: `Bearer ${token.substring(0, 20)}...`,
           'Content-Type': 'application/json',
+          tenantId,
         },
-        body: requestData
+        body: requestData,
       });
-      
+
       const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
-          'accept': '*/*',
-          'Authorization': `Bearer ${token}`,
+          accept: '*/*',
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
+          tenantId: tenantId,
         },
         body: JSON.stringify(requestData),
       });
 
-      console.log('Location API Response Status:', response.status);
+      console.log('📨 Location API Response Status:', response.status);
 
       if (!response.ok) {
         if (response.status === 401) {
@@ -98,21 +111,29 @@ class LocationService {
       }
 
       const data = await response.json();
-      console.log('Location API Response Data:', data);
-      
-      // Handle the actual API response format
+      console.log('✅ Location API Response Data:', data);
+
       if (data && data.result && data.result.values) {
         return data;
       } else {
-        console.warn('Unexpected response format:', data);
-        return { 
-          result: { values: [] }, 
-          responseCode: 500, 
-          params: { status: 'failed' } 
+        console.warn('⚠️ Unexpected response format:', data);
+        return {
+          id: '',
+          ver: '',
+          ts: '',
+          params: {
+            resmsgid: '',
+            status: 'failed',
+            err: null,
+            errmsg: null,
+            successmessage: '',
+          },
+          responseCode: 500,
+          result: { totalCount: 0, fieldId: '', values: [] },
         };
       }
     } catch (error) {
-      console.error('Location API request failed:', error);
+      console.error('❌ Location API request failed:', error);
       throw error;
     }
   }
@@ -120,20 +141,18 @@ class LocationService {
   async getStates(): Promise<LocationOption[]> {
     try {
       const response = await this.makeRequest({
-        limit: 100, // Get more states
+        limit: 100,
         offset: 0,
-        fieldName: 'state'
-        // No controllingfieldfk for states
+        fieldName: 'state',
       });
-      
-      // Transform the response data to match our interface
+
       if (response && response.result && response.result.values) {
         return response.result.values.map(item => ({
           id: item.value.toString(),
-          name: item.label
+          name: item.label,
         }));
       }
-      
+
       return [];
     } catch (error) {
       console.error('Failed to fetch states:', error);
@@ -149,15 +168,14 @@ class LocationService {
         fieldName: 'district',
         controllingfieldfk: [stateId],
       });
-      
-      // Transform the response data to match our interface
+
       if (response && response.result && response.result.values) {
         return response.result.values.map(item => ({
           id: item.value.toString(),
-          name: item.label
+          name: item.label,
         }));
       }
-      
+
       return [];
     } catch (error) {
       console.error('Failed to fetch districts:', error);
@@ -173,15 +191,14 @@ class LocationService {
         fieldName: 'block',
         controllingfieldfk: [districtId],
       });
-      
-      // Transform the response data to match our interface
+
       if (response && response.result && response.result.values) {
         return response.result.values.map(item => ({
           id: item.value.toString(),
-          name: this.toProperCase(item.label)
+          name: this.toProperCase(item.label),
         }));
       }
-      
+
       return [];
     } catch (error) {
       console.error('Failed to fetch blocks:', error);
@@ -197,15 +214,14 @@ class LocationService {
         fieldName: 'village',
         controllingfieldfk: [blockId],
       });
-      
-      // Transform the response data to match our interface
+
       if (response && response.result && response.result.values) {
         return response.result.values.map(item => ({
           id: item.value.toString(),
-          name: this.toProperCase(item.label)
+          name: this.toProperCase(item.label),
         }));
       }
-      
+
       return [];
     } catch (error) {
       console.error('Failed to fetch villages:', error);
@@ -213,27 +229,30 @@ class LocationService {
     }
   }
 
-  // Search method for future use
-  async searchLocations(fieldName: string, searchTerm: string, controllingfieldfk?: string[]): Promise<LocationOption[]> {
+  async searchLocations(
+    fieldName: string,
+    searchTerm: string,
+    controllingfieldfk?: string[],
+  ): Promise<LocationOption[]> {
     try {
       const response = await this.makeRequest({
         limit: 100,
         offset: 0,
-        fieldName: fieldName,
-        controllingfieldfk: controllingfieldfk,
+        fieldName,
+        controllingfieldfk,
         optionName: searchTerm,
       });
-      
-      // Transform the response data to match our interface
+
       if (response && response.result && response.result.values) {
         return response.result.values.map(item => ({
           id: item.value.toString(),
-          name: (fieldName === 'block' || fieldName === 'village') 
-            ? this.toProperCase(item.label) 
-            : item.label
+          name:
+            fieldName === 'block' || fieldName === 'village'
+              ? this.toProperCase(item.label)
+              : item.label,
         }));
       }
-      
+
       return [];
     } catch (error) {
       console.error(`Failed to search ${fieldName}:`, error);

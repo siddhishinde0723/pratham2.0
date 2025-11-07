@@ -2,6 +2,7 @@ export interface TenantConfig {
   CHANNEL_ID: string;
   CONTENT_FRAMEWORK: string;
   COLLECTION_FRAMEWORK: string;
+  academicYearId?: string;
   LOGO_CONFIG?: {
     sidebar?: string;
     login?: string;
@@ -20,17 +21,20 @@ export const fetchTenantConfig = async (
   req?: any
 ): Promise<TenantConfig | null> => {
   try {
-    // If `tenantId` is not provided, get it dynamically from TenantService
-    console.log('fetchTenantConfig: tenantId', tenantId);
+    // Use provided tenantId or get it from localStorage
+    console.log('fetchTenantConfig: tenantId parameter', tenantId);
     const resolvedTenantId =
-      typeof window !== 'undefined' && window.localStorage
+      tenantId ||
+      (typeof window !== 'undefined' && window.localStorage
         ? localStorage.getItem('tenantId')
-        : null;
+        : null);
 
     if (!resolvedTenantId) {
       console.error('Tenant ID is required but not found');
       return null;
     }
+
+    console.log('fetchTenantConfig: Using tenantId', resolvedTenantId);
 
     // Fetch from API with the tenantId
     const response = await fetch(
@@ -43,9 +47,9 @@ export const fetchTenantConfig = async (
 
     if (!response.ok) throw new Error('Tenant not found');
 
-    const { CHANNEL_ID, CONTENT_FRAMEWORK, COLLECTION_FRAMEWORK, LOGO_CONFIG } =
+    const { CHANNEL_ID, CONTENT_FRAMEWORK, COLLECTION_FRAMEWORK, LOGO_CONFIG, academicYearId } =
       await response.json();
-    return { CHANNEL_ID, CONTENT_FRAMEWORK, COLLECTION_FRAMEWORK, LOGO_CONFIG };
+    return { CHANNEL_ID, CONTENT_FRAMEWORK, COLLECTION_FRAMEWORK, LOGO_CONFIG, academicYearId };
   } catch (error) {
     console.error('Error fetching tenant config:', error);
     return null;

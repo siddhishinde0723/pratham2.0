@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 //@ts-nocheck
 import React, { useEffect, useState } from "react";
 
@@ -10,7 +11,6 @@ declare global {
 import { useRouter } from "next/router";
 import $ from "jquery";
 import _ from "lodash";
-import Cookies from "js-cookie";
 import "izimodal/css/iziModal.css";
 import "izimodal/js/iziModal.js";
 import editorConfig from "./editor.config.json";
@@ -48,6 +48,7 @@ const GenericEditor: React.FC = () => {
     window.location.hash = "no";
   };
   const sendReviewNotification = async (notificationData: any) => {
+   
     try{
     const response = await fetchCCTAList();
     const cctaList = response;
@@ -131,13 +132,8 @@ const GenericEditor: React.FC = () => {
     }
 
     try {
-      // Check both cookies and localStorage for contentMode to determine the correct mode
-      const cookieMode = typeof window !== 'undefined' ? Cookies.get('contentMode') : null;
-      const localStorageMode = typeof window !== 'undefined' ? localStorage.getItem('contentMode') : null;
-      const mode = cookieMode || localStorageMode || 'edit';
-      
       const response = await fetch(
-        `/action/content/v3/read/${contentId}?fields=createdBy,status,mimeType,contentType,resourceType,collaborators,contentDisposition,primaryCategory,framework,channel,targetFWIds&mode=${mode}`
+        `/action/content/v3/read/${contentId}?fields=createdBy,status,mimeType,contentType,resourceType,collaborators,contentDisposition,primaryCategory,framework,channel,targetFWIds&mode=edit`
       );
 
       if (!response.ok) {
@@ -259,10 +255,10 @@ const GenericEditor: React.FC = () => {
       window["config"].defaultContentFileSize = defaultContentFileSize;
     window['config'].cloudStorage = {
       provider: 'aws',
-      // provider: 'azure',
-      presigned_headers: {
-         'x-amz-acl': 'private',
-        // 'x-ms-blob-type': 'BlockBlob', // This header sets access control; it's specific to AWS S3.
+      //  provider: 'azure',
+       presigned_headers: {
+           'x-amz-acl': 'private',
+          // 'x-ms-blob-type': 'BlockBlob', // This header sets access control; it's specific to AWS S3.
       },
     };
     }

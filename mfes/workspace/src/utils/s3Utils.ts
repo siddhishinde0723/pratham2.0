@@ -161,7 +161,7 @@ export const COMMON_S3_URLS = {
   ATREE_FRONTEND: 'https://atreefrontend.s3.ap-south-1.amazonaws.com',
   
   // From playerMetadata.js
-  KNOWLG_PUBLIC: 'https://knowlg-public.s3-ap-south-1.amazonaws.com',
+  KNOWLG_PUBLIC: 'https://knowlg-public.s3.ap-south-1.amazonaws.com',
   
   // From multipart upload APIs
   DEFAULT_BUCKET: 'shiksha2', // Used as fallback in admin-app-repo

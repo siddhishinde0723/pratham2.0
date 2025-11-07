@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 // @ts-nocheck
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Form from '@rjsf/mui';

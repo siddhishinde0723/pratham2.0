@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 import { API_ENDPOINTS } from '../utils/API/APIEndpoints';
 import { post } from './RestClient';
 import { userList } from './UserList';
@@ -88,7 +89,7 @@ export const searchGroups = async (params: {
   try {
     // Add academic year ID to headers
     const headers = {
-      academicyearid: 'edf1d200-21d8-417e-b844-1d04f92435f4'
+      academicyearid: 'fcad7d6e-8fc5-4121-bff6-e423e23e0525'
     };
     
     // Create API request without location and status filters (they cause 404 errors)
@@ -301,7 +302,7 @@ export const getGroupDetails = async (groupId: string): Promise<GroupDetails | n
 /**
  * Fetch users belonging to a specific group using the cohortmember/list API
  */
-export const getGroupUsers = async (groupId: string, academicYearId: string = 'edf1d200-21d8-417e-b844-1d04f92435f4'): Promise<GroupUser[]> => {
+export const getGroupUsers = async (groupId: string, academicYearId: string = 'fcad7d6e-8fc5-4121-bff6-e423e23e0525'): Promise<GroupUser[]> => {
   try {
     console.log('Fetching users for group:', groupId);
     
@@ -453,7 +454,7 @@ export const createGroup = async (groupData: {
   try {
     // Add academic year ID to headers
     const headers = {
-      academicyearid: 'edf1d200-21d8-417e-b844-1d04f92435f4'
+      academicyearid: 'fcad7d6e-8fc5-4121-bff6-e423e23e0525'
     };
     
     console.log('Creating group with data:', groupData);
@@ -528,7 +529,7 @@ export const updateGroup = async (groupId: string, groupData: Partial<Group>): P
   }
 };
 
-export const addUserToGroup = async (cohortId: string, userId: string, cohortAcademicYearId: string = 'edf1d200-21d8-417e-b844-1d04f92435f4'): Promise<any> => {
+export const addUserToGroup = async (cohortId: string, userId: string, cohortAcademicYearId: string = 'fcad7d6e-8fc5-4121-bff6-e423e23e0525'): Promise<any> => {
   try {
     console.log('Adding user to group:', { cohortId, userId, cohortAcademicYearId });
     
@@ -554,7 +555,7 @@ export const addUserToGroup = async (cohortId: string, userId: string, cohortAca
     console.log('Add user to group request data:', requestData);
 
     // Make the API call
-    const response = await fetch('https://shiksha-dev-interface.tekdinext.com/interface/v1/cohortmember/create', {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_MIDDLEWARE_URL}/cohortmember/create`, {
       method: 'POST',
       headers: {
         'accept': '*/*',
@@ -640,7 +641,7 @@ export const addContentToGroup = async (groupId: string, contentIds: string[]): 
     let academicYearId = localStorage.getItem('academicYearId') || 
                         localStorage.getItem('academic_year_id') ||
                         localStorage.getItem('academicYear') ||
-                        'edf1d200-21d8-417e-b844-1d04f92435f4'; // Fallback from curl example
+                        'fcad7d6e-8fc5-4121-bff6-e423e23e0525'; // Fallback from curl example
     
     // Try different user ID sources
     let userId = localStorage.getItem('userId') || 
@@ -858,7 +859,7 @@ export const getGroupContent = async (groupId: string): Promise<GroupContentResp
     let academicYearId = localStorage.getItem('academicYearId') || 
                         localStorage.getItem('academic_year_id') ||
                         localStorage.getItem('academicYear') ||
-                        'edf1d200-21d8-417e-b844-1d04f92435f4'; // Fallback
+                        'fcad7d6e-8fc5-4121-bff6-e423e23e0525'; // Fallback
 
     if (!token) {
       throw new Error('Authentication token not found. Please log in again.');

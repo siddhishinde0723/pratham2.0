@@ -23,6 +23,7 @@ import { Add as AddIcon, Search as SearchIcon } from '@mui/icons-material';
 import { contentSearch, Content as ContentType } from '../services/ContentService';
 import { searchListData } from '../components/DynamicForm/DynamicFormCallback';
 import { searchGroups, addContentToGroup } from '../services/GroupService';
+import TenantService from '../services/TenantService';
 
 interface Group {
   id: string;
@@ -55,10 +56,19 @@ const AddContentToGroups: React.FC = () => {
   const loadContent = async () => {
     console.log('Loading content...');
     
-    // Ensure academic year ID is set (fallback mechanism)
+    // Ensure academic year ID is set from tenant config (fallback mechanism)
     if (!localStorage.getItem('academicYearId')) {
-      localStorage.setItem('academicYearId', 'edf1d200-21d8-417e-b844-1d04f92435f4');
-      console.log('Academic Year ID set as fallback');
+      try {
+        const tenantConfig = await TenantService.getTenantConfig();
+        if (tenantConfig?.academicYearId) {
+          localStorage.setItem('academicYearId', tenantConfig.academicYearId);
+          console.log('Academic Year ID set from tenant config:', tenantConfig.academicYearId);
+        } else {
+          console.log('Academic Year ID not found in tenant config');
+        }
+      } catch (error) {
+        console.error('Error fetching tenant config for academicYearId:', error);
+      }
     }
     
     setIsLoadingContent(true);

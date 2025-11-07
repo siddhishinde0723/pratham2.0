@@ -255,7 +255,20 @@ const LoginPage = () => {
               (item) => item.isActive
             );
             const activeSessionId = activeSession ? activeSession.id : '';
-            localStorage.setItem('academicYearId', 'edf1d200-21d8-417e-b844-1d04f92435f4');
+            // Fetch academicYearId from tenant config
+            try {
+              const tenantConfig = await TenantService.getTenantConfig();
+              if (tenantConfig?.academicYearId) {
+                localStorage.setItem('academicYearId', tenantConfig.academicYearId);
+              } else if (activeSessionId) {
+                localStorage.setItem('academicYearId', activeSessionId);
+              }
+            } catch (error) {
+              console.error('Error fetching tenant config for academicYearId:', error);
+              if (activeSessionId) {
+                localStorage.setItem('academicYearId', activeSessionId);
+              }
+            }
             if (activeSessionId) {
               setIsActiveYearSelected(true);
               // router.push("/centers");
@@ -359,9 +372,18 @@ const LoginPage = () => {
                 TenantService.setTenantId(tenantId);
                 localStorage.setItem('tenantId', tenantId);
                 
-                // Set default academic year ID for all group operations
-                localStorage.setItem('academicYearId', 'edf1d200-21d8-417e-b844-1d04f92435f4');
-                console.log('Academic Year ID set in localStorage during login');
+                // Set academic year ID from tenant config
+                try {
+                  const tenantConfig = await TenantService.getTenantConfig();
+                  if (tenantConfig?.academicYearId) {
+                    localStorage.setItem('academicYearId', tenantConfig.academicYearId);
+                    console.log('Academic Year ID set from tenant config:', tenantConfig.academicYearId);
+                  } else {
+                    console.log('Academic Year ID not found in tenant config');
+                  }
+                } catch (error) {
+                  console.error('Error fetching tenant config for academicYearId:', error);
+                }
 
                 const response = await getTenant();
                 console.log('response', response);

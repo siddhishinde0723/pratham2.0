@@ -1,13 +1,15 @@
+export interface LogoConfig {
+  sidebar: string;
+  login: string;
+  favicon: string;
+  alt: string;
+}
+
 export interface TenantConfig {
   CHANNEL_ID: string;
   CONTENT_FRAMEWORK: string;
   COLLECTION_FRAMEWORK: string;
-  LOGO_CONFIG?: {
-    sidebar?: string;
-    login?: string;
-    favicon?: string;
-    alt?: string;
-  };
+  LOGO_CONFIG?: LogoConfig; // ✅ Optional if not all tenants have this
 }
 
 /**
@@ -20,72 +22,33 @@ export const fetchTenantConfig = async (
   req?: any
 ): Promise<TenantConfig | null> => {
   try {
-    // If `tenantId` is not provided, get it dynamically from multiple sources
-    let resolvedTenantId = tenantId;
+    const resolvedTenantId = tenantId;
 
-    if (!resolvedTenantId && typeof window !== 'undefined') {
-      // Try cookies first (SSR-safe)
-      const cookies = document.cookie.split(';');
-      const tenantCookie = cookies.find((cookie) =>
-        cookie.trim().startsWith('tenantId=')
-      );
-      if (tenantCookie) {
-        resolvedTenantId = tenantCookie.split('=')[1];
-      }
-
-      // If not in cookies, check localStorage and migrate
-      if (!resolvedTenantId) {
-        const localStorageTenantId = localStorage.getItem('tenantId');
-        if (localStorageTenantId) {
-          console.log(
-            'Migrating tenant ID from localStorage to cookies in fetchTenantConfig'
-          );
-          resolvedTenantId = localStorageTenantId;
-          // Set in cookies for future use
-          document.cookie = `tenantId=${localStorageTenantId}; expires=${new Date(
-            Date.now() + 7 * 24 * 60 * 60 * 1000
-          ).toUTCString()}; path=/; secure; SameSite=Strict`;
-        }
-      }
-    }
-
-    // No fallback - tenant ID should be set properly
     if (!resolvedTenantId) {
-      console.warn('Workspace fetchTenantConfig: No tenant ID found in cookies');
+      console.error("Tenant ID is required but not found");
       return null;
     }
-    
-    console.log('Workspace fetchTenantConfig: Using tenant ID:', resolvedTenantId);
-
-    console.log('Workspace fetchTenantConfig: Fetching tenant config for ID:', resolvedTenantId);
 
     // Fetch from API with the tenantId
-    const response = await fetch(
-      `/api/tenantConfig?tenantId=${resolvedTenantId}`,
-      {
-        method: 'GET',
-        credentials: 'include', // Ensures cookies are sent in client requests
-      }
-    );
-    
-    console.log('Workspace fetchTenantConfig: Response status:', response.status);
-    console.log('Workspace fetchTenantConfig: Response ok:', response.ok);
+    const response = await fetch(`/api/tenantConfig?tenantId=${resolvedTenantId}`, {
+      method: "GET",
+      credentials: "include",
+    });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Tenant config fetch failed:', response.status, errorData);
-      throw new Error(`Tenant not found: ${response.status}`);
-    }
+    if (!response.ok) throw new Error("Tenant not found");
 
-    const responseData = await response.json();
-    console.log('Workspace fetchTenantConfig: Response data:', responseData);
-    
-    const { CHANNEL_ID, CONTENT_FRAMEWORK, COLLECTION_FRAMEWORK, LOGO_CONFIG } = responseData;
-    const result = { CHANNEL_ID, CONTENT_FRAMEWORK, COLLECTION_FRAMEWORK, LOGO_CONFIG };
-    console.log('Workspace fetchTenantConfig: Parsed result:', result);
-    return result;
+    // ✅ Parse the full config including LOGO_CONFIG
+    const data = await response.json();
+
+    // Return full structure safely
+    return {
+      CHANNEL_ID: data.CHANNEL_ID,
+      CONTENT_FRAMEWORK: data.CONTENT_FRAMEWORK,
+      COLLECTION_FRAMEWORK: data.COLLECTION_FRAMEWORK,
+      LOGO_CONFIG: data.LOGO_CONFIG,
+    };
   } catch (error) {
-    console.error('Error fetching tenant config:', error);
+    console.error("Error fetching tenant config:", error);
     return null;
   }
 };

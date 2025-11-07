@@ -27,6 +27,10 @@ class TenantService {
   }
 
   public setTenantId(tenantId: string) {
+    // Clear cached config if tenant ID is changing
+    if (this.tenantId !== tenantId) {
+      this.tenantConfig = null;
+    }
     this.tenantId = tenantId;
     // Store in localStorage for consistency with login process
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -35,9 +39,21 @@ class TenantService {
   }
 
   public async getTenantConfig(): Promise<TenantConfig> {
+    // Ensure we have a tenant ID
+    if (!this.tenantId) {
+      const storedTenantId = typeof window !== 'undefined' && window.localStorage
+        ? localStorage.getItem('tenantId')
+        : null;
+      if (storedTenantId) {
+        this.tenantId = storedTenantId;
+      }
+    }
+    
+    // Fetch config if not cached
     if (!this.tenantConfig) {
       this.tenantConfig = await fetchTenantConfig(this.tenantId);
     }
+    
     if (!this.tenantConfig) {
       throw new Error('Failed to fetch tenant configuration');
     }

@@ -13,6 +13,7 @@ export const mockData: Record<string, any> = {
       alt: 'Colab Logo'
     }
   },
+
   '6c386899-7a00-4733-8447-5ef925bbf700': {
     CHANNEL_ID: 'KEF-channel',
     CONTENT_FRAMEWORK: 'KEF-framework',
@@ -48,8 +49,9 @@ export const mockData: Record<string, any> = {
   },
   '35529b5d-526f-4da5-bc6e-64f740023d26': {
     CHANNEL_ID: 'swadhaar-channel',
-    CONTENT_FRAMEWORK: 'swadhaar-fw',
-    COLLECTION_FRAMEWORK: 'swadhaar-fw',
+    CONTENT_FRAMEWORK: 'swadhaar-framework',
+    COLLECTION_FRAMEWORK: 'swadhaar-framework',
+    academicYearId:'edf1d200-21d8-417e-b844-1d04f92435f4',
     LOGO_CONFIG: {
       sidebar: '/tenants/swadhaar-logo.png',
       login: '/tenants/swadhaar-logo.png',
@@ -61,6 +63,7 @@ export const mockData: Record<string, any> = {
     CHANNEL_ID: 'oblf-channel',
     CONTENT_FRAMEWORK: 'oblf-framework',
     COLLECTION_FRAMEWORK: 'oblf-framework',
+    academicYearId:'59fefd2e-96be-419b-b1a8-60f0e3d868ba',
     LOGO_CONFIG: {
       sidebar: '/tenants/oblf-logo.png',
       login: '/tenants/oblf-logo.png',
@@ -90,7 +93,7 @@ export const mockData: Record<string, any> = {
       alt: 'Badal Logo'
     }
   },
-  '49db8074-ec4a-4d36-a542-8365a815c288':{
+    '49db8074-ec4a-4d36-a542-8365a815c288':{
      CHANNEL_ID: 'shikshagrahanew-channel',
     CONTENT_FRAMEWORK: 'shikshagrahanew-framework',
     COLLECTION_FRAMEWORK: 'shikshagrahanew-framework',
@@ -106,24 +109,37 @@ export const mockData: Record<string, any> = {
     CONTENT_FRAMEWORK: 'kenya-framework',
     COLLECTION_FRAMEWORK: 'kenya-framework',
     LOGO_CONFIG: {
-      sidebar: '/tenants/kenya-logo.png',
-      login: '/tenants/kenya-logo.png',
+      sidebar: '/tenants/tekdi-logo.png',
+      login: '/tenants/tekdi-logo.png',
       favicon: '/tenants/kenya-favicon.ico',
       alt: 'Kenya Logo'
     }
   },
-   '4366ab31-d3b2-44b3-9eb3-52c043127756':{
+  '4366ab31-d3b2-44b3-9eb3-52c043127756':{
     CHANNEL_ID: 'agrinettest-channel',
     CONTENT_FRAMEWORK: 'agrinettest-framework',
     COLLECTION_FRAMEWORK: 'agrinettest-framework',
     LOGO_CONFIG: {
-      sidebar: '/tenants/kenya-logo.png',
-      login: '/tenants/kenya-logo.png',
+      sidebar: '/tenants/tekdi-logo.png',
+      login: '/tenants/tekdi-logo.png',
+      favicon: '/tenants/kenya-favicon.ico',
+      alt: 'Kenya Logo'
+    }
+  },
+  '06c00145-1fd1-4932-8b61-fd7ddcfbc3c6':{
+    CHANNEL_ID: 'krdpr-channel',
+    CONTENT_FRAMEWORK: 'krdpr-framework',
+    COLLECTION_FRAMEWORK: 'krdpr-framework',
+    academicYearId:'fcad7d6e-8fc5-4121-bff6-e423e23e0525',
+    LOGO_CONFIG: {
+      sidebar: '/tenants/tekdi-logo.png',
+      login: '/tenants/tekdi-logo.png',
       favicon: '/tenants/kenya-favicon.ico',
       alt: 'Kenya Logo'
     }
   },
 };
+
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
   const { tenantId } = req.query;

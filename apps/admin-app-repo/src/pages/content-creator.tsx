@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* eslint-disable @nx/enforce-module-boundaries */
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
 import DynamicForm from '@/components/DynamicForm/DynamicForm';

@@ -32,6 +32,7 @@ import {
 import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import LocationService from '../services/LocationService';
 import { createGroup, searchGroups, updateGroup } from '../services/GroupService';
+import TenantService from '../services/TenantService';
 interface Location {
   id: string;
   name: string;
@@ -381,8 +382,16 @@ const CreateGroups: React.FC = () => {
         const response = await createGroup(groupData);
         console.log('Group created successfully:', response);
         
-        // Store academic year ID in localStorage if provided
-        localStorage.setItem('academicYearId', 'edf1d200-21d8-417e-b844-1d04f92435f4');
+        // Store academic year ID from tenant config in localStorage
+        try {
+          const tenantConfig = await TenantService.getTenantConfig();
+          if (tenantConfig?.academicYearId) {
+            localStorage.setItem('academicYearId', tenantConfig.academicYearId);
+            console.log('Academic Year ID set from tenant config:', tenantConfig.academicYearId);
+          }
+        } catch (error) {
+          console.error('Error fetching tenant config for academicYearId:', error);
+        }
 
         
         // Refresh the groups list to show the new group

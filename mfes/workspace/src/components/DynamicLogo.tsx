@@ -22,7 +22,7 @@ const DynamicLogo: React.FC<DynamicLogoProps> = ({
   className,
   style,
 }) => {
-  const [logoConfig, setLogoConfig] = useState<TenantConfig['LOGO_CONFIG'] | null>(null);
+  const [logoConfig, setLogoConfig] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -30,21 +30,32 @@ const DynamicLogo: React.FC<DynamicLogoProps> = ({
     const fetchLogoConfig = async () => {
       try {
         setLoading(true);
-        console.log('Workspace DynamicLogo: Fetching tenant config for type:', type);
-        
+        console.log('🟢 DynamicLogo: Fetching tenant config for type:', type);
+
         const tenantService = TenantService;
         const tenantId = tenantService.getTenantId();
-        console.log('Workspace DynamicLogo: Tenant ID:', tenantId);
-        
-        const config = await tenantService.getTenantConfig();
-        console.log('Workspace DynamicLogo: Full config:', config);
-        console.log('Workspace DynamicLogo: Logo config:', config.LOGO_CONFIG);
-        console.log('Workspace DynamicLogo: Config type:', typeof config);
-        console.log('Workspace DynamicLogo: Config keys:', Object.keys(config || {}));
-        
-        setLogoConfig(config.LOGO_CONFIG || null);
+        console.log('🟢 DynamicLogo: Tenant ID:', tenantId);
+
+        const config: any = await tenantService.getTenantConfig();
+        console.log('🟢 DynamicLogo: Full config:', config);
+
+        // ✅ Support both shapes safely, without TS error
+        let resolvedLogoConfig: any = null;
+
+        if (config?.LOGO_CONFIG) {
+          resolvedLogoConfig = config.LOGO_CONFIG;
+        } else if ((config as any)?.result?.LOGO_CONFIG) {
+          resolvedLogoConfig = (config as any).result.LOGO_CONFIG;
+        } else if ((config as any)?.result) {
+          resolvedLogoConfig = (config as any).result;
+        } else {
+          resolvedLogoConfig = config;
+        }
+
+        console.log('🟢 DynamicLogo: Resolved logo config:', resolvedLogoConfig);
+        setLogoConfig(resolvedLogoConfig);
       } catch (err) {
-        console.error('Error fetching tenant logo config:', err);
+        console.error('❌ Error fetching tenant logo config:', err);
         setError(true);
       } finally {
         setLoading(false);
@@ -54,15 +65,23 @@ const DynamicLogo: React.FC<DynamicLogoProps> = ({
     fetchLogoConfig();
   }, []);
 
-  // Determine the logo source based on type
+  const getDefaultLogoSrc = (): string => {
+    switch (type) {
+      case 'sidebar':
+        return '/assets/images/logo.png';
+      case 'login':
+        return '/assets/images/appLogo.png';
+      default:
+        return '/assets/images/logo.png';
+    }
+  };
+
+  const getDefaultFaviconSrc = (): string => '/favicon.ico';
+
   const getLogoSrc = (): string => {
-    console.log('Workspace DynamicLogo: Getting logo source for type:', type);
-    console.log('Workspace DynamicLogo: Error state:', error);
-    console.log('Workspace DynamicLogo: Logo config:', logoConfig);
-    
     if (error || !logoConfig) {
       const fallback = fallbackSrc || getDefaultLogoSrc();
-      console.log('Workspace DynamicLogo: Using fallback:', fallback);
+      console.log('⚠️ DynamicLogo: Using fallback:', fallback);
       return fallback;
     }
 
@@ -80,28 +99,11 @@ const DynamicLogo: React.FC<DynamicLogoProps> = ({
       default:
         logoSrc = fallbackSrc || getDefaultLogoSrc();
     }
-    
-    console.log('Workspace DynamicLogo: Final logo source:', logoSrc);
+
+    console.log('✅ DynamicLogo: Final logo source:', logoSrc);
     return logoSrc;
   };
 
-  // Default logo sources
-  const getDefaultLogoSrc = (): string => {
-    switch (type) {
-      case 'sidebar':
-        return '/assets/images/logo.png';
-      case 'login':
-        return '/assets/images/appLogo.png';
-      default:
-        return '/assets/images/logo.png';
-    }
-  };
-
-  const getDefaultFaviconSrc = (): string => {
-    return '/favicon.ico';
-  };
-
-  // Get alt text
   const getAltText = (): string => {
     if (alt) return alt;
     if (logoConfig?.alt) return logoConfig.alt;
@@ -124,7 +126,6 @@ const DynamicLogo: React.FC<DynamicLogoProps> = ({
   const logoSrc = getLogoSrc();
   const altText = getAltText();
 
-  // For favicon, return a link element instead of Image
   if (type === 'favicon') {
     return (
       <link
@@ -144,7 +145,7 @@ const DynamicLogo: React.FC<DynamicLogoProps> = ({
         width={width}
         height={height}
         onError={() => {
-          console.warn(`Failed to load logo: ${logoSrc}`);
+          console.warn(`⚠️ Failed to load logo: ${logoSrc}`);
           setError(true);
         }}
       />
