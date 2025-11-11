@@ -2,7 +2,7 @@
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { composePlugins, withNx } = require('@nx/next');
-
+const path = require("path");
 const PORTAL_BASE_URL = 'https://sunbird-editor.tekdinext.com';
 
 const CONTENT_EDITOR_BASE_URL = 'https://sunbird-editor.tekdinext.com';
@@ -25,7 +25,16 @@ const nextConfig = {
     // See: https://github.com/gregberge/svgr
     svgr: false,
   },
-  basePath: '/mfe_workspace', // This should match the path set in Nginx
+  basePath: '/mfe_workspace',
+  webpack: (config) => {
+    // Add path aliases
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@workspace": path.resolve(__dirname, "src"),
+      "@scp-teacher-repo": path.resolve(__dirname, "../scp-teacher-repo/src"),
+    };
+    return config;
+  }, // This should match the path set in Nginx
   async rewrites() {
     return [
       {

@@ -1,29 +1,22 @@
-import { AppProps } from 'next/app';
-import Head from 'next/head';
-import { Experimental_CssVarsProvider as CssVarsProvider } from '@mui/material/styles';
-import { useEffect } from 'react';
-import '../styles/global.css';
-import customTheme from '../styles/CustomTheme';
-import TenantService from '../services/TenantService';
-
+import { AppProps } from "next/app";
+import * as React from "react";
+import Head from "next/head";
+import { Experimental_CssVarsProvider as CssVarsProvider } from "@mui/material/styles";
+import { appWithTranslation } from "next-i18next";
+import "../styles/global.css";
+import customTheme from "../styles/CustomTheme";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 function CustomApp({ Component, pageProps }: AppProps) {
-  useEffect(() => {
-    // Listen for postMessage from parent window (for iframe scenarios)
-    const handleMessage = (event: MessageEvent) => {
-      // In production, validate event.origin for security
-      if (event.data && event.data.type === 'SET_TENANT_ID' && event.data.tenantId) {
-        console.log('Workspace: Received tenant ID from parent via postMessage:', event.data.tenantId);
-        TenantService.setTenantId(event.data.tenantId);
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-
-    return () => {
-      window.removeEventListener('message', handleMessage);
-    };
-  }, []);
-
+  const [client] = React.useState(
+    new QueryClient({
+      defaultOptions: {
+        queries: {
+          gcTime: 1000 * 60 * 60 * 24, // 24 hours
+          staleTime: 1000 * 60 * 60 * 24, // 24 hours
+        },
+      },
+    })
+  );
   return (
     <>
       <Head>
@@ -31,11 +24,12 @@ function CustomApp({ Component, pageProps }: AppProps) {
       </Head>
       <main className="app">
         <CssVarsProvider theme={customTheme}>
-          <Component {...pageProps} />
+          <QueryClientProvider client={client}>
+            <Component {...pageProps} />
+          </QueryClientProvider>
         </CssVarsProvider>
       </main>
     </>
   );
 }
-
-export default CustomApp;
+export default appWithTranslation(CustomApp);

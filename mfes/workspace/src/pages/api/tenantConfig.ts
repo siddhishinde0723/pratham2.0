@@ -66,7 +66,7 @@ export const mockData: Record<string, any> = {
     CHANNEL_ID: 'oblf-channel',
     CONTENT_FRAMEWORK: 'oblf-framework',
     COLLECTION_FRAMEWORK: 'oblf-framework',
-    academicYearId:'59fefd2e-96be-419b-b1a8-60f0e3d868ba',
+    academicYearId:'86137077-6c90-477f-b4b1-0804c3878cf0',
     LOGO_CONFIG: {
       sidebar: '/tenants/oblf-logo.png',
       login: '/tenants/oblf-logo.png',
@@ -142,6 +142,7 @@ export const mockData: Record<string, any> = {
     }
   },
 };
+
 
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {

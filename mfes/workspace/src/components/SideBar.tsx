@@ -147,6 +147,11 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
       key: 'discover-contents',
       icon: <ManageSearchIcon />,
     },
+    {
+      text: "Attendance",
+      key: "attendance",
+      icon: <ManageSearchIcon />,
+    },
   ];
 
   const handleNavigation = (key: string) => {

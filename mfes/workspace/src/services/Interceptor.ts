@@ -33,6 +33,10 @@ instance.interceptors.request.use(
       if (token && config.url && !config.url.endsWith('user/v1/auth/login')) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+       const academicYearId = localStorage.getItem("academicYearId");
+      if (academicYearId) {
+        config.headers.academicyearid = academicYearId;
+      }
     }
     // Only set tenant ID on client side
     if (typeof window !== 'undefined') {

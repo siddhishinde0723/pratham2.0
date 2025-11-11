@@ -88,7 +88,7 @@ const LoginPage = () => {
             if (role?.role === Role.ADMIN) {
               // Redirect ADMIN users to /learners (first Manage Users option)
               router.push('/learners', undefined, { locale: locale });
-            } else if (role?.role === Role.SCTA || role?.role === Role.CCTA) {
+            } else if (role?.role === Role.SCTA || role?.role === Role.CCTA || role?.role === Role.TEACHER) {
               // Redirect SCTA and CCTA users to workspace
               router.push('/workspace', undefined, { locale: locale });
             } else if (
@@ -98,6 +98,7 @@ const LoginPage = () => {
             ) {
               router.push('/programs', undefined, { locale: locale });
             }
+            
           }
         } else {
           let role;
@@ -106,7 +107,7 @@ const LoginPage = () => {
             if (role?.role === Role.ADMIN) {
               // Redirect ADMIN users to /learners (first Manage Users option)
               router.push('/learners');
-            } else if (role?.role === Role.SCTA || role?.role === Role.CCTA) {
+            } else if (role?.role === Role.SCTA || role?.role === Role.CCTA || role?.role === Role.TEACHER) {
               // Redirect SCTA and CCTA users to workspace
               router.push('/workspace');
             } else if (
@@ -230,7 +231,7 @@ const LoginPage = () => {
           }
         } else if (
           userInfo?.role === Role.SCTA ||
-          userInfo?.role === Role.CCTA
+          userInfo?.role === Role.CCTA || userInfo?.role === Role.TEACHER
         ) {
           const { locale } = router;
           if (locale) {
@@ -283,7 +284,7 @@ const LoginPage = () => {
                 }
               } else if (
                 userInfo?.role === Role.SCTA ||
-                userInfo?.role === Role.CCTA
+                userInfo?.role === Role.CCTA || userInfo?.role === Role.TEACHER
               ) {
                 const { locale } = router;
                 if (locale) {

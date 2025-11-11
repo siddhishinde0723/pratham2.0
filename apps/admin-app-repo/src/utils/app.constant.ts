@@ -39,7 +39,7 @@ export const metaTags = {
 
 export enum Role {
   STUDENT = 'Learner',
-  TEACHER = 'Instructor',
+  TEACHER = 'Teacher',
   TEAM_LEADER = 'Lead',
   ADMIN = 'admin',
   CENTRAL_ADMIN = 'Central Lead',

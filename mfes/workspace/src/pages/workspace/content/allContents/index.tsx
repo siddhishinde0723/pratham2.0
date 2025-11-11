@@ -91,6 +91,26 @@ const AllContentsPage = () => {
   const statusQuery: string =
     typeof router.query.status === 'string' ? router.query.status : 'All';
   const [statusBy, setStatusBy] = useState<string>(statusQuery);
+interface content {
+  appIcon?: string;
+  appicon?: string;
+  posterImage?: string;
+  primaryCategory?: string;
+  name: string;
+  lastUpdatedOn?: string;
+  status?: string;
+  identifier?: string;
+  mimeType?: string;
+  mode?: string;
+  creator?: string;
+  description?: string;
+  state?: string;
+  author?: string;
+  access?: string;
+  url?: string;
+  resource?: string;
+}
+
 
   const [contentList, setContentList] = React.useState<content[]>([]);
   const [data, setData] = React.useState<any[]>([]);
@@ -252,7 +272,7 @@ const AllContentsPage = () => {
       contentType: item.primaryCategory,
       name: item.name,
       primaryCategory: item.primaryCategory,
-      lastUpdatedOn: timeAgo(item.lastUpdatedOn),
+      lastUpdatedOn: timeAgo(item.lastUpdatedOn || ""),
       status: item.status,
       identifier: item.identifier,
       mimeType: item.mimeType,
