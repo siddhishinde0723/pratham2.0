@@ -14,15 +14,75 @@ const fetchCohortMemberList = async ({
 }: CohortMemberList): Promise<any> => {
   const apiUrl: string = API_ENDPOINTS.cohortMemberList;
   try {
-    const response = await post(apiUrl, {
+    const requestBody = {
+      limit,
+      offset: page,
+      filters,
+      sort: ["name", "asc"],
+    };
+    console.log("fetchCohortMemberList - API URL:", apiUrl);
+    console.log("fetchCohortMemberList - Request body:", requestBody);
+    const response = await post(apiUrl, requestBody);
+    console.log("fetchCohortMemberList - Response:", response);
+    console.log("fetchCohortMemberList - Response status:", response?.status);
+    console.log("fetchCohortMemberList - Response data:", response?.data);
+
+    // Check if response is successful
+    if (response?.status === 200 && response?.data) {
+      // Handle nested response structure: response.data.data.result.userDetails
+      // Return the inner data object so components can access response.result.userDetails
+      if (response.data.data) {
+        return response.data.data;
+      }
+      return response.data;
+    }
+
+    // If response is not successful, throw an error
+    throw new Error(`API request failed with status ${response?.status}`);
+  } catch (error: any) {
+    console.error("error in cohort member list API ", error);
+    console.error("API URL was:", apiUrl);
+    console.error("Request body was:", {
       limit,
       offset: page,
       filters,
       sort: ["name", "asc"],
     });
-    return response?.data;
-  } catch (error) {
-    console.error("error in cohort member list API ", error);
+    if (error?.response) {
+      console.error("Error response:", error.response);
+      console.error("Error status:", error.response?.status);
+      console.error("Error data:", error.response?.data);
+
+      // Handle 404 and 400 errors gracefully - return empty result instead of throwing
+      if (error.response?.status === 404) {
+        console.warn(
+          "Cohort member list not found (404). Returning empty result."
+        );
+        return {
+          result: {
+            userDetails: [],
+            totalCount: 0,
+          },
+        };
+      }
+
+      // Handle 400 errors (e.g., invalid UUID format)
+      if (error.response?.status === 400) {
+        const errorMsg =
+          error.response?.data?.params?.errmsg ||
+          error.response?.data?.params?.err ||
+          "Bad Request";
+        console.warn(
+          `Cohort member list bad request (400): ${errorMsg}. Returning empty result.`
+        );
+        return {
+          result: {
+            userDetails: [],
+            totalCount: 0,
+          },
+        };
+      }
+    }
     throw error;
   }
 };

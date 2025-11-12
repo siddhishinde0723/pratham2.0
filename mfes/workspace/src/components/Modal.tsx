@@ -52,19 +52,6 @@ const ModalComponent: React.FC<ModalProps> = ({
             <Typography variant="h4" fontSize="16px" fontWeight="500" m={0}>
               {heading}
             </Typography>
-            <Typography
-              variant="h2"
-              sx={{
-                paddingBottom: "10px",
-                color: theme.palette.warning["A200"],
-                fontSize: "14px",
-              }}
-              component="h2"
-            >
-              {selectedDate
-                ? getDayMonthYearFormat(shortDateFormat(selectedDate))
-                : "N/A"}
-            </Typography>
           </Box>
           <CloseSharpIcon
             sx={{
@@ -86,12 +73,6 @@ const ModalComponent: React.FC<ModalProps> = ({
           justifyContent="flex-end"
           gap={"20px"}
         >
-          {secondaryBtnText && handleSecondaryAction && (
-            <ButtonFunctional
-              handleClickButton={handleSecondaryAction}
-              buttonName={secondaryBtnText}
-            />
-          )}
           <ButtonFunctional
             handleClickButton={handlePrimaryAction}
             buttonName={btnText ?? t("COMMON.APPLY")}
@@ -109,9 +90,9 @@ ModalComponent.propTypes = {
   SubHeading: PropTypes.string,
   btnText: PropTypes.string.isRequired,
   handlePrimaryAction: PropTypes.func.isRequired,
-  children: PropTypes.node as any,
+  children: PropTypes.node,
   secondaryBtnText: PropTypes.string,
   handleSecondaryAction: PropTypes.func,
-};
+} as any;
 
 export default ModalComponent;

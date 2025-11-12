@@ -15,6 +15,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  CircularProgress,
+  Radio,
   // Link,
   styled,
 } from "@mui/material";
@@ -31,7 +33,10 @@ import {
   classesMissedAttendancePercentList,
   getAllCenterAttendance,
   getCohortAttendance,
+  markAttendance,
+  getLearnerAttendanceStatus,
 } from "../services/AttendanceService";
+import { ShowSelfAttendance } from "../../app.config";
 import { getCohortList } from "../services/CohortServices";
 import { getMyCohortMemberList } from "../services/MyClassDetailsService";
 import { getUserDetails } from "../services/ProfileService";
@@ -42,11 +47,19 @@ import {
   CustomField,
   ICohort,
 } from "../utils/interfaces";
-import { getTodayDate, shortDateFormat } from "../utils/Helper";
+import {
+  getTodayDate,
+  shortDateFormat,
+  ATTENDANCE_ENUM,
+} from "../utils/Helper";
 import ModalComponent from "../components/Modal";
 import MarkBulkAttendance from "../components/MarkBulkAttendance"; // ADD THIS IMPORT
 import { showToastMessage } from "../components/Toastify"; // ADD THIS IMPORT
 import { fetchAttendanceDetails } from "../components/AttendanceDetails";
+import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
+import "react-circular-progressbar/dist/styles.css";
+import LocationModal from "./LocationModal";
+import useGeolocation from "./useGeoLocation";
 // Styled components
 const DashboardContainer = styled(Box)({
   minHeight: "100vh",
@@ -64,7 +77,7 @@ const HeaderContent = styled(Box)(({ theme }) => ({
   width: "100%",
   justifyContent: "space-between",
   alignItems: "center",
-  backgroundColor: theme.palette.warning.main,
+  backgroundColor: (theme.palette.warning as any).A400,
   padding: "1rem 1.5rem",
 }));
 
@@ -130,19 +143,19 @@ const HorizontalCalendarScroll = styled(Box)({
 
 const CalendarCell = styled(Box)(({ theme }) => ({
   position: "relative",
-  height: "3rem",
+  height: "3.5rem",
   width: "3rem",
   minWidth: "3rem",
-  padding: "6px",
+  padding: "4px",
   overflow: "hidden",
   fontSize: "0.875em",
-  border: `1px solid ${theme.palette.warning.main}`,
+  border: `1px solid ${(theme.palette.warning as any).A100}`,
   borderRadius: "4px",
   cursor: "pointer",
   transition: "0.25s ease-out",
   display: "flex",
   flexDirection: "column",
-  justifyContent: "center",
+  justifyContent: "flex-start",
   alignItems: "center",
   backgroundColor: "#fff",
   "&:hover": {
@@ -151,10 +164,11 @@ const CalendarCell = styled(Box)(({ theme }) => ({
 }));
 
 const DayHeader = styled(Typography)({
-  fontSize: "0.75em",
+  fontSize: "0.7em",
   fontWeight: "600",
   color: "#666",
   lineHeight: 1,
+  marginBottom: "2px",
 });
 
 const DateNumber = styled(Typography)({
@@ -174,7 +188,6 @@ const LearnerTag = styled(Box)({
   fontSize: "12px",
   margin: "2px",
 });
-
 
 const SimpleTeacherDashboard = () => {
   const theme = useTheme();
@@ -214,14 +227,33 @@ const SimpleTeacherDashboard = () => {
     dropoutCount: 0,
     bulkAttendanceStatus: "",
   });
+  const [selfAttendanceData, setSelfAttendanceData] = useState<any[]>([]);
+  const [selectedSelfAttendance, setSelectedSelfAttendance] = useState<
+    string | null
+  >(null);
+  const [isSelfAttendanceModalOpen, setIsSelfAttendanceModalOpen] =
+    useState(false);
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
+  const [attendanceLocation, setAttendanceLocation] =
+    useState<GeolocationPosition | null>(null);
   const [handleSaveHasRun, setHandleSaveHasRun] = useState(false);
   const [academicYearId, setAcademicYearId] = useState<string | null>(null);
+  const [dayWiseAttendanceData, setDayWiseAttendanceData] = useState<{
+    [date: string]: {
+      presentCount: number;
+      absentCount: number;
+      totalCount: number;
+      percentage: number;
+    };
+  }>({});
   const router = useRouter();
-  // Get current month and year
-  const currentMonth = selectedMonth.toLocaleString("default", {
+  const { getLocation } = useGeolocation();
+  // Get current month and year for display (showing last 30 days)
+  const today = new Date();
+  const currentMonth = today.toLocaleString("default", {
     month: "long",
   });
-  const currentYear = selectedMonth.getFullYear();
+  const currentYear = today.getFullYear();
   const handleModalToggle = () => {
     setOpen(!open);
     // Add telemetry if needed
@@ -282,7 +314,6 @@ const SimpleTeacherDashboard = () => {
 
     initializeDashboard();
   }, []);
-
 
   // Fetch user cohorts
   const fetchUserCohorts = async (userId: string | null) => {
@@ -435,6 +466,138 @@ const SimpleTeacherDashboard = () => {
   const currentAttendance = getCurrentAttendanceStatusValue();
   // const pathColor = determinePathColor(presentPercentage);
 
+  // Fetch self attendance data
+  const fetchSelfAttendance = async () => {
+    if (!classId || classId === "all") return;
+
+    try {
+      const userId = localStorage.getItem("userId");
+      if (!userId) return;
+
+      const limit = 300;
+      const page = 0;
+      const filters = {
+        contextId: classId,
+        userId: userId,
+        scope: "self",
+        toDate: selectedDate,
+        fromDate: selectedDate,
+      };
+
+      const response = await getLearnerAttendanceStatus({
+        limit,
+        page,
+        filters,
+      });
+      if (response?.data?.attendanceList) {
+        if (response.data.attendanceList.length > 0) {
+          setSelfAttendanceData(response.data.attendanceList);
+          const attendanceValue = response.data.attendanceList[0]?.attendance;
+          setSelectedSelfAttendance(
+            attendanceValue ? attendanceValue.toLowerCase() : null
+          );
+        } else {
+          setSelfAttendanceData([]);
+          setSelectedSelfAttendance(null);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching self attendance:", error);
+      setSelfAttendanceData([]);
+      setSelectedSelfAttendance(null);
+    }
+  };
+
+  // Request location permission
+  const requestLocationPermission = () => {
+    if (!navigator.geolocation) {
+      showToastMessage("Geolocation is not supported by your browser", "error");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setAttendanceLocation(position);
+        setIsLocationModalOpen(false);
+        const currentAttendance = selfAttendanceData?.[0]?.attendance;
+        setSelectedSelfAttendance(
+          currentAttendance ? currentAttendance.toLowerCase() : null
+        );
+        setIsSelfAttendanceModalOpen(true);
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        showToastMessage(
+          "Failed to get location. Please enable location services.",
+          "error"
+        );
+        setIsLocationModalOpen(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  };
+
+  // Handle marking self attendance
+  const handleMarkSelfAttendance = async () => {
+    if (!selectedSelfAttendance) return;
+
+    try {
+      const userId = localStorage.getItem("userId");
+      if (!userId) {
+        showToastMessage("User ID not found", "error");
+        return;
+      }
+
+      // Get location using useGeolocation hook
+      const locationData = await getLocation(true);
+      
+      const data: any = {
+        userId: userId,
+        attendance: selectedSelfAttendance?.toLowerCase(),
+        attendanceDate: selectedDate,
+        contextId: classId,
+        scope: "self",
+        context: "cohort",
+        absentReason: "",
+        lateMark: true,
+        validLocation: false,
+      };
+
+      // Add location data if available from useGeolocation hook
+      if (locationData) {
+        data.latitude = locationData.latitude;
+        data.longitude = locationData.longitude;
+      }
+      console.log("locationdata==", data);
+      const response = await markAttendance(data);
+      if (response?.responseCode === 200 || response?.responseCode === 201) {
+        const successMessage =
+          response?.params?.successmessage || "Attendance marked successfully";
+        showToastMessage(successMessage, "success");
+        setIsSelfAttendanceModalOpen(false);
+        setSelectedSelfAttendance(null);
+        // Refresh attendance data to show updated status
+        await fetchSelfAttendance();
+        fetchAttendanceData();
+      } else if (response?.responseCode === 400 || response?.params?.err) {
+        const errorMessage =
+          response?.params?.errmsg ||
+          response?.params?.err ||
+          "Something went wrong";
+        showToastMessage(errorMessage, "error");
+      } else {
+        showToastMessage("Something went wrong", "error");
+      }
+    } catch (error) {
+      console.error("Error marking self attendance:", error);
+      showToastMessage("Something went wrong", "error");
+    }
+  };
+
   // Fetch attendance data when classId changes
   useEffect(() => {
     console.log("useEffect triggered - fetching attendance data", {
@@ -444,8 +607,96 @@ const SimpleTeacherDashboard = () => {
     });
     if (classId && classId !== "all") {
       fetchAttendanceData();
+      fetchDayWiseAttendanceData();
+      if (ShowSelfAttendance) {
+        fetchSelfAttendance();
+      }
     }
   }, [classId, selectedDate, startDateRange, endDateRange, handleSaveHasRun]);
+
+  // Fetch attendance data for all 30 days
+  const fetchDayWiseAttendanceData = async () => {
+    if (!classId || classId === "all") return;
+
+    // Validate UUID format
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(classId)) {
+      console.warn(
+        "fetchDayWiseAttendanceData: Invalid UUID format for classId:",
+        classId
+      );
+      return;
+    }
+
+    try {
+      const calendarDays = generateCalendarData();
+      if (calendarDays.length === 0) return;
+
+      const firstDate = calendarDays[0].dateString;
+      const lastDate = calendarDays[calendarDays.length - 1].dateString;
+
+      const cohortAttendanceData: CohortAttendancePercentParam = {
+        limit: 1000,
+        page: 0,
+        filters: {
+          scope: "student",
+          fromDate: firstDate,
+          toDate: lastDate,
+          contextId: classId,
+        },
+        facets: ["attendanceDate"],
+        sort: ["present_percentage", "asc"],
+      };
+
+      const response = await getCohortAttendance(cohortAttendanceData);
+      const attendanceDateData = response?.data?.result?.attendanceDate || {};
+
+      // Process the data
+      const processedData: {
+        [date: string]: {
+          presentCount: number;
+          absentCount: number;
+          totalCount: number;
+          percentage: number;
+        };
+      } = {};
+
+      // Get total members count
+      const limit = 300;
+      const page = 0;
+      const filters = { cohortId: classId };
+      const memberResponse = await getMyCohortMemberList({
+        limit,
+        page,
+        filters,
+        includeArchived: true,
+      });
+      const members = memberResponse?.result?.userDetails || [];
+      const totalMembers = members.length;
+
+      // Process each date
+      Object.keys(attendanceDateData).forEach((dateStr) => {
+        const dateData = attendanceDateData[dateStr];
+        const present = dateData.present || 0;
+        const absent = dateData.absent || 0;
+        const total = present + absent;
+        const percentage =
+          totalMembers > 0 ? (present / totalMembers) * 100 : 0;
+
+        processedData[dateStr] = {
+          presentCount: present,
+          absentCount: absent,
+          totalCount: total,
+          percentage: Math.round(percentage),
+        };
+      });
+
+      setDayWiseAttendanceData(processedData);
+    } catch (error) {
+      console.error("Error fetching day-wise attendance data:", error);
+    }
+  };
 
   // Main function to fetch attendance data
   const fetchAttendanceData = async () => {
@@ -470,6 +721,17 @@ const SimpleTeacherDashboard = () => {
     console.log("Class id---", classId);
     try {
       // Fetch cohort member list
+      // Validate UUID format before making API call
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(classId)) {
+        console.warn(
+          "fetchAttendanceData: Invalid UUID format for classId:",
+          classId
+        );
+        return;
+      }
+
       const limit = 300;
       const page = 0;
       const filters = { cohortId: classId };
@@ -724,25 +986,29 @@ const SimpleTeacherDashboard = () => {
       console.error("Error fetching all centers attendance:", error);
     }
   };
-  // Generate calendar data for the selected month - only dates that exist
+  // Generate calendar data for last 30 days till today
   const generateCalendarData = () => {
-    const year = selectedMonth.getFullYear();
-    const month = selectedMonth.getMonth();
-
-    // Get first day of month and total days
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
     const days = [];
 
-    // Only add days of the month (no empty cells)
-    for (let i = 1; i <= daysInMonth; i++) {
-      const date = new Date(year, month, i);
-      const dayName = ["S", "M", "T", "W", "T", "F", "S"][date.getDay()];
-      days.push({
-        date: i,
-        day: dayName,
-      });
+    // Generate last 30 days from today backwards
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+
+      // Only include dates that are not in the future
+      if (date <= today) {
+        const dayName = ["S", "M", "T", "W", "T", "F", "S"][date.getDay()];
+        const dateStr = shortDateFormat(date);
+        days.push({
+          date: date.getDate(),
+          day: dayName,
+          fullDate: date,
+          dateString: dateStr,
+        });
+      }
     }
 
     return days;
@@ -751,26 +1017,28 @@ const SimpleTeacherDashboard = () => {
   const calendarDays = generateCalendarData();
   const weekDays = ["S", "M", "T", "W", "T", "F", "S"];
 
-  // Mock data matching the screenshot
-  const handleDateClick = (date: number) => {
-    const selected = new Date(
-      selectedMonth.getFullYear(),
-      selectedMonth.getMonth(),
-      date
-    );
-    setSelectedDate(shortDateFormat(selected));
+  // Handle date click
+  const handleDateClick = (dateString: string) => {
+    setSelectedDate(dateString);
+  };
+
+  // Handle calendar icon/month click to navigate to attendance-history
+  const handleCalendarClick = () => {
+    if (classId && classId !== "all") {
+      router.push(`/attendance-history?classId=${classId}`);
+    } else {
+      router.push("/attendance-history");
+    }
   };
 
   const handlePreviousMonth = () => {
-    setSelectedMonth(
-      new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - 1, 1)
-    );
+    // Navigate to attendance-history instead
+    handleCalendarClick();
   };
 
   const handleNextMonth = () => {
-    setSelectedMonth(
-      new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 1)
-    );
+    // Navigate to attendance-history instead
+    handleCalendarClick();
   };
   const handleChangeYear = (event: any) => {
     setYearSelect(event.target.value);
@@ -819,30 +1087,11 @@ const SimpleTeacherDashboard = () => {
     return translations[key] || key;
   };
   const clickAttendanceOverview = () => {
-    console.log("Navigating to attendance-overview");
-    console.log("Current router:", {
-      pathname: router.pathname,
-      asPath: router.asPath,
-      basePath: router.basePath,
-    });
-
-    // File is at /pages/attendance-overview.tsx, so route is /attendance-overview
-    const targetPath = "/attendance-overview";
-    console.log("Target path:", targetPath);
-    console.log(
-      "Full URL will be:",
-      router.basePath ? `${router.basePath}${targetPath}` : targetPath
-    );
-
-    // Use router.push (handles basePath automatically)
-    router.push(targetPath).catch((err) => {
-      console.error("Navigation error:", err);
-      // Fallback: use window.location
-      const fullPath = router.basePath
-        ? `${router.basePath}${targetPath}`
-        : targetPath;
-      window.location.href = fullPath;
-    });
+    if (classId && classId !== "all") {
+      router.push(`/attendance-overview?classId=${classId}`);
+    } else {
+      router.push("/attendance-overview");
+    }
   };
   return (
     <DashboardContainer>
@@ -853,7 +1102,7 @@ const SimpleTeacherDashboard = () => {
             textAlign={"left"}
             fontSize={"22px"}
             m={"1.5rem 1.2rem 0.8rem"}
-            // color={theme?.palette?.warning["300"]}
+            color={(theme?.palette?.warning as any)?.["300"]}
           >
             Dashboard
           </Typography>
@@ -904,7 +1153,7 @@ const SimpleTeacherDashboard = () => {
                 <Typography
                   variant="h2"
                   sx={{ fontSize: "14px" }}
-                  // color={theme.palette.warning["300"]}
+                  color={(theme.palette.warning as any)["300"]}
                   fontWeight={"500"}
                 >
                   Day-Wise Attendance
@@ -971,10 +1220,14 @@ const SimpleTeacherDashboard = () => {
                     gap: "4px",
                     alignItems: "center",
                   }}
+                  onClick={handleCalendarClick}
                 >
                   <Button
                     size="small"
-                    onClick={handlePreviousMonth}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePreviousMonth();
+                    }}
                     sx={{ minWidth: "auto", padding: "4px" }}
                   >
                     ‹
@@ -985,17 +1238,30 @@ const SimpleTeacherDashboard = () => {
                       minWidth: "100px",
                       textAlign: "center",
                     }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCalendarClick();
+                    }}
                   >
                     {currentMonth} {currentYear}
                   </Typography>
                   <Button
                     size="small"
-                    onClick={handleNextMonth}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNextMonth();
+                    }}
                     sx={{ minWidth: "auto", padding: "4px" }}
                   >
                     ›
                   </Button>
-                  <CalendarMonthIcon sx={{ fontSize: "12px", ml: 0.5 }} />
+                  <CalendarMonthIcon
+                    sx={{ fontSize: "12px", ml: 0.5, cursor: "pointer" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCalendarClick();
+                    }}
+                  />
                 </Box>
               </Box>
 
@@ -1003,26 +1269,109 @@ const SimpleTeacherDashboard = () => {
               <CalendarContainer>
                 {/* Horizontal Scroll Calendar */}
                 <HorizontalCalendarScroll>
-                  {calendarDays.map((dayData, index) => (
-                    <CalendarCell
-                      key={index}
-                      onClick={() => handleDateClick(dayData.date)}
-                      sx={{
-                        backgroundColor:
-                          new Date(
-                            selectedMonth.getFullYear(),
-                            selectedMonth.getMonth(),
-                            dayData.date
-                          ).toDateString() ===
-                          new Date(selectedDate).toDateString()
-                            ? theme.palette.primary.light
-                            : "#fff",
-                      }}
-                    >
-                      <DayHeader variant="caption">{dayData.day}</DayHeader>
-                      <DateNumber variant="body2">{dayData.date}</DateNumber>
-                    </CalendarCell>
-                  ))}
+                  {calendarDays.map((dayData, index) => {
+                    const dateAttendance =
+                      dayWiseAttendanceData[dayData.dateString] || null;
+                    const isSelected = dayData.dateString === selectedDate;
+                    const isMarked =
+                      dateAttendance && dateAttendance.totalCount > 0;
+                    const attendancePercentage =
+                      dateAttendance?.percentage || 0;
+
+                    // Check if this date is today
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const dayDate = new Date(dayData.fullDate);
+                    dayDate.setHours(0, 0, 0, 0);
+                    const isToday = dayDate.getTime() === today.getTime();
+
+                    return (
+                      <Box
+                        key={index}
+                        sx={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: "2px",
+                        }}
+                      >
+                        {/* Day character or "Today" text above box */}
+                        <Typography
+                          sx={{
+                            fontSize: "0.7em",
+                            fontWeight: "600",
+                            color: "#666",
+
+                            // color: isToday ? "#ff9800" : "#666",
+                            lineHeight: 1,
+                            marginBottom: "2px",
+                          }}
+                        >
+                          {isToday ? "Today" : dayData.day}
+                        </Typography>
+                        {/* Calendar Cell with date and circular progress inside */}
+                        <CalendarCell
+                          onClick={() => handleDateClick(dayData.dateString)}
+                          sx={{
+                            backgroundColor: isSelected
+                              ? theme.palette.primary.light
+                              : "#fff",
+                          }}
+                        >
+                          {/* Date number at top */}
+                          <DateNumber variant="body2">
+                            {dayData.date}
+                          </DateNumber>
+                          {/* Circular Progress inside box below date when marked, or "Not marked" for selected date when not marked */}
+                          {isMarked ? (
+                            <Box
+                              sx={{
+                                position: "relative",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                width: "20px",
+                                height: "20px",
+                                marginTop: "2px",
+                              }}
+                            >
+                              <CircularProgress
+                                variant="determinate"
+                                value={attendancePercentage}
+                                size={20}
+                                thickness={10}
+                                sx={{
+                                  color: "#4caf50",
+                                  position: "absolute",
+                                  "& .MuiCircularProgress-circle": {
+                                    strokeLinecap: "round",
+                                  },
+                                }}
+                              />
+                            </Box>
+                          ) : null}
+                          {/* // ) : isSelected ? (
+                          //   // Show "Not marked" text only for selected date when not marked
+                          //   <Typography
+                          //     sx={{
+                          //       fontSize: "0.55em",
+                          //       fontWeight: "400",
+                          //       color: "#999",
+                          //       marginTop: "2px",
+                          //       textAlign: "center",
+                          //       minHeight: "20px",
+                          //       display: "flex",
+                          //       alignItems: "center",
+                          //       justifyContent: "center",
+                          //     }}
+                          //   >
+                          //     Not marked
+                          //   </Typography>
+                          // ) : null} */}
+                        </CalendarCell>
+                      </Box>
+                    );
+                  })}
                 </HorizontalCalendarScroll>
               </CalendarContainer>
             </Box>
@@ -1044,51 +1393,80 @@ const SimpleTeacherDashboard = () => {
             display={"flex"}
             alignItems={"center"}
           >
-            <Box>
+            <Box display="flex" alignItems="center" gap="12px">
               {currentAttendance !== "notMarked" &&
                 currentAttendance !== "futureDate" && (
                   <>
-                    <Typography
-                      sx={{
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        color: "#F4F4F4",
-                      }}
-                      variant="h6"
-                    >
-                      {attendanceData?.numberOfCohortMembers &&
-                      attendanceData.numberOfCohortMembers !== 0
-                        ? (
-                            (attendanceData.presentCount /
-                              attendanceData.numberOfCohortMembers) *
-                            100
-                          ).toFixed(2)
-                        : "0"}
-                      % Attendance
-                    </Typography>
-                    <Typography
-                      sx={{
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        color: "#F4F4F4",
-                      }}
-                      variant="h6"
-                    >
-                      ({attendanceData.presentCount}/
-                      {attendanceData.numberOfCohortMembers} present)
-                    </Typography>
+                    {/* CircularProgressbar */}
+                    <Box sx={{ width: "30px", height: "30px" }}>
+                      <CircularProgressbar
+                        value={
+                          attendanceData?.numberOfCohortMembers &&
+                          attendanceData.numberOfCohortMembers !== 0
+                            ? (attendanceData.presentCount /
+                                attendanceData.numberOfCohortMembers) *
+                              100
+                            : 0
+                        }
+                        styles={buildStyles({
+                          pathColor: "#4caf50",
+                          trailColor: "#E6E6E6",
+                          strokeLinecap: "round",
+                          backgroundColor: "#fff",
+                        })}
+                        strokeWidth={20}
+                        background
+                        backgroundPadding={6}
+                      />
+                    </Box>
+                    {/* Attendance Text */}
+                    <Box>
+                      <Typography
+                        sx={{
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          color: "#F4F4F4",
+                        }}
+                        variant="h6"
+                      >
+                        {attendanceData?.numberOfCohortMembers &&
+                        attendanceData.numberOfCohortMembers !== 0
+                          ? (
+                              (attendanceData.presentCount /
+                                attendanceData.numberOfCohortMembers) *
+                              100
+                            ).toFixed(2)
+                          : "0"}
+                        % Attendance
+                      </Typography>
+                      <Typography
+                        sx={{
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          color: "#F4F4F4",
+                        }}
+                        variant="h6"
+                      >
+                        ({attendanceData.presentCount}/
+                        {attendanceData.numberOfCohortMembers} present)
+                      </Typography>
+                    </Box>
                   </>
                 )}
-          {(currentAttendance === "notMarked" || currentAttendance === "futureDate") && (
-  <Typography fontSize={"0.8rem"}>
-    Not started
-  </Typography>
-)}
-
+              {currentAttendance === "notMarked" && (
+                <Typography
+                  sx={{
+                    color: (theme.palette.warning as any).A400,
+                  }}
+                  fontSize={"0.8rem"}
+                >
+                  Not started
+                </Typography>
+              )}
               {currentAttendance === "futureDate" && (
                 <Typography
                   sx={{
-                    // color: theme.palette.warning["300"],
+                    color: (theme.palette.warning as any)["300"],
                   }}
                   fontSize={"0.8rem"}
                   fontStyle={"italic"}
@@ -1114,6 +1492,94 @@ const SimpleTeacherDashboard = () => {
               {currentAttendance === "notMarked" ? "Mark" : "Modify"}
             </Button>
           </Box>
+          {/* Self Attendance Card */}
+          {ShowSelfAttendance && (
+            <Box
+              height={"auto"}
+              width={"auto"}
+              padding={"1rem"}
+              borderRadius={"1rem"}
+              bgcolor={"#4A4640"}
+              textAlign={"left"}
+              margin={"15px 35px 15px 25px"}
+              sx={{ opacity: classId === "all" ? 0.5 : 1 }}
+              justifyContent={"space-between"}
+              display={"flex"}
+              alignItems={"center"}
+            >
+              <Box display="flex" alignItems="center" gap="12px">
+                {selfAttendanceData?.length > 0 ? (
+                  <Box display={"flex"} alignItems={"center"}>
+                    <Typography
+                      sx={{
+                        color: (theme.palette.warning as any).A400,
+                      }}
+                      fontSize={"0.9rem"}
+                    >
+                      {selfAttendanceData[0]?.attendance?.toLowerCase() ===
+                      ATTENDANCE_ENUM.PRESENT
+                        ? "Present"
+                        : selfAttendanceData[0]?.attendance?.toLowerCase() ===
+                          ATTENDANCE_ENUM.ABSENT
+                        ? "Absent"
+                        : selfAttendanceData[0]?.attendance}
+                    </Typography>
+                    {selfAttendanceData[0]?.attendance?.toLowerCase() ===
+                    ATTENDANCE_ENUM.PRESENT ? (
+                      <CheckCircleOutlineIcon
+                        fontSize="small"
+                        sx={{
+                          color: theme.palette.success.main,
+                          marginLeft: "4px",
+                        }}
+                      />
+                    ) : selfAttendanceData[0]?.attendance?.toLowerCase() ===
+                      ATTENDANCE_ENUM.ABSENT ? (
+                      <WarningAmberIcon
+                        fontSize="small"
+                        sx={{
+                          color: theme.palette.error.main,
+                          marginLeft: "4px",
+                        }}
+                      />
+                    ) : null}
+                  </Box>
+                ) : (
+                  <Typography
+                    sx={{
+                      color: (theme.palette.warning as any).A400,
+                    }}
+                    fontSize={"0.8rem"}
+                  >
+                    Not Marked For Self
+                  </Typography>
+                )}
+              </Box>
+              <Button
+                className="btn-mark-width"
+                variant="contained"
+                color="primary"
+                sx={{
+                  minWidth: "84px",
+                  height: "2.5rem",
+                  padding: theme.spacing(1),
+                  fontWeight: "500",
+                }}
+                disabled={classId === "all"}
+                onClick={() => {
+                  setIsLocationModalOpen(true);
+                }}
+              >
+                {selfAttendanceData?.length > 0 &&
+                (selfAttendanceData[0]?.attendance?.toLowerCase() ===
+                  ATTENDANCE_ENUM.PRESENT ||
+                  selfAttendanceData[0]?.attendance?.toLowerCase() ===
+                    ATTENDANCE_ENUM.ABSENT)
+                  ? "Modify For Self"
+                  : "Mark For Self"}
+              </Button>
+            </Box>
+          )}
           {/* Status Cards Section */}
           <Box
             sx={{
@@ -1282,7 +1748,7 @@ const SimpleTeacherDashboard = () => {
           <Box sx={{ padding: "0 16px" }}>
             <Box
               sx={{
-                // color: theme?.palette?.warning["300"],
+                color: (theme?.palette?.warning as any)?.["300"],
                 fontSize: "16px",
                 fontWeight: "500",
               }}
@@ -1291,7 +1757,7 @@ const SimpleTeacherDashboard = () => {
             </Box>
             <Box
               sx={{
-                // color: theme?.palette?.warning["300"],
+                color: (theme?.palette?.warning as any)?.["300"],
                 fontSize: "14px",
                 fontWeight: "400",
                 mt: "10px",
@@ -1301,7 +1767,7 @@ const SimpleTeacherDashboard = () => {
             </Box>
             <Box
               sx={{
-                // color: theme?.palette?.warning["300"],
+                color: (theme?.palette?.warning as any)?.["300"],
                 fontSize: "14px",
                 fontWeight: "400",
                 mt: "10px",
@@ -1311,13 +1777,122 @@ const SimpleTeacherDashboard = () => {
             </Box>
             <Box
               sx={{
-                // color: theme?.palette?.action?.activeChannel,
+                color: (theme?.palette?.warning as any)?.["300"],
                 fontSize: "14px",
                 fontWeight: "500",
                 mt: "10px",
               }}
             >
               {t("COMMON.NOTE_MANUALLY")}
+            </Box>
+          </Box>
+        </ModalComponent>
+      )}
+      {/* Location Permission Modal */}
+      {isLocationModalOpen && (
+        <LocationModal
+          isOpen={isLocationModalOpen}
+          onClose={() => setIsLocationModalOpen(false)}
+          onConfirm={requestLocationPermission}
+        />
+        // <ModalComponent
+        //   open={isLocationModalOpen}
+        //   heading="Device location is needed to mark your attendance"
+        //   secondaryBtnText="No, go back"
+        //   btnText="Turn On"
+        //   onClose={() => {
+        //     setIsLocationModalOpen(false);
+        //   }}
+        //   handlePrimaryAction={requestLocationPermission}
+        //   handleSecondaryAction={() => {
+        //     setIsLocationModalOpen(false);
+        //   }}
+        // >
+        //   <Box sx={{ padding: "0 16px" }}>
+        //     <Typography
+        //       sx={{
+        //         color: (theme?.palette?.warning as any)?.["300"],
+        //         fontSize: "14px",
+        //         fontWeight: "400",
+        //       }}
+        //     >
+        //       We need your device location to verify your attendance. Please
+        //       allow location access when prompted.
+        //     </Typography>
+        //   </Box>
+        // </ModalComponent>
+      )}
+      {/* Self Attendance Modal */}
+      {isSelfAttendanceModalOpen && (
+        <ModalComponent
+          open={isSelfAttendanceModalOpen}
+          heading="Attendance"
+          secondaryBtnText="Cancel"
+          btnText="Mark"
+          selectedDate={selectedDate ? new Date(selectedDate) : undefined}
+          onClose={() => {
+            setIsSelfAttendanceModalOpen(false);
+            const currentAttendance = selfAttendanceData?.[0]?.attendance;
+            setSelectedSelfAttendance(
+              currentAttendance ? currentAttendance.toLowerCase() : null
+            );
+          }}
+          handlePrimaryAction={() => {
+            if (selectedSelfAttendance) {
+              handleMarkSelfAttendance();
+            }
+          }}
+        >
+          <Box sx={{ padding: "0 16px" }}>
+            <Box
+              display={"flex"}
+              justifyContent={"space-between"}
+              alignItems={"center"}
+              mb={2}
+            >
+              <Typography
+                variant="h2"
+                sx={{
+                  color: (theme.palette.warning as any).A200,
+                  fontSize: "14px",
+                }}
+                component="h2"
+              >
+                Present
+              </Typography>
+              <Radio
+                onChange={() =>
+                  setSelectedSelfAttendance(ATTENDANCE_ENUM.PRESENT)
+                }
+                value={ATTENDANCE_ENUM.PRESENT}
+                checked={selectedSelfAttendance === ATTENDANCE_ENUM.PRESENT}
+              />
+            </Box>
+            <Divider />
+            <Box
+              display={"flex"}
+              justifyContent={"space-between"}
+              alignItems={"center"}
+              mb={2}
+              mt={2}
+            >
+              <Typography
+                variant="h2"
+                sx={{
+                  color: (theme.palette.warning as any).A200,
+                  fontSize: "14px",
+                }}
+                component="h2"
+              >
+                Absent
+              </Typography>
+              <Radio
+                onChange={() =>
+                  setSelectedSelfAttendance(ATTENDANCE_ENUM.ABSENT)
+                }
+                value={ATTENDANCE_ENUM.ABSENT}
+                checked={selectedSelfAttendance === ATTENDANCE_ENUM.ABSENT}
+              />
             </Box>
           </Box>
         </ModalComponent>

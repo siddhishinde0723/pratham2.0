@@ -99,11 +99,17 @@ export interface BulkAttendanceParams {
  contextId: string;
  userAttendance: UserAttendanceObj[];
 }
+
 export interface MarkAttendanceParams {
- userId: string;
- attendanceDate: string;
- contextId: string;
- attendance: string;
+  userId: string;
+  attendanceDate: string;
+  contextId: string;
+  attendance: string;
+  latitude: number;
+  longitude: number;
+  validLocation: boolean;
+  absentReason: string;
+  lateMark: boolean;
 }
 
 

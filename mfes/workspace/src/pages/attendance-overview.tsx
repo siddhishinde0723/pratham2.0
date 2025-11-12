@@ -882,7 +882,6 @@ const AttendanceOverview: React.FC<AttendanceOverviewProps> = () => {
         />
       )} */}
       {/* Sidebar */}
-    
 
       {/* Main Content */}
       <Box

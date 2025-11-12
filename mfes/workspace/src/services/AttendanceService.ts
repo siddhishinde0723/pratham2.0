@@ -189,6 +189,10 @@ export const markAttendance = async ({
   attendanceDate,
   contextId,
   attendance,
+  latitude,longitude,
+  validLocation,
+  absentReason,
+  lateMark
 }: MarkAttendanceParams): Promise<any> => {
   const apiUrl: string = API_ENDPOINTS.attendanceCreate
   try {
@@ -197,7 +201,11 @@ export const markAttendance = async ({
       attendanceDate,
       contextId,
       attendance,
-      context: "cohort" // Add context directly
+      context: "cohort" ,// Add context directly
+      latitude,longitude,
+  validLocation,
+  absentReason,
+  lateMark
     });
     return response?.data;
   } catch (error) {

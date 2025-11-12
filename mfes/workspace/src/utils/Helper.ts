@@ -242,6 +242,11 @@ export const getDayAndMonthName = (dateString: Date | string) => {
   const month = date.toLocaleString("default", { month: "long" });
   return `${day} ${month}`;
 };
+export const formatToShowDateMonth = (date: Date) => {
+  const day = date.toLocaleString("en-US", { day: "2-digit" });
+  const month = date.toLocaleString("en-US", { month: "long" });
+  return `${day} ${month}`;
+};
 export const accessGranted = (
   action: string,
   accessControl: { [key: string]: Role[] },
@@ -284,3 +289,40 @@ export const getDeviceId = () => {
     });
   });
 };
+export interface UserEntry {
+  userId: string;
+  name: string;
+  memberStatus: string;
+  createdAt: string;
+  updatedAt: string;
+  firstName?: string;
+}
+
+export function getLatestEntries(
+  nameUserIdArray: UserEntry[],
+  selectedDate: string
+): UserEntry[] {
+  const filteredEntries: Record<string, UserEntry> = {};
+
+  nameUserIdArray.forEach((entry) => {
+    const { userId, updatedAt, createdAt } = entry;
+    const updatedDate = new Date(updatedAt);
+    updatedDate.setHours(0, 0, 0, 0);
+    const selectDate = new Date(selectedDate);
+    selectDate.setHours(0, 0, 0, 0);
+    const createdDate = new Date(createdAt);
+    createdDate.setHours(0, 0, 0, 0);
+
+    // Only consider entries with updatedAt < selectedDate or createdDate <= selectDate
+    if (updatedDate < selectDate || createdDate <= selectDate) {
+      if (
+        !filteredEntries[userId] ||
+        new Date(filteredEntries[userId].updatedAt) < updatedDate
+      ) {
+        // Update the entry if it is newer
+        filteredEntries[userId] = entry;
+      }
+    }
+  });
+  return Object.values(filteredEntries);
+}
