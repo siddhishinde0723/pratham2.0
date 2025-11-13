@@ -24,7 +24,7 @@ import Image from "next/image";
 import ReactGA from "react-ga4";
 import checkMark from "../assets/images/checkMark.svg";
 import { useDirection } from "../hooks/useDirection";
-// import MonthCalender from "./MonthCalender";
+import MonthCalender from "./MonthCalender";
 
 interface CustomSelectModalProps {
   menuItems: string[];
@@ -43,7 +43,9 @@ const DateRangePopup: React.FC<CustomSelectModalProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCalendarModalOpen, setIsCalenderModalOpen] = useState(false);
-  const [selectedRangeArray, setSelectedRangeArray] = useState(null);
+  const [selectedRangeArray, setSelectedRangeArray] = useState<Date[] | null>(
+    null
+  );
   const store = useStore();
   const [dateRangeArray, setDateRangeArray] = useState<any[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(0);
@@ -57,7 +59,9 @@ const DateRangePopup: React.FC<CustomSelectModalProps> = ({
   const [appliedOption, setAppliedOption] = React.useState<string>("");
   const [appliedIndex, setAppliedIndex] = React.useState<number | null>(0);
 
-  const toggleModal = () => setIsModalOpen(!isModalOpen);
+  const toggleModal = () => {
+    setIsModalOpen(!isModalOpen);
+  };
   const handleModalClose = () => {
     setIsModalOpen(false);
     setSelectedValue(appliedOption);
@@ -73,8 +77,24 @@ const DateRangePopup: React.FC<CustomSelectModalProps> = ({
     setSelectedIndex(index);
     setSelectedValue(item);
     if (index === 4) {
+      // Load existing date range if available
+      if (
+        selectedRangeArray &&
+        Array.isArray(selectedRangeArray) &&
+        selectedRangeArray.length === 2
+      ) {
+        setDateRangeArray(selectedRangeArray);
+        setDisplayCalendarFromDate(
+          getDayAndMonthName(new Date(selectedRangeArray[0]))
+        );
+        setDisplayCalendarToDate(
+          getDayAndMonthName(new Date(selectedRangeArray[1]))
+        );
+      }
+
       toggleCalendarModal();
     }
+    setIsModalOpen(false);
   };
   const handleCancelClicked = () => {
     toggleCalendarModal();
@@ -117,13 +137,32 @@ const DateRangePopup: React.FC<CustomSelectModalProps> = ({
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.localStorage) {
+      // Try to get from store first
       const storedDates = store.value;
       if (storedDates) {
         try {
           const dateArray = JSON.parse(storedDates);
-          setSelectedRangeArray(dateArray);
+          if (Array.isArray(dateArray) && dateArray.length === 2) {
+            setSelectedRangeArray(dateArray.map((d: string) => new Date(d)));
+          }
         } catch (error) {
           console.error("Failed to parse stored dates:", error);
+        }
+      }
+      // Also try localStorage directly
+      const localStoredDates = localStorage.getItem("selectedRangeArray");
+      if (localStoredDates) {
+        try {
+          const dateArray = JSON.parse(localStoredDates);
+          if (Array.isArray(dateArray) && dateArray.length === 2) {
+            const parsedDates = dateArray.map((d: string) => new Date(d));
+            setSelectedRangeArray(parsedDates);
+            setDateRangeArray(parsedDates);
+            setDisplayCalendarFromDate(getDayAndMonthName(parsedDates[0]));
+            setDisplayCalendarToDate(getDayAndMonthName(parsedDates[1]));
+          }
+        } catch (error) {
+          console.error("Failed to parse localStorage dates:", error);
         }
       }
     }
@@ -192,6 +231,10 @@ const DateRangePopup: React.FC<CustomSelectModalProps> = ({
       setDateRangeArray(date);
       setDisplayCalendarFromDate(getDayAndMonthName(date[0]));
       setDisplayCalendarToDate(getDayAndMonthName(date[1]));
+      // Store in localStorage for persistence
+      if (typeof window !== "undefined" && window.localStorage) {
+        localStorage.setItem("selectedRangeArray", JSON.stringify(date));
+      }
     }
   };
 
@@ -325,7 +368,7 @@ const DateRangePopup: React.FC<CustomSelectModalProps> = ({
             ))}
           </MenuList>
           <Divider />
-          <Box className="w-100 p-20">
+          {/* <Box className="w-100 p-20">
             <Button
               className="w-100"
               sx={{ boxShadow: "none" }}
@@ -334,7 +377,7 @@ const DateRangePopup: React.FC<CustomSelectModalProps> = ({
             >
               {t("COMMON.APPLY")}
             </Button>
-          </Box>
+          </Box> */}
         </Box>
       </Modal>
 
@@ -394,14 +437,20 @@ const DateRangePopup: React.FC<CustomSelectModalProps> = ({
 
           <Divider />
 
-          {/* <Box>
+          <Box>
             <MonthCalender
               onChange={handleActiveStartDateChange}
               onDateChange={handleCalendarDateChange}
               selectionType="range"
-              selectedRangeRetention={selectedRangeArray}
+              selectedRangeRetention={
+                selectedRangeArray && selectedRangeArray.length === 2
+                  ? [selectedRangeArray[0], selectedRangeArray[1]]
+                  : dateRangeArray.length === 2
+                  ? [dateRangeArray[0], dateRangeArray[1]]
+                  : null
+              }
             />
-          </Box> */}
+          </Box>
           <Box
             sx={{
               padding: "20px 18px 10px",
@@ -420,7 +469,42 @@ const DateRangePopup: React.FC<CustomSelectModalProps> = ({
             <Box
               className="text-0D fs-14 fw-500"
               sx={{ cursor: "pointer" }}
-              onClick={toggleCalendarModal}
+              onClick={() => {
+                if (dateRangeArray.length === 2) {
+                  const formatDate = (date: Date) => {
+                    const localDate = new Date(
+                      date.getTime() - date.getTimezoneOffset() * 60000
+                    );
+                    const year = localDate.getUTCFullYear();
+                    const month = String(localDate.getUTCMonth() + 1).padStart(
+                      2,
+                      "0"
+                    );
+                    const day = String(localDate.getUTCDate()).padStart(2, "0");
+                    return `${year}-${month}-${day}`;
+                  };
+                  const fromDate = formatDate(new Date(dateRangeArray[0]));
+                  const toDate = formatDate(new Date(dateRangeArray[1]));
+
+                  // Store the selected range
+                  if (typeof window !== "undefined" && window.localStorage) {
+                    localStorage.setItem(
+                      "selectedRangeArray",
+                      JSON.stringify(dateRangeArray)
+                    );
+                  }
+
+                  onDateRangeSelected({ fromDate, toDate });
+                  setAppliedOption(selectedValue);
+                  setAppliedIndex(selectedIndex);
+                  setCancelClicked(false);
+                  toggleCalendarModal();
+                  setIsModalOpen(false);
+                  // toggleModal();
+                } else {
+                  toggleCalendarModal();
+                }
+              }}
             >
               {t("COMMON.OK")}
             </Box>

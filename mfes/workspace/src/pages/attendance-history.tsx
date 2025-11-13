@@ -5,7 +5,7 @@ import {
   handleKeyDown,
   shortDateFormat,
   toPascalCase,
-} from "../utils/Helper";
+} from '../utils/Helper';
 import {
   Box,
   Button,
@@ -15,50 +15,52 @@ import {
   Paper,
   Stack,
   Typography,
-} from "@mui/material";
-import React, { useEffect, useRef, useState } from "react";
+} from '@mui/material';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AttendancePercentageProps,
   AttendanceStatusListProps,
   CohortMemberList,
   ICohort,
   user,
-} from "../utils/interfaces";
+} from '../utils/interfaces';
 
-import { fetchAttendanceDetails } from "../components/AttendanceDetails";
-import AttendanceStatus from "../components/AttendanceStatus";
-import AttendanceStatusListView from "../components/AttendanceStatusListView";
-import CohortSelectionSection from "../components/CohortSelectionSection";
-import NoDataFound from "../components/common/NoDataFound";
-import MarkBulkAttendance from "../components/MarkBulkAttendance";
-import MonthCalender from "../components/MonthCalender";
-import { showToastMessage } from "../components/Toastify";
-import UpDownButton from "../components/UpDownButton";
-import { getMyCohortMemberList } from "../services/MyClassDetailsService";
-import { getCohortList } from "../services/CohortServices";
-import { getUserDetails } from "../services/ProfileService";
-import useStore from "../store/store";
-import { Status, Telemetry } from "../utils/app.constant";
-import { calculatePercentage } from "../utils/attendanceStats";
-import { logEvent } from "../utils/googleAnalytics";
-import withAccessControl from "../utils/hoc/withAccessControl";
-import { telemetryFactory } from "../utils/telemetry";
-import ArrowDropDownSharpIcon from "@mui/icons-material/ArrowDropDownSharp";
-import ClearIcon from "@mui/icons-material/Clear";
-import KeyboardBackspaceOutlinedIcon from "@mui/icons-material/KeyboardBackspaceOutlined";
-import SearchIcon from "@mui/icons-material/Search";
-import { useTheme } from "@mui/material/styles";
-import { useTranslation } from "next-i18next";
-import { serverSideTranslations } from "next-i18next/serverSideTranslations";
+import { fetchAttendanceDetails } from '../components/AttendanceDetails';
+import AttendanceStatus from '../components/AttendanceStatus';
+import AttendanceStatusListView from '../components/AttendanceStatusListView';
+import CohortSelectionSection from '../components/CohortSelectionSection';
+import NoDataFound from '../components/common/NoDataFound';
+import MarkBulkAttendance from '../components/MarkBulkAttendance';
+import MonthCalender from '../components/MonthCalender';
+import { showToastMessage } from '../components/Toastify';
+import UpDownButton from '../components/UpDownButton';
+import { getMyCohortMemberList } from '../services/MyClassDetailsService';
+import { getCohortList } from '../services/CohortServices';
+import { getUserDetails } from '../services/ProfileService';
+import useStore from '../store/store';
+import { Status, Telemetry } from '../utils/app.constant';
+import { calculatePercentage } from '../utils/attendanceStats';
+import { logEvent } from '../utils/googleAnalytics';
+import withAccessControl from '../utils/hoc/withAccessControl';
+import { telemetryFactory } from '../utils/telemetry';
+import ArrowDropDownSharpIcon from '@mui/icons-material/ArrowDropDownSharp';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import ClearIcon from '@mui/icons-material/Clear';
+import KeyboardBackspaceOutlinedIcon from '@mui/icons-material/KeyboardBackspaceOutlined';
+import SearchIcon from '@mui/icons-material/Search';
+import { useTheme } from '@mui/material/styles';
+import { useTranslation } from 'next-i18next';
+import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 // Removed usePathname import - using router.pathname instead
-import { useRouter } from "next/router";
-import ReactGA from "react-ga4";
-import { accessControl } from "../../app.config";
-import Header from "../components/Header";
-import Loader from "../components/Loader";
-import SortingModal from "../components/SortingModal";
-import { useDirection } from "../hooks/useDirection";
-import { attendanceStatusList } from "../services/AttendanceService";
+import { useRouter } from 'next/router';
+import ReactGA from 'react-ga4';
+import { accessControl } from '../../app.config';
+import Header from '../components/Header';
+import Loader from '../components/Loader';
+import SortingModal from '../components/SortingModal';
+import { useDirection } from '../hooks/useDirection';
+import { attendanceStatusList } from '../services/AttendanceService';
 
 const UserAttendanceHistory = () => {
   const theme = useTheme<any>();
@@ -69,7 +71,7 @@ const UserAttendanceHistory = () => {
   const store = useStore();
   const isActiveYear = store.isActiveYearSelected;
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [classId, setClassId] = React.useState("");
+  const [classId, setClassId] = React.useState('');
   const [cohortsData, setCohortsData] = React.useState<Array<ICohort>>([]);
   const [percentageAttendance, setPercentageAttendance] =
     React.useState<any>(null);
@@ -81,22 +83,29 @@ const UserAttendanceHistory = () => {
   const [displayStudentList, setDisplayStudentList] = React.useState<
     Array<user>
   >([]);
-  const [searchWord, setSearchWord] = React.useState("");
+  const [searchWord, setSearchWord] = React.useState('');
   const [modalOpen, setModalOpen] = React.useState(false);
-  const [bulkAttendanceStatus, setBulkAttendanceStatus] = React.useState("");
-  const [status, setStatus] = useState("");
+  const [bulkAttendanceStatus, setBulkAttendanceStatus] = React.useState('');
+  const [status, setStatus] = useState('');
   const [openMarkAttendance, setOpenMarkAttendance] = useState(false);
   const handleMarkAttendanceModal = () =>
     setOpenMarkAttendance(!openMarkAttendance);
   const [loading, setLoading] = React.useState(false);
   const [open, setOpen] = useState(false);
   const [handleSaveHasRun, setHandleSaveHasRun] = React.useState(false);
-  const [blockName, setBlockName] = React.useState<string>("");
+  const [blockName, setBlockName] = React.useState<string>('');
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+  const [sortName, setSortName] = React.useState<'asc' | 'desc' | null>(null);
+  const [sortPresent, setSortPresent] = React.useState<'asc' | 'desc' | null>(
+    null
+  );
+  const [sortAbsent, setSortAbsent] = React.useState<'asc' | 'desc' | null>(
+    null
+  );
   // Initialize userId from localStorage synchronously to avoid race conditions
   const [userId, setUserId] = React.useState<string | null>(() => {
-    if (typeof window !== "undefined" && window.localStorage) {
-      return localStorage.getItem("userId");
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return localStorage.getItem('userId');
     }
     return null;
   });
@@ -114,7 +123,7 @@ const UserAttendanceHistory = () => {
     numberOfCohortMembers: 0,
     dropoutMemberList: [],
     dropoutCount: 0,
-    bulkAttendanceStatus: "",
+    bulkAttendanceStatus: '',
   });
 
   const handleAttendanceDataUpdate = (data: any) => {
@@ -125,7 +134,7 @@ const UserAttendanceHistory = () => {
       totalcount: data.numberOfCohortMembers,
       present_percentage:
         data.numberOfCohortMembers === 0
-          ? "0"
+          ? '0'
           : `${((data.presentCount / data.numberOfCohortMembers) * 100).toFixed(
               2
             )}`,
@@ -142,20 +151,20 @@ const UserAttendanceHistory = () => {
 
   const handleOpen = () => {
     setOpen(true);
-    ReactGA.event("mark/modify-attendance-button-clicked-attendance-history", {
+    ReactGA.event('mark/modify-attendance-button-clicked-attendance-history', {
       teacherId: userId,
     });
 
     const telemetryInteract = {
       context: {
-        env: "dashboard",
+        env: 'dashboard',
         cdata: [],
       },
       edata: {
-        id: "mark/modify-attendance-button-clicked-attendance-history",
+        id: 'mark/modify-attendance-button-clicked-attendance-history',
         type: Telemetry.CLICK,
-        subtype: "",
-        pageid: "attendance-history",
+        subtype: '',
+        pageid: 'attendance-history',
       },
     };
     telemetryFactory.interact(telemetryInteract);
@@ -168,11 +177,11 @@ const UserAttendanceHistory = () => {
   // Initialize user and fetch cohorts (similar to SimpleTeacherDashboard)
   useEffect(() => {
     const initializePage = async () => {
-      if (typeof window !== "undefined" && window.localStorage) {
-        const token = localStorage.getItem("token");
-        const storedUserId = localStorage.getItem("userId");
-        const storedAcademicYearId = localStorage.getItem("academicYearId");
-        const storedClassId = localStorage.getItem("classId") ?? "";
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const token = localStorage.getItem('token');
+        const storedUserId = localStorage.getItem('userId');
+        const storedAcademicYearId = localStorage.getItem('academicYearId');
+        const storedClassId = localStorage.getItem('classId') ?? '';
 
         if (token && storedUserId) {
           setIsAuthenticated(true);
@@ -185,16 +194,16 @@ const UserAttendanceHistory = () => {
           if (query.classId) {
             const queryClassId = query.classId as string;
             setClassId(queryClassId);
-            localStorage.setItem("classId", queryClassId);
-            localStorage.setItem("cohortId", queryClassId);
+            localStorage.setItem('classId', queryClassId);
+            localStorage.setItem('cohortId', queryClassId);
           } else if (storedClassId) {
             setClassId(storedClassId);
           } else {
             // Fetch cohorts and set default classId
             try {
               const response = await getCohortList(storedUserId, {
-                customField: "true",
-                children: "true",
+                customField: 'true',
+                children: 'true',
               });
               if (response && response.length > 0) {
                 setCohortsData(response);
@@ -212,7 +221,7 @@ const UserAttendanceHistory = () => {
                 if (centers.length > 0) {
                   const defaultCenter = centers[0];
                   const batches = defaultCenter.childData
-                    .filter((batch: any) => batch?.status !== "archived")
+                    .filter((batch: any) => batch?.status !== 'archived')
                     .map((batch: any) => ({
                       batchId: batch.cohortId,
                       batchName: batch.name,
@@ -222,21 +231,21 @@ const UserAttendanceHistory = () => {
                   if (batches.length > 0) {
                     const defaultBatchId = batches[0].batchId;
                     setClassId(defaultBatchId);
-                    localStorage.setItem("classId", defaultBatchId);
-                    localStorage.setItem("cohortId", defaultBatchId);
+                    localStorage.setItem('classId', defaultBatchId);
+                    localStorage.setItem('cohortId', defaultBatchId);
                   }
                 } else {
                   // Fallback: use first cohort if no hierarchy
                   const firstCohortId = response[0]?.cohortId;
                   if (firstCohortId) {
                     setClassId(firstCohortId);
-                    localStorage.setItem("classId", firstCohortId);
-                    localStorage.setItem("cohortId", firstCohortId);
+                    localStorage.setItem('classId', firstCohortId);
+                    localStorage.setItem('cohortId', firstCohortId);
                   }
                 }
               }
             } catch (error) {
-              console.error("Error fetching cohorts:", error);
+              console.error('Error fetching cohorts:', error);
             }
           }
 
@@ -246,15 +255,15 @@ const UserAttendanceHistory = () => {
             // If inactive year, redirect to dashboard instead of non-existent /centers
             // But only if we're not already on attendance-history
             if (
-              pathname !== "/attendance-history" &&
-              pathname !== "/workspace/content/attendance"
+              pathname !== '/attendance-history' &&
+              pathname !== '/workspace/content/attendance'
             ) {
-              push("/workspace/content/attendance");
+              push('/workspace/content/attendance');
             }
           }
           // If active year, stay on current page (don't redirect)
         } else {
-          push("/login", undefined, { locale: "en" });
+          push('/login', undefined, { locale: 'en' });
         }
       }
     };
@@ -266,9 +275,9 @@ const UserAttendanceHistory = () => {
     const getAttendanceStats = async () => {
       if (
         classId &&
-        classId !== "" &&
+        classId !== '' &&
         classId !== undefined &&
-        classId !== "all" &&
+        classId !== 'all' &&
         userId // Ensure userId is set before making API calls
       ) {
         try {
@@ -277,7 +286,7 @@ const UserAttendanceHistory = () => {
             page: 0,
             filters: {
               cohortId: classId,
-              role: "Student",
+              role: 'Student',
             },
             includeArchived: true,
           };
@@ -303,9 +312,9 @@ const UserAttendanceHistory = () => {
               contextId: classId,
               fromDate: fromDateFormatted,
               toDate: toDateFormatted,
-              scope: "student",
+              scope: 'student',
             },
-            facets: ["attendanceDate"],
+            facets: ['attendanceDate'],
           };
           const attendanceStats = await calculatePercentage(
             cohortMemberRequest,
@@ -314,7 +323,7 @@ const UserAttendanceHistory = () => {
           );
           setPercentageAttendance(attendanceStats);
         } catch (error: any) {
-          console.error("Error in getAttendanceStats:", error);
+          console.error('Error in getAttendanceStats:', error);
           // Set empty attendance stats on error
           setPercentageAttendance({});
         }
@@ -327,8 +336,8 @@ const UserAttendanceHistory = () => {
   }, [classId, selectedDate, handleSaveHasRun, userId]);
 
   const getCohortMemberList = async () => {
-    if (!classId || classId === "" || classId === "all") {
-      console.warn("getCohortMemberList: Invalid classId", classId);
+    if (!classId || classId === '' || classId === 'all') {
+      console.warn('getCohortMemberList: Invalid classId', classId);
       setLoading(false);
       return;
     }
@@ -337,7 +346,7 @@ const UserAttendanceHistory = () => {
       const limit = 300;
       const page = 0;
       const filters = { cohortId: classId };
-      console.log("Calling getMyCohortMemberList with:", {
+      console.log('Calling getMyCohortMemberList with:', {
         limit,
         page,
         filters,
@@ -348,11 +357,11 @@ const UserAttendanceHistory = () => {
         filters,
         includeArchived: true,
       });
-      console.log("getMyCohortMemberList response:", response);
+      console.log('getMyCohortMemberList response:', response);
       const resp = response?.result?.userDetails || [];
 
       if (!resp || resp.length === 0) {
-        console.warn("No cohort members found for classId:", classId);
+        console.warn('No cohort members found for classId:', classId);
         setDisplayStudentList([]);
         setCohortMemberList([]);
         setLoading(false);
@@ -364,9 +373,9 @@ const UserAttendanceHistory = () => {
           ?.map((entry: any) => ({
             userId: entry.userId,
             name:
-              toPascalCase(entry?.firstName || "") +
-              " " +
-              (entry?.lastName ? toPascalCase(entry.lastName) : ""),
+              toPascalCase(entry?.firstName || '') +
+              ' ' +
+              (entry?.lastName ? toPascalCase(entry.lastName) : ''),
             memberStatus: entry.status,
             createdAt: entry.createdAt,
             updatedAt: entry.updatedAt,
@@ -408,7 +417,7 @@ const UserAttendanceHistory = () => {
                 fromDate: shortDateFormat(selectedDate || currentDate),
                 toDate: shortDateFormat(selectedDate || currentDate),
                 contextId: classId,
-                scope: "student",
+                scope: 'student',
               },
             };
             const res = await attendanceStatusList(attendanceStatusData);
@@ -432,7 +441,7 @@ const UserAttendanceHistory = () => {
                     userId,
                     attendance: attendance?.attendance
                       ? attendance.attendance
-                      : "",
+                      : '',
                   });
                 });
                 return userAttendanceArray;
@@ -512,8 +521,8 @@ const UserAttendanceHistory = () => {
         setCohortMemberList([]);
       }
     } catch (error) {
-      console.error("Error fetching cohort list:", error);
-      showToastMessage(t("COMMON.SOMETHING_WENT_WRONG"), "error");
+      console.error('Error fetching cohort list:', error);
+      showToastMessage(t('COMMON.SOMETHING_WENT_WRONG'), 'error');
       setLoading(false);
     } finally {
       setLoading(false);
@@ -522,17 +531,17 @@ const UserAttendanceHistory = () => {
 
   useEffect(() => {
     // Only call API if classId is valid and userId is set (to ensure initialization is complete)
-    if (classId && classId !== "" && classId !== "all" && userId) {
+    if (classId && classId !== '' && classId !== 'all' && userId) {
       console.log(
-        "useEffect: Calling getCohortMemberList with classId:",
+        'useEffect: Calling getCohortMemberList with classId:',
         classId
       );
       getCohortMemberList();
     } else {
       console.log(
-        "useEffect: Skipping API call - classId:",
+        'useEffect: Skipping API call - classId:',
         classId,
-        "userId:",
+        'userId:',
         userId
       );
       setDisplayStudentList([]);
@@ -588,8 +597,11 @@ const UserAttendanceHistory = () => {
   // }
 
   const handleSearchClear = () => {
-    setSearchWord("");
+    setSearchWord('');
     setDisplayStudentList(cohortMemberList);
+    setSortName(null);
+    setSortPresent(null);
+    setSortAbsent(null);
   };
   // debounce use for searching time period is 2 sec
   const debouncedSearch = debounce((value: string) => {
@@ -601,14 +613,14 @@ const UserAttendanceHistory = () => {
 
   // handle search student data
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const trimmedValue = event.target.value.replace(/\s{2,}/g, " ").trimStart();
+    const trimmedValue = event.target.value.replace(/\s{2,}/g, ' ').trimStart();
     setSearchWord(trimmedValue);
-    ReactGA.event("search-by-keyword-attendance-history-age", {
+    ReactGA.event('search-by-keyword-attendance-history-age', {
       keyword: trimmedValue,
     });
     if (trimmedValue.length >= 3) {
       debouncedSearch(trimmedValue);
-    } else if (trimmedValue === "") {
+    } else if (trimmedValue === '') {
       setDisplayStudentList(cohortMemberList);
     } else {
       setDisplayStudentList(cohortMemberList);
@@ -639,17 +651,17 @@ const UserAttendanceHistory = () => {
 
     // Sorting by name
     switch (sortByName) {
-      case "asc":
+      case 'asc':
         sortedData.sort((a, b) => a.name.localeCompare(b.name));
         break;
-      case "desc":
+      case 'desc':
         sortedData.sort((a, b) => b.name.localeCompare(a.name));
         break;
     }
 
     // Sorting by attendance
     switch (sortByAttendance) {
-      case "pre":
+      case 'pre':
         sortedData.sort((a, b) => {
           if (
             a.memberStatus === Status.DROPOUT &&
@@ -661,13 +673,13 @@ const UserAttendanceHistory = () => {
             b.memberStatus === Status.DROPOUT
           )
             return -1;
-          if (a.attendance === "present" && b.attendance === "absent")
+          if (a.attendance === 'present' && b.attendance === 'absent')
             return -1;
-          if (a.attendance === "absent" && b.attendance === "present") return 1;
+          if (a.attendance === 'absent' && b.attendance === 'present') return 1;
           return 0;
         });
         break;
-      case "abs":
+      case 'abs':
         sortedData.sort((a, b) => {
           if (
             a.memberStatus === Status.DROPOUT &&
@@ -679,14 +691,91 @@ const UserAttendanceHistory = () => {
             b.memberStatus === Status.DROPOUT
           )
             return -1;
-          if (a.attendance === "absent" && b.attendance === "present")
+          if (a.attendance === 'absent' && b.attendance === 'present')
             return -1;
-          if (a.attendance === "present" && b.attendance === "absent") return 1;
+          if (a.attendance === 'present' && b.attendance === 'absent') return 1;
           return 0;
         });
         break;
     }
     setDisplayStudentList(sortedData);
+  };
+
+  // Column header sort handler for Learner Name
+  const handleSortName = () => {
+    const newSort =
+      sortName === 'asc' ? 'desc' : sortName === 'desc' ? null : 'asc';
+    setSortName(newSort);
+    setSortPresent(null);
+    setSortAbsent(null);
+
+    if (newSort) {
+      let sortedData = [...displayStudentList];
+      sortedData.sort((a, b) => {
+        if (newSort === 'asc') {
+          return a.name.localeCompare(b.name);
+        } else {
+          return b.name.localeCompare(a.name);
+        }
+      });
+      setDisplayStudentList(sortedData);
+    } else {
+      setDisplayStudentList(cohortMemberList);
+    }
+  };
+
+  // Column header sort handler for Present
+  const handleSortPresent = () => {
+    const newSort =
+      sortPresent === 'asc' ? 'desc' : sortPresent === 'desc' ? null : 'asc';
+    setSortPresent(newSort);
+    setSortName(null);
+    setSortAbsent(null);
+
+    if (newSort) {
+      let sortedData = [...displayStudentList];
+      sortedData.sort((a, b) => {
+        const aIsPresent = a.attendance === 'present' ? 1 : 0;
+        const bIsPresent = b.attendance === 'present' ? 1 : 0;
+        if (newSort === 'asc') {
+          // Present first (1), then absent (0)
+          return bIsPresent - aIsPresent;
+        } else {
+          // Absent first (0), then present (1)
+          return aIsPresent - bIsPresent;
+        }
+      });
+      setDisplayStudentList(sortedData);
+    } else {
+      setDisplayStudentList(cohortMemberList);
+    }
+  };
+
+  // Column header sort handler for Absent
+  const handleSortAbsent = () => {
+    const newSort =
+      sortAbsent === 'asc' ? 'desc' : sortAbsent === 'desc' ? null : 'asc';
+    setSortAbsent(newSort);
+    setSortName(null);
+    setSortPresent(null);
+
+    if (newSort) {
+      let sortedData = [...displayStudentList];
+      sortedData.sort((a, b) => {
+        const aIsAbsent = a.attendance === 'absent' ? 1 : 0;
+        const bIsAbsent = b.attendance === 'absent' ? 1 : 0;
+        if (newSort === 'asc') {
+          // Absent first (1), then present (0)
+          return bIsAbsent - aIsAbsent;
+        } else {
+          // Present first (0), then absent (1)
+          return aIsAbsent - bIsAbsent;
+        }
+      });
+      setDisplayStudentList(sortedData);
+    } else {
+      setDisplayStudentList(cohortMemberList);
+    }
   };
 
   const submitBulkAttendanceAction = (
@@ -699,7 +788,7 @@ const UserAttendanceHistory = () => {
         user.attendance = status;
         setBulkAttendanceStatus(status);
       } else {
-        setBulkAttendanceStatus("");
+        setBulkAttendanceStatus('');
         if (user.userId === id) {
           user.attendance = status;
         }
@@ -718,72 +807,72 @@ const UserAttendanceHistory = () => {
       const scrollMargin = 20;
       const scrollY = window.scrollY;
       const targetY = inputRect.top + scrollY - scrollMargin;
-      window.scrollTo({ top: targetY - 170, behavior: "smooth" });
+      window.scrollTo({ top: targetY - 170, behavior: 'smooth' });
     }
   };
 
   const darkMode =
-    typeof window !== "undefined" && window.localStorage
-      ? localStorage.getItem("mui-mode")
+    typeof window !== 'undefined' && window.localStorage
+      ? localStorage.getItem('mui-mode')
       : null;
 
   return (
-    <Box minHeight="100vh" textAlign={"center"}>
+    <Box minHeight="100vh" textAlign={'center'}>
       {/* <Header /> */}
-      {loading && <Loader showBackdrop={true} loadingText={t("LOADING")} />}
-      <Box display={"flex"} justifyContent={"center"}>
+      {loading && <Loader showBackdrop={true} loadingText={t('LOADING')} />}
+      <Box display={'flex'} justifyContent={'center'}>
         <Box
           sx={{
-            width: "100%",
-            "@media (max-width: 700px)": {
-              width: "100%",
+            width: '100%',
+            '@media (max-width: 700px)': {
+              width: '100%',
             },
           }}
         >
           <Box
-            display={"flex"}
-            flexDirection={"column"}
-            gap={"1rem"}
-            padding={"1rem 20px 0.5rem"}
-            alignItems={"center"}
+            display={'flex'}
+            flexDirection={'column'}
+            gap={'1rem'}
+            padding={'1rem 20px 0.5rem'}
+            alignItems={'center'}
           >
             <Box
-              display={"flex"}
-              sx={{ color: theme.palette.warning["A200"] }}
-              gap={"10px"}
-              width={"100%"}
-              paddingTop={"10px"}
+              display={'flex'}
+              sx={{ color: theme.palette.warning['A200'] }}
+              gap={'10px'}
+              width={'100%'}
+              paddingTop={'10px'}
             >
               <Box className="d-md-flex w-100 space-md-between min-align-md-center">
-                <Box display={"flex"} gap={"10px"}>
+                <Box display={'flex'} gap={'10px'}>
                   <Box
                     onClick={() => {
                       window.history.back();
                       logEvent({
-                        action: "back-button-clicked-attendance-history-page",
-                        category: "Attendance History Page",
-                        label: "Back Button Clicked",
+                        action: 'back-button-clicked-attendance-history-page',
+                        category: 'Attendance History Page',
+                        label: 'Back Button Clicked',
                       });
                     }}
                   >
                     <Box>
                       <KeyboardBackspaceOutlinedIcon
-                        cursor={"pointer"}
+                        cursor={'pointer'}
                         sx={{
-                          color: theme.palette.warning["A200"],
-                          transform: isRTL ? " rotate(180deg)" : "unset",
+                          color: theme.palette.warning['A200'],
+                          transform: isRTL ? ' rotate(180deg)' : 'unset',
                         }}
                       />
                     </Box>
                   </Box>
                   <Typography
-                    marginBottom={"0px"}
-                    fontSize={"22px"}
-                    color={theme.palette.warning["A200"]}
+                    marginBottom={'0px'}
+                    fontSize={'22px'}
+                    color={theme.palette.warning['A200']}
                     className="flex-basis-md-30"
-                    sx={{ whiteSpace: "nowrap" }}
+                    sx={{ whiteSpace: 'nowrap' }}
                   >
-                    {t("ATTENDANCE.DAY_WISE_ATTENDANCE")}
+                    {t('ATTENDANCE.DAY_WISE_ATTENDANCE')}
                   </Typography>
                 </Box>
 
@@ -819,21 +908,21 @@ const UserAttendanceHistory = () => {
             className="top-md-0"
             borderTop={1}
             sx={{
-              position: "sticky",
-              top: "65px",
+              position: 'sticky',
+              top: '65px',
               zIndex: 1000,
-              backgroundColor: theme.palette.warning["A400"],
+              backgroundColor: theme.palette.warning['A400'],
               // boxShadow: '0px 1px 3px 0px #0000004D',
               boxShadow:
-                darkMode === "dark"
-                  ? "0px 4px 8px 3px #ffffff1a"
-                  : "0px 4px 8px 3px #00000026",
+                darkMode === 'dark'
+                  ? '0px 4px 8px 3px #ffffff1a'
+                  : '0px 4px 8px 3px #00000026',
               borderTop:
-                darkMode === "dark"
-                  ? "1px solid rgba(255, 255, 255, 0.1)"
-                  : "1px solid rgba(0, 0, 0, 0.15)",
-              borderBottom: "unset ",
-              padding: "5px 10px",
+                darkMode === 'dark'
+                  ? '1px solid rgba(255, 255, 255, 0.1)'
+                  : '1px solid rgba(0, 0, 0, 0.15)',
+              borderBottom: 'unset ',
+              padding: '5px 10px',
             }}
           >
             <Box>
@@ -857,15 +946,15 @@ const UserAttendanceHistory = () => {
             {/*----------------------------search and Sort---------------------------------------*/}
             <Stack mr={1} ml={1}>
               <Box
-                mt={"16px"}
+                mt={'16px'}
                 mb={3}
-                sx={{ padding: "0 10px" }}
-                boxShadow={"none"}
+                sx={{ padding: '0 10px' }}
+                boxShadow={'none'}
               >
                 <Grid
                   container
                   alignItems="center"
-                  display={"flex"}
+                  display={'flex'}
                   justifyContent="space-between"
                 >
                   <Grid item xs={8} ref={searchRef}>
@@ -876,12 +965,12 @@ const UserAttendanceHistory = () => {
                         handleSearchSubmit();
                       }}
                       sx={{
-                        display: "flex",
-                        alignItems: "center",
+                        display: 'flex',
+                        alignItems: 'center',
 
-                        borderRadius: "100px",
+                        borderRadius: '100px',
                         background: theme.palette.warning.A700,
-                        boxShadow: "none",
+                        boxShadow: 'none',
                       }}
                     >
                       <InputBase
@@ -889,20 +978,20 @@ const UserAttendanceHistory = () => {
                         value={searchWord}
                         sx={{
                           flex: 1,
-                          mb: "0",
-                          fontSize: "14px",
-                          color: theme.palette.warning["A200"],
-                          px: "10px",
+                          mb: '0',
+                          fontSize: '14px',
+                          color: theme.palette.warning['A200'],
+                          px: '10px',
                         }}
-                        placeholder={t("COMMON.SEARCH_STUDENT") + ".."}
-                        inputProps={{ "aria-label": "search student" }}
+                        placeholder={t('COMMON.SEARCH_STUDENT') + '..'}
+                        inputProps={{ 'aria-label': 'search student' }}
                         onChange={handleSearch}
                         onClick={handleScrollDown}
                         onKeyDown={handleKeyDown}
                       />
                       <IconButton
                         type="button"
-                        sx={{ p: "10px", color: theme.palette.warning["A200"] }}
+                        sx={{ p: '10px', color: theme.palette.warning['A200'] }}
                         aria-label="search"
                         onClick={handleSearchSubmit}
                       >
@@ -917,14 +1006,14 @@ const UserAttendanceHistory = () => {
                         >
                           <ClearIcon
                             sx={{
-                              color: theme.palette.warning["A200"],
+                              color: theme.palette.warning['A200'],
                             }}
                           />
                         </IconButton>
                       )}
                     </Paper>
                   </Grid>
-                  <Grid
+                  {/* <Grid
                     item
                     xs={4}
                     display={"flex"}
@@ -945,7 +1034,7 @@ const UserAttendanceHistory = () => {
                         ? `${t("COMMON.SORT_BY").substring(0, 6)}...`
                         : t("COMMON.SORT_BY")}
                     </Button>
-                  </Grid>
+                  </Grid> */}
                 </Grid>
               </Box>
               <SortingModal
@@ -972,41 +1061,179 @@ const UserAttendanceHistory = () => {
             /> */}
             <Box
               sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                padding: "8px 18px",
-                borderBottom: `1px solid ${theme.palette.warning["A100"]}`,
-                bgcolor: theme.palette.warning["A100"],
+                display: 'flex',
+                justifyContent: 'space-between',
+                padding: '8px 18px',
+                borderBottom: `1px solid ${theme.palette.warning['A100']}`,
+                bgcolor: theme.palette.warning['A100'],
               }}
             >
               <Box
                 sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  cursor: 'pointer',
                   color: theme.palette.warning[400],
-                  fontSize: "11px",
+                  fontSize: '11px',
                   fontWeight: 600,
                 }}
+                onClick={handleSortName}
               >
-                {t("COMMON.LEARNER_NAME")}
+                {t('COMMON.LEARNER_NAME')}
+                {sortName === 'asc' ? (
+                  <ArrowUpwardIcon
+                    sx={{
+                      fontSize: '14px',
+                      marginLeft: '4px',
+                      color: theme.palette.primary.main,
+                    }}
+                  />
+                ) : sortName === 'desc' ? (
+                  <ArrowDownwardIcon
+                    sx={{
+                      fontSize: '14px',
+                      marginLeft: '4px',
+                      color: theme.palette.primary.main,
+                    }}
+                  />
+                ) : (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0px',
+                      marginLeft: '4px',
+                    }}
+                  >
+                    <ArrowUpwardIcon
+                      sx={{
+                        fontSize: '10px',
+                        color: theme.palette.text.secondary,
+                        lineHeight: 0.5,
+                      }}
+                    />
+                    <ArrowDownwardIcon
+                      sx={{
+                        fontSize: '10px',
+                        color: theme.palette.text.secondary,
+                        lineHeight: 0.5,
+                        marginTop: '-4px',
+                      }}
+                    />
+                  </Box>
+                )}
               </Box>
-              <Box sx={{ display: "flex", gap: "20px" }}>
+              <Box sx={{ display: 'flex', gap: '20px' }}>
                 <Box
                   sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
                     color: theme.palette.warning[400],
-                    fontSize: "11px",
+                    fontSize: '11px',
                     fontWeight: 600,
                   }}
+                  onClick={handleSortPresent}
                 >
-                  {t("ATTENDANCE.PRESENT")}
+                  {t('ATTENDANCE.PRESENT')}
+                  {sortPresent === 'asc' ? (
+                    <ArrowUpwardIcon
+                      sx={{
+                        fontSize: '14px',
+                        marginLeft: '4px',
+                        color: theme.palette.primary.main,
+                      }}
+                    />
+                  ) : sortPresent === 'desc' ? (
+                    <ArrowDownwardIcon
+                      sx={{
+                        fontSize: '14px',
+                        marginLeft: '4px',
+                        color: theme.palette.primary.main,
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0px',
+                        marginLeft: '4px',
+                      }}
+                    >
+                      <ArrowUpwardIcon
+                        sx={{
+                          fontSize: '10px',
+                          color: theme.palette.text.secondary,
+                          lineHeight: 0.5,
+                        }}
+                      />
+                      <ArrowDownwardIcon
+                        sx={{
+                          fontSize: '10px',
+                          color: theme.palette.text.secondary,
+                          lineHeight: 0.5,
+                          marginTop: '-4px',
+                        }}
+                      />
+                    </Box>
+                  )}
                 </Box>
                 <Box
                   sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
                     color: theme.palette.warning[400],
-                    fontSize: "11px",
-                    paddingRight: "10px",
+                    fontSize: '11px',
+                    paddingRight: '10px',
                     fontWeight: 600,
                   }}
+                  onClick={handleSortAbsent}
                 >
-                  {t("ATTENDANCE.ABSENT")}
+                  {t('ATTENDANCE.ABSENT')}
+                  {sortAbsent === 'asc' ? (
+                    <ArrowUpwardIcon
+                      sx={{
+                        fontSize: '14px',
+                        marginLeft: '4px',
+                        color: theme.palette.primary.main,
+                      }}
+                    />
+                  ) : sortAbsent === 'desc' ? (
+                    <ArrowDownwardIcon
+                      sx={{
+                        fontSize: '14px',
+                        marginLeft: '4px',
+                        color: theme.palette.primary.main,
+                      }}
+                    />
+                  ) : (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0px',
+                        marginLeft: '4px',
+                      }}
+                    >
+                      <ArrowUpwardIcon
+                        sx={{
+                          fontSize: '10px',
+                          color: theme.palette.text.secondary,
+                          lineHeight: 0.5,
+                        }}
+                      />
+                      <ArrowDownwardIcon
+                        sx={{
+                          fontSize: '10px',
+                          color: theme.palette.text.secondary,
+                          lineHeight: 0.5,
+                          marginTop: '-4px',
+                        }}
+                      />
+                    </Box>
+                  )}
                 </Box>
               </Box>
             </Box>
@@ -1030,7 +1257,7 @@ const UserAttendanceHistory = () => {
                 )}
               </Box>
             ) : (
-              <NoDataFound bgColor={theme.palette.warning["A400"]} />
+              <NoDataFound bgColor={theme.palette.warning['A400']} />
             )}
           </Box>
           {open && (
@@ -1051,7 +1278,7 @@ const UserAttendanceHistory = () => {
           )}
         </Box>
       </Box>
-      {displayStudentList.length >= 1 ? <UpDownButton /> : null}
+      {/* {displayStudentList.length >= 1 ? <UpDownButton /> : null} */}
     </Box>
   );
 };
@@ -1060,11 +1287,11 @@ export async function getServerSideProps(context: {
   locale?: string;
   defaultLocale?: string;
 }) {
-  const locale = context.locale || context.defaultLocale || "en";
+  const locale = context.locale || context.defaultLocale || 'en';
 
   return {
     props: {
-      ...(await serverSideTranslations(locale, ["common"])),
+      ...(await serverSideTranslations(locale, ['common'])),
       // Will be passed to the page component as props
     },
   };
@@ -1072,6 +1299,6 @@ export async function getServerSideProps(context: {
 
 // export default UserAttendanceHistory;
 export default withAccessControl(
-  "accessAttendanceHistory",
+  'accessAttendanceHistory',
   accessControl
 )(UserAttendanceHistory);

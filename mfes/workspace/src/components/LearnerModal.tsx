@@ -1,12 +1,4 @@
-
-import {
-  Box,
-  Button,
-  Divider,
-  Grid,
-  Modal,
-  Typography
-} from '@mui/material';
+import { Box, Button, Divider, Grid, Modal, Typography } from '@mui/material';
 
 import { modalStyles } from '../styles/modalStyles';
 import { toPascalCase, translateString } from '../utils/Helper';
@@ -67,7 +59,7 @@ const fieldValueStyles = (theme: any) => ({
 const buttonContainerStyles = {
   padding: '20px',
   display: 'flex',
-  gap:'20px',
+  gap: '20px',
   justifyContent: 'flex-end',
 };
 
@@ -161,7 +153,10 @@ const LearnerModal = ({
                         {t('PROFILE.FULL_NAME')}
                       </Typography>
                       <Box display="flex">
-                        <Typography className='two-line-text' sx={fieldValueStyles(theme)}>
+                        <Typography
+                          className="two-line-text"
+                          sx={fieldValueStyles(theme)}
+                        >
                           {userName ? toPascalCase(userName) : ''}
                         </Typography>
                       </Box>
@@ -197,8 +192,8 @@ const LearnerModal = ({
                           {Array.isArray(item.displayValue)
                             ? toPascalCase(item.displayValue.join(', '))
                             : item?.displayValue
-                              ? translateString(t, item.displayValue)
-                              : '-'}
+                            ? translateString(t, item.displayValue)
+                            : '-'}
                         </Typography>
                       </Grid>
                     ))}
@@ -215,15 +210,6 @@ const LearnerModal = ({
                 variant="outlined"
               >
                 {t('COMMON.CLOSE')}
-              </Button>
-              <Button
-                sx={profileButtonStyles(theme)}
-                style={{ width: 'fit-content', padding: '5px 16px' }}
-                variant="contained"
-                onClick={handleLearnerFullProfile}
-                fullWidth
-              >
-                {t('PROFILE.VIEW_FULL_PROFILE')}
               </Button>
             </Box>
           </Box>

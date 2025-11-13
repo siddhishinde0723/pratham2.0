@@ -9,6 +9,7 @@ import OutlinedFlagOutlinedIcon from '@mui/icons-material/OutlinedFlagOutlined';
 import PreviewOutlinedIcon from '@mui/icons-material/PreviewOutlined';
 import StorageIcon from '@mui/icons-material/Storage';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import HowToRegIcon from '@mui/icons-material/HowToReg';
 import {
   Box,
   Drawer,
@@ -148,9 +149,9 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
       icon: <ManageSearchIcon />,
     },
     {
-      text: "Attendance",
-      key: "attendance",
-      icon: <ManageSearchIcon />,
+      text: 'Attendance',
+      key: 'attendance',
+      icon: <HowToRegIcon />,
     },
   ];
 
@@ -207,7 +208,12 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
         sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
       >
         {showHeader ? (
-          <DynamicLogo type="sidebar" width={60} height={60} fallbackSrc="/assets/images/logo.png" />
+          <DynamicLogo
+            type="sidebar"
+            width={60}
+            height={60}
+            fallbackSrc="/assets/images/logo.png"
+          />
         ) : (
           <Box sx={{ textAlign: 'center', mt: 2 }}>
             <Typography

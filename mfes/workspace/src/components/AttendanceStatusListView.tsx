@@ -1,31 +1,28 @@
-/* eslint-disable react/no-unescaped-entities */
-/* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
-/* eslint-disable @typescript-eslint/no-empty-function */
-import { Box, Typography } from "@mui/material";
-import React, { useState } from "react";
+import { Box, Typography } from '@mui/material';
+import React, { useState } from 'react';
 import {
   AttendanceStatusListViewProps,
   UpdateCustomField,
-} from "../utils/interfaces";
+} from '../utils/interfaces';
 
-import { getUserDetails } from "../services/ProfileService";
-import { Status } from "../utils/app.constant";
-import CancelIcon from "@mui/icons-material/Cancel"; //absent
-import CheckCircleIcon from "@mui/icons-material/CheckCircle"; //present
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import HighlightOffIcon from "@mui/icons-material/HighlightOff";
-import { useTheme } from "@mui/material/styles";
-import { useTranslation } from "next-i18next";
-import Link from "next/link";
+import { getUserDetails } from '../services/ProfileService';
+import { Status } from '../utils/app.constant';
+import CancelIcon from '@mui/icons-material/Cancel'; //absent
+import CheckCircleIcon from '@mui/icons-material/CheckCircle'; //present
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import HighlightOffIcon from '@mui/icons-material/HighlightOff';
+import { useTheme } from '@mui/material/styles';
+import { useTranslation } from 'next-i18next';
+import Link from 'next/link';
 import {
   ATTENDANCE_ENUM,
   filterMiniProfileFields,
   shortDateFormat,
   toPascalCase,
-} from "../utils/Helper";
-import DropoutLabel from "./DropoutLabel";
-import LearnerModal from "./LearnerModal";
-import Loader from "./Loader";
+} from '../utils/Helper';
+import DropoutLabel from './DropoutLabel';
+import LearnerModal from './LearnerModal';
+import Loader from './Loader';
 
 const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
   isDisabled = false,
@@ -34,7 +31,7 @@ const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
   isEdit = false,
   isBulkAction = false,
   handleBulkAction = () => {},
-  bulkAttendanceStatus = "",
+  bulkAttendanceStatus = '',
   presentCount,
   absentCount,
   attendanceDate,
@@ -53,17 +50,17 @@ const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
   }
 
   const boxStyling = {
-    display: "flex",
-    height: isBulkAction ? "56px" : "",
-    padding: "0 8px",
-    alignItems: "center",
-    borderRadius: isBulkAction ? "8px" : 0,
+    display: 'flex',
+    height: isBulkAction ? '56px' : '',
+    padding: '0 8px',
+    alignItems: 'center',
+    borderRadius: isBulkAction ? '8px' : 0,
     // marginBottom: '12px',
-    backgroundColor: isBulkAction ? theme.palette.warning[800] : "none",
+    backgroundColor: isBulkAction ? theme.palette.warning[800] : 'none',
     // position: isBulkAction ? 'fixed' : 'none',
     // width: isBulkAction ? '89%' : '100%',
-    borderBottom: isBulkAction ? "none" : "1px solid #D0C5B4",
-    justifyContent: "space-between",
+    borderBottom: isBulkAction ? 'none' : '1px solid #D0C5B4',
+    justifyContent: 'space-between',
   };
 
   const handleClickAction = (
@@ -80,9 +77,9 @@ const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
   const [customFieldsData, setCustomFieldsData] = React.useState<
     UpdateCustomField[]
   >([]);
-  const [contactNumber, setContactNumber] = useState<any>("");
-  const [userName, setUserName] = React.useState("");
-  const [enrollmentNumber, setEnrollmentNumber] = React.useState("");
+  const [contactNumber, setContactNumber] = useState<any>('');
+  const [userName, setUserName] = React.useState('');
+  const [enrollmentNumber, setEnrollmentNumber] = React.useState('');
   const [isModalOpenLearner, setIsModalOpenLearner] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -107,7 +104,7 @@ const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
           const data = response?.result;
           if (data) {
             const userData = data?.userData;
-            let fullName = "";
+            let fullName = '';
 
             if (userData?.firstName) {
               fullName += toPascalCase(userData.firstName);
@@ -115,12 +112,12 @@ const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
 
             if (userData?.middleName) {
               fullName +=
-                (fullName ? " " : "") + toPascalCase(userData.middleName);
+                (fullName ? ' ' : '') + toPascalCase(userData.middleName);
             }
 
             if (userData?.lastName) {
               fullName +=
-                (fullName ? " " : "") + toPascalCase(userData.lastName);
+                (fullName ? ' ' : '') + toPascalCase(userData.lastName);
             }
 
             setUserName(fullName);
@@ -133,23 +130,23 @@ const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
             }
             setLoading(false);
           } else {
-            console.log("No data Found");
+            console.log('No data Found');
           }
         } else {
-          console.log("No Response Found");
+          console.log('No Response Found');
         }
       }
     } catch (error) {
-      console.error("Error fetching user details:", error);
+      console.error('Error fetching user details:', error);
     }
   };
 
   const filteredFields = filterMiniProfileFields(customFieldsData);
 
   return (
-    <Box sx={{ padding: "0 10px" }}>
+    <Box sx={{ padding: '0 10px' }}>
       {loading ? (
-        <Loader showBackdrop={true} loadingText={t("COMMON.LOADING")} />
+        <Loader showBackdrop={true} loadingText={t('COMMON.LOADING')} />
       ) : (
         showLink && (
           <LearnerModal
@@ -167,31 +164,31 @@ const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
       <Box sx={boxStyling} className="last-hide-border">
         <Box
           sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
           }}
         >
           <Typography
             variant="body1"
             marginY="auto"
             sx={{
-              textAlign: "left",
-              alignItems: "center",
-              fontSize: "14px",
-              fontWeight: "400",
+              textAlign: 'left',
+              alignItems: 'center',
+              fontSize: '14px',
+              fontWeight: '400',
               color: isDisabled
-                ? theme.palette.warning["400"]
-                : theme.palette.warning["300"],
+                ? theme.palette.warning['400']
+                : theme.palette.warning['300'],
             }}
             onClick={() => handleOpenModalLearner(userData?.userId!)}
             className="two-line-text"
           >
             {isBulkAction ? (
               // t('COMMON.MARK_ALL_AS')
-              "Mark All As"
+              'Mark All As'
             ) : showLink ? (
-              <Link style={{ color: theme.palette.secondary.main }} href={""}>
+              <Link style={{ color: theme.palette.secondary.main }} href={''}>
                 {userData?.name}
               </Link>
             ) : (
@@ -199,10 +196,10 @@ const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
             )}
           </Typography>
           <Typography variant="h6">
-            {userData?.userName?.toUpperCase()}
+            {/* {userData?.userName?.toUpperCase()} */}
           </Typography>
         </Box>
-        <Box sx={{ display: "flex", gap: "10px" }}>
+        <Box sx={{ display: 'flex', gap: '10px' }}>
           {userData?.memberStatus === Status.DROPOUT &&
           updatedAtDate &&
           attendanceDateFormatted &&
@@ -224,17 +221,17 @@ const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
                         ATTENDANCE_ENUM.PRESENT
                       ) ? (
                         <CheckCircleIcon
-                          sx={{ cursor: isDisabled ? "default" : "pointer" }}
+                          sx={{ cursor: isDisabled ? 'default' : 'pointer' }}
                           style={{
                             fill: theme.palette.success.main,
                           }}
                         />
                       ) : (
                         <CheckCircleOutlineIcon
-                          sx={{ cursor: isDisabled ? "default" : "pointer" }}
+                          sx={{ cursor: isDisabled ? 'default' : 'pointer' }}
                           style={{
                             fill: isDisabled
-                              ? theme.palette.warning["400"]
+                              ? theme.palette.warning['400']
                               : theme.palette.warning[100],
                           }}
                         />
@@ -259,15 +256,15 @@ const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
                         ATTENDANCE_ENUM.ABSENT
                       ) ? (
                         <CancelIcon
-                          sx={{ cursor: isDisabled ? "default" : "pointer" }}
+                          sx={{ cursor: isDisabled ? 'default' : 'pointer' }}
                           style={{ fill: theme.palette.error.main }}
                         />
                       ) : (
                         <HighlightOffIcon
-                          sx={{ cursor: isDisabled ? "default" : "pointer" }}
+                          sx={{ cursor: isDisabled ? 'default' : 'pointer' }}
                           style={{
                             fill: isDisabled
-                              ? theme.palette.warning["400"]
+                              ? theme.palette.warning['400']
                               : theme.palette.warning[100],
                           }}
                         />
@@ -304,7 +301,7 @@ const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
                   handleClickAction(
                     isBulkAction,
                     ATTENDANCE_ENUM.PRESENT,
-                    isBulkAction ? "" : userData?.userId
+                    isBulkAction ? '' : userData?.userId
                   )
                 }
               >
@@ -312,17 +309,17 @@ const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
                   ATTENDANCE_ENUM.PRESENT
                 ) ? (
                   <CheckCircleIcon
-                    sx={{ cursor: isDisabled ? "default" : "pointer" }}
+                    sx={{ cursor: isDisabled ? 'default' : 'pointer' }}
                     style={{
                       fill: theme.palette.success.main,
                     }}
                   />
                 ) : (
                   <CheckCircleOutlineIcon
-                    sx={{ cursor: isDisabled ? "default" : "pointer" }}
+                    sx={{ cursor: isDisabled ? 'default' : 'pointer' }}
                     style={{
                       fill: isDisabled
-                        ? theme.palette.warning["400"]
+                        ? theme.palette.warning['400']
                         : theme.palette.warning[100],
                     }}
                   />
@@ -346,7 +343,7 @@ const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
                   handleClickAction(
                     isBulkAction,
                     ATTENDANCE_ENUM.ABSENT,
-                    isBulkAction ? "" : userData?.userId
+                    isBulkAction ? '' : userData?.userId
                   )
                 }
               >
@@ -354,15 +351,15 @@ const AttendanceStatusListView: React.FC<AttendanceStatusListViewProps> = ({
                   ATTENDANCE_ENUM.ABSENT
                 ) ? (
                   <CancelIcon
-                    sx={{ cursor: isDisabled ? "default" : "pointer" }}
+                    sx={{ cursor: isDisabled ? 'default' : 'pointer' }}
                     style={{ fill: theme.palette.error.main }}
                   />
                 ) : (
                   <HighlightOffIcon
-                    sx={{ cursor: isDisabled ? "default" : "pointer" }}
+                    sx={{ cursor: isDisabled ? 'default' : 'pointer' }}
                     style={{
                       fill: isDisabled
-                        ? theme.palette.warning["400"]
+                        ? theme.palette.warning['400']
                         : theme.palette.warning[100],
                     }}
                   />
