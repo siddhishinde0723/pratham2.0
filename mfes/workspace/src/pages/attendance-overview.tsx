@@ -482,8 +482,8 @@ const AttendanceOverview: React.FC<AttendanceOverviewProps> = () => {
         page: 0,
         filters: {
           scope: 'student',
-          fromDate: lastSeventhDayFormattedDate,
-          toDate: todayFormattedDate,
+          fromDate: isFromDate,
+          toDate: isToDate,
           contextId: classId,
         },
         facets: ['attendanceDate'],
@@ -506,6 +506,9 @@ const AttendanceOverview: React.FC<AttendanceOverviewProps> = () => {
     }
   }, [
     classId,
+    isFromDate,
+    isToDate,
+
     selectedValue ===
       t('DASHBOARD.LAST_SEVEN_DAYS_RANGE', {
         date_range: dateRange,
@@ -548,15 +551,9 @@ const AttendanceOverview: React.FC<AttendanceOverviewProps> = () => {
             const filters: any = {
               scope: 'student',
               contextId: classId,
+              fromDate: isFromDate,
+              toDate: isToDate,
             };
-            // Conditionally add fromDate and toDate to filters if selectedValue doesn't match the specific condition
-            if (
-              selectedValue !==
-              t('DASHBOARD.AS_OF_TODAY_DATE', { day_date: currentDayMonth })
-            ) {
-              filters.fromDate = isFromDate;
-              filters.toDate = isToDate;
-            }
             const response = await classesMissedAttendancePercentList({
               filters,
               facets: ['userId'],
@@ -634,16 +631,10 @@ const AttendanceOverview: React.FC<AttendanceOverviewProps> = () => {
             const filters: any = {
               scope: 'student',
               contextId: classId,
+              fromDate: isFromDate,
+              toDate: isToDate,
             };
-
-            // Conditionally add fromDate and toDate to filters if selectedValue doesn't match the specific condition
-            if (
-              selectedValue !==
-              t('DASHBOARD.AS_OF_TODAY_DATE', { day_date: currentDayMonth })
-            ) {
-              filters.fromDate = isFromDate;
-              filters.toDate = isToDate;
-            }
+            console.log('Cohort Attendance API Filters:', filters);
             const cohortAttendanceData: CohortAttendancePercentParam = {
               limit: AttendanceAPILimit,
               page: 0,

@@ -191,7 +191,7 @@ const LearnerTag = styled(Box)({
 
 const SimpleTeacherDashboard = () => {
   const theme = useTheme();
-  const [classId, setClassId] = useState('1');
+  const [classId, setClassId] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date());
   const [yearSelect, setYearSelect] = useState('2025-2026');
   const [academicYearsList, setAcademicYearsList] = useState<Array<any>>([]);
@@ -298,10 +298,22 @@ const SimpleTeacherDashboard = () => {
   };
   // Fetch academic years
   // Fetch academic years
+  // Fetch academic years
   const fetchAcademicYears = async () => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No token available for academic years request');
+        throw new Error('No authentication token');
+      }
+
+      console.log(
+        'Fetching academic years with token:',
+        token.substring(0, 10) + '...'
+      );
+
       const response = await getAcademicYear();
-      console.log('Academic years response==', response);
+      console.log('Academic years response:', response);
 
       if (response && Array.isArray(response)) {
         setAcademicYearsList(response);
@@ -342,8 +354,6 @@ const SimpleTeacherDashboard = () => {
           console.log('Set active academic year:', {
             displayName: yearDisplayName,
             id: activeAcademicYear.id,
-            startDate: activeAcademicYear.startDate,
-            endDate: activeAcademicYear.endDate,
           });
         } else if (response.length > 0) {
           // Fallback to first academic year
@@ -362,24 +372,51 @@ const SimpleTeacherDashboard = () => {
       }
     } catch (error) {
       console.error('Error fetching academic years:', error);
+      throw error; // Re-throw to handle in calling function
     }
   };
-
   // Initialize user and data
   useEffect(() => {
     const initializeDashboard = async () => {
       if (typeof window !== 'undefined' && window.localStorage) {
         const token = localStorage.getItem('token');
         const storedUserId = localStorage.getItem('userId');
-        const storedAcademicYearId = localStorage.getItem('academicYearId');
-        if (token) {
+
+        console.log('Auth Check:', {
+          hasToken: !!token,
+          token: token ? `${token.substring(0, 10)}...` : 'none',
+          userId: storedUserId,
+        });
+
+        // Check if token exists and is valid
+        if (!token) {
+          console.log('No token found, redirecting to login');
+          router.push('/login');
+          return;
+        }
+
+        // Validate token by making a simple API call
+        try {
           setIsAuthenticated(true);
           setUserId(storedUserId);
-          setAcademicYearId(storedAcademicYearId);
+
+          // Try to fetch academic years to validate token
           await fetchAcademicYears();
+
+          // If successful, fetch user cohorts
           await fetchUserCohorts(storedUserId);
-        } else {
-          router.push('/login');
+        } catch (error: any) {
+          console.error('Authentication failed:', error);
+
+          // If token is invalid, clear storage and redirect
+          if (error?.response?.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('academicYearId');
+            showToastMessage('Session expired. Please login again.', 'error');
+            router.push('/login');
+            return;
+          }
         }
       }
     };
@@ -388,31 +425,45 @@ const SimpleTeacherDashboard = () => {
   }, []);
 
   // Fetch user cohorts
+  // Fetch user cohorts
   const fetchUserCohorts = async (userId: string | null) => {
-    if (!userId) return;
+    if (!userId) {
+      console.error('No user ID provided for fetching cohorts');
+      return;
+    }
 
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No token available for cohorts request');
+        throw new Error('No authentication token');
+      }
+
       setLoading(true);
       const headers: { [key: string]: string } = {};
       if (academicYearId) {
         headers['academicYearId'] = academicYearId;
       }
+
       const response = await getCohortList(userId, {
         customField: 'true',
         children: 'true',
       });
-      const userDetails = await getUserDetails(userId, true);
-      console.log('getCohortList==', response);
+
+      console.log('getCohortList response:', response);
+
       if (response && response.length > 0) {
         setCohortsData(response);
-        setClassId(response[0]?.cohortId || '');
+
         // Extract centers (parent cohorts)
         const centers = response.map((center: any) => ({
           centerId: center.cohortId,
           centerName: center.cohortName,
           childData: center.childData || [],
         }));
+
         setCentersData(centers);
+
         if (centers.length > 0) {
           const defaultCenter = centers[0];
           setSelectedCenterId(defaultCenter.centerId);
@@ -430,9 +481,12 @@ const SimpleTeacherDashboard = () => {
             setClassId(batches[0].batchId);
           }
         }
+      } else {
+        console.log('No cohorts data received');
       }
     } catch (error) {
       console.error('Error fetching cohorts:', error);
+      // Don't throw here, just log the error
     } finally {
       setLoading(false);
     }
@@ -1366,9 +1420,10 @@ const SimpleTeacherDashboard = () => {
                 >
                   Day-Wise Attendance
                 </Typography>
+
                 {/* Center Selection */}
                 {centersData.length > 0 && (
-                  <Box sx={{ padding: '0 1.2rem 1rem' }}>
+                  <Box sx={{ padding: '1rem 1.2rem 1rem' }}>
                     <FormControl
                       fullWidth
                       size="small"
@@ -1396,7 +1451,7 @@ const SimpleTeacherDashboard = () => {
 
                 {/* Batch Selection */}
                 {batchesData.length > 0 && (
-                  <Box sx={{ padding: '0 1.2rem 1rem' }}>
+                  <Box sx={{ padding: '1rem 1.2rem 1rem' }}>
                     <FormControl
                       fullWidth
                       size="small"
@@ -1427,10 +1482,12 @@ const SimpleTeacherDashboard = () => {
                     color: theme.palette.secondary.main,
                     gap: '4px',
                     alignItems: 'center',
+                    boxShadow: '0px 4px 8px 3px #00000026',
+                    padding: '4px 8px',
                   }}
                   onClick={handleCalendarClick}
                 >
-                  <Button
+                  {/* <Button
                     size="small"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1439,7 +1496,7 @@ const SimpleTeacherDashboard = () => {
                     sx={{ minWidth: 'auto', padding: '4px' }}
                   >
                     ‹
-                  </Button>
+                  </Button> */}
                   <Typography
                     style={{
                       fontWeight: '500',
@@ -1453,7 +1510,7 @@ const SimpleTeacherDashboard = () => {
                   >
                     {currentMonth} {currentYear}
                   </Typography>
-                  <Button
+                  {/* <Button
                     size="small"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1462,7 +1519,7 @@ const SimpleTeacherDashboard = () => {
                     sx={{ minWidth: 'auto', padding: '4px' }}
                   >
                     ›
-                  </Button>
+                  </Button> */}
                   <CalendarMonthIcon
                     sx={{ fontSize: '12px', ml: 0.5, cursor: 'pointer' }}
                     onClick={(e) => {
@@ -1472,7 +1529,11 @@ const SimpleTeacherDashboard = () => {
                   />
                 </Box>
               </Box>
-
+              <Box>
+                <Typography variant="caption" color="#666">
+                  Last 30 Days
+                </Typography>
+              </Box>
               {/* Horizontal Calendar Section */}
               <CalendarContainer>
                 {/* Horizontal Scroll Calendar */}

@@ -908,7 +908,7 @@ const UserAttendanceHistory = () => {
             className="top-md-0"
             borderTop={1}
             sx={{
-              position: 'sticky',
+              position: 'static',
               top: '65px',
               zIndex: 1000,
               backgroundColor: theme.palette.warning['A400'],

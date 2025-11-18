@@ -8,8 +8,8 @@ interface NoDataFoundProps {
 }
 
 const NoDataFound: React.FC<NoDataFoundProps> = ({
-  title = 'COMMON.NO_DATA_FOUND',
-  bgColor
+  title = 'No Data Found',
+  bgColor,
 }) => {
   const { t } = useTranslation();
   return (
