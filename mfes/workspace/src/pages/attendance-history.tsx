@@ -5,6 +5,7 @@ import {
   handleKeyDown,
   shortDateFormat,
   toPascalCase,
+  filterMembersExcludingCurrentUser,
 } from '../utils/Helper';
 import {
   Box,
@@ -369,6 +370,7 @@ const UserAttendanceHistory = () => {
       }
 
       if (resp) {
+        const filteredMembers = filterMembersExcludingCurrentUser(resp);
         const nameUserIdArray = resp
           ?.map((entry: any) => ({
             userId: entry.userId,
@@ -387,28 +389,40 @@ const UserAttendanceHistory = () => {
               updatedAt: string | number | Date;
               memberStatus: string;
             }) => {
-              const createdAt = new Date(member.createdAt);
-              createdAt.setHours(0, 0, 0, 0);
               const updatedAt = new Date(member.updatedAt);
               updatedAt.setHours(0, 0, 0, 0);
               const currentDate = new Date(selectedDate);
               currentDate.setHours(0, 0, 0, 0);
-              if (
-                member.memberStatus === Status.ARCHIVED &&
-                updatedAt <= currentDate
-              ) {
-                return false;
+
+              // For past dates, show all active members
+              // Only filter out archived members who were archived before the selected date
+              if (member.memberStatus === Status.ARCHIVED) {
+                // Only exclude if archived before the selected date
+                return updatedAt > currentDate;
               }
-              return createdAt <= new Date(selectedDate);
+              // Show all active and dropout members regardless of creation date
+              return true;
             }
           );
 
-        // Filter latest entries
-        const filteredEntries = getLatestEntries(
-          nameUserIdArray,
-          shortDateFormat(selectedDate)
-        );
-        if (filteredEntries && (selectedDate || currentDate)) {
+        // For past dates, show all active members without date filtering
+        // getLatestEntries filters by date which excludes members created/updated after selected date
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selectedDateObj = new Date(selectedDate);
+        selectedDateObj.setHours(0, 0, 0, 0);
+        const isPastDate = selectedDateObj < today;
+
+        // Only use getLatestEntries for future dates, for past dates use all filtered members
+        const filteredEntries = isPastDate
+          ? nameUserIdArray
+          : getLatestEntries(nameUserIdArray, shortDateFormat(selectedDate));
+
+        if (
+          filteredEntries &&
+          filteredEntries.length > 0 &&
+          (selectedDate || currentDate)
+        ) {
           const userAttendanceStatusList = async () => {
             const attendanceStatusData: AttendanceStatusListProps = {
               limit: 300,
@@ -477,22 +491,22 @@ const UserAttendanceHistory = () => {
                     attendance: string;
                     updatedAt: string;
                   }[] = [];
+                  // Include ALL members from filteredEntries, not just those with attendance data
                   filteredEntries.forEach((user) => {
                     const userId = user.userId;
                     const attendanceEntry = userAttendanceArray.find(
                       (entry) => entry.userId === userId
                     );
-                    if (attendanceEntry) {
-                      newArray.push({
-                        userId,
-                        name: user.name,
-                        memberStatus: user.memberStatus,
-                        attendance: attendanceEntry.attendance,
-                        updatedAt: user.updatedAt,
-                      });
-                    }
+                    // Always include the member, even if no attendance data exists
+                    newArray.push({
+                      userId,
+                      name: user.name,
+                      memberStatus: user.memberStatus,
+                      attendance: attendanceEntry?.attendance || '',
+                      updatedAt: user.updatedAt,
+                    });
                   });
-                  if (newArray.length !== 0) {
+                  if (newArray.length > 0) {
                     setCohortMemberList(newArray);
                     setDisplayStudentList(newArray);
                   } else {
@@ -502,13 +516,36 @@ const UserAttendanceHistory = () => {
                   return newArray;
                 };
                 mergeArrays(filteredEntries, userAttendanceArray);
+              } else {
+                // If no attendance data, still show all members
+                setCohortMemberList(filteredEntries);
+                setDisplayStudentList(filteredEntries);
               }
+            } else {
+              // If no attendance response, still show all members
+              setCohortMemberList(filteredEntries);
+              setDisplayStudentList(filteredEntries);
             }
             setLoading(false);
           };
           userAttendanceStatusList();
+        } else if (
+          filteredEntries &&
+          filteredEntries.length > 0 &&
+          (selectedDate || currentDate)
+        ) {
+          // If filteredEntries exists but no attendance API call needed, still show members
+          setCohortMemberList(filteredEntries);
+          setDisplayStudentList(filteredEntries);
+          setLoading(false);
+        } else {
+          setLoading(false);
         }
-        if (filteredEntries && (selectedDate || currentDate)) {
+        if (
+          filteredEntries &&
+          filteredEntries.length > 0 &&
+          (selectedDate || currentDate)
+        ) {
           fetchAttendanceDetails(
             filteredEntries,
             selectedDate,

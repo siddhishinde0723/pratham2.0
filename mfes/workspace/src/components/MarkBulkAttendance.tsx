@@ -1,27 +1,27 @@
 /* eslint-disable @typescript-eslint/no-empty-object-type */
-import { bulkAttendance } from "../services/AttendanceService";
-import { Box, Button, Divider, Fade, Modal, Typography } from "@mui/material";
-import React, { useEffect } from "react";
+import { bulkAttendance } from '../services/AttendanceService';
+import { Box, Button, Divider, Fade, Modal, Typography } from '@mui/material';
+import React, { useEffect } from 'react';
 import {
   deepClone,
   getDayMonthYearFormat,
   shortDateFormat,
-} from "../utils/Helper";
+} from '../utils/Helper';
 
-import { Telemetry } from "../utils/app.constant";
-import { telemetryFactory } from "../utils/telemetry";
-import CloseIcon from "@mui/icons-material/Close";
-import Backdrop from "@mui/material/Backdrop";
-import { useTheme } from "@mui/material/styles";
-import { useTranslation } from "next-i18next";
-import ReactGA from "react-ga4";
-import { DropoutMember } from "../utils/interfaces";
-import AttendanceStatusListView from "./AttendanceStatusListView";
-import NoDataFound from "./common/NoDataFound";
-import ConfirmationModal from "./ConfirmationModal";
-import Loader from "./Loader";
-import { showToastMessage } from "./Toastify";
-import { modalStyles } from "../styles/modalStyles";
+import { Telemetry } from '../utils/app.constant';
+import { telemetryFactory } from '../utils/telemetry';
+import CloseIcon from '@mui/icons-material/Close';
+import Backdrop from '@mui/material/Backdrop';
+import { useTheme } from '@mui/material/styles';
+import { useTranslation } from 'next-i18next';
+import ReactGA from 'react-ga4';
+import { DropoutMember } from '../utils/interfaces';
+import AttendanceStatusListView from './AttendanceStatusListView';
+import NoDataFound from './common/NoDataFound';
+import ConfirmationModal from './ConfirmationModal';
+import Loader from './Loader';
+import { showToastMessage } from './Toastify';
+import { modalStyles } from '../styles/modalStyles';
 
 interface MarkBulkAttendanceProps {
   open: boolean;
@@ -81,16 +81,17 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
     React.useState(bulkStatus);
   const [isAllAttendanceMarked, setIsAllAttendanceMarked] =
     React.useState(false);
-  const [teacherUserId, setTeacherUserId] = React.useState<string>("");
+  const [teacherUserId, setTeacherUserId] = React.useState<string>('');
+  console.log('cohortMemberList---', cohortMemberList);
 
   const updateBulkAttendanceStatus = (arr: any[]) => {
     setIsConfirmation(true);
     const isAllPresent = arr.every(
-      (user: any) => user.attendance === "present"
+      (user: any) => user.attendance === 'present'
     );
-    const isAllAbsent = arr.every((user: any) => user.attendance === "absent");
+    const isAllAbsent = arr.every((user: any) => user.attendance === 'absent');
     setBulkAttendanceStatus(
-      isAllPresent ? "present" : isAllAbsent ? "absent" : ""
+      isAllPresent ? 'present' : isAllAbsent ? 'absent' : ''
     );
   };
 
@@ -106,7 +107,7 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
         user.attendance = status;
         setBulkAttendanceStatus(status);
       } else {
-        setBulkAttendanceStatus("");
+        setBulkAttendanceStatus('');
         if (user.userId === id) {
           user.attendance = status;
         }
@@ -117,18 +118,18 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
     updateBulkAttendanceStatus(updatedAttendanceList);
     const hasEmptyAttendance = () => {
       const allAttendance = updatedAttendanceList.some(
-        (user) => user.attendance === ""
+        (user) => user.attendance === ''
       );
       if (updatedAttendanceList?.length) {
         setIsAllAttendanceMarked(!allAttendance);
         setDynamicPresentCount(
           updatedAttendanceList.filter(
-            (member) => member.attendance === "present"
+            (member) => member.attendance === 'present'
           ).length
         );
         setDynamicAbsentCount(
           updatedAttendanceList.filter(
-            (member) => member.attendance === "absent"
+            (member) => member.attendance === 'absent'
           ).length
         );
       }
@@ -141,9 +142,9 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
 
   useEffect(() => {
     // submitBulkAttendanceAction(true, '', '');
-    if (typeof window !== "undefined" && window.localStorage) {
-      const storedUserID = localStorage.getItem("userId");
-      setTeacherUserId(storedUserID ?? "");
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const storedUserID = localStorage.getItem('userId');
+      setTeacherUserId(storedUserID ?? '');
     }
   }, []);
 
@@ -177,32 +178,32 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
               } else {
                 onSaveSuccess(true);
               }
-              ReactGA.event("attendance-marked/update-success", {
+              ReactGA.event('attendance-marked/update-success', {
                 teacherId: teacherUserId,
               });
               const telemetryInteract = {
                 context: {
-                  env: "dashboard",
+                  env: 'dashboard',
                   cdata: [],
                 },
                 edata: {
-                  id: "bulk-attendance-marked",
+                  id: 'bulk-attendance-marked',
                   type: Telemetry.CLICK,
-                  subtype: "",
-                  pageid: "dashboard",
+                  subtype: '',
+                  pageid: 'dashboard',
                 },
               };
               telemetryFactory.interact(telemetryInteract);
               onClose();
             }
           } else {
-            showToastMessage(t("COMMON.SOMETHING_WENT_WRONG"), "error");
+            showToastMessage(t('COMMON.SOMETHING_WENT_WRONG'), 'error');
           }
         } catch (error) {
-          console.error("Error fetching cohort list:", error);
+          console.error('Error fetching cohort list:', error);
           setLoading(false);
-          showToastMessage(t("COMMON.SOMETHING_WENT_WRONG"), "error");
-          ReactGA.event("attendance-marked/update-fail", {
+          showToastMessage(t('COMMON.SOMETHING_WENT_WRONG'), 'error');
+          ReactGA.event('attendance-marked/update-fail', {
             error: error,
           });
         }
@@ -223,10 +224,10 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
   const getMessage = () => {
     if (updateAttendance)
       return presentCount == 0 && absentCount == 0
-        ? t("COMMON.SURE_MARK")
-        : t("COMMON.SURE_UPDATE");
-    if (confirmation) return t("COMMON.SURE_CLOSE");
-    return "";
+        ? 'Are you sure you want to mark this attendance?'
+        : 'Are you sure you want to update this attendance?';
+    if (confirmation) return 'Are you sure you want to close this attendance?';
+    return '';
   };
 
   const handleAction = () => {
@@ -263,39 +264,39 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
         <Fade in={open}>
           <Box
             sx={modalStyles}
-            borderRadius={"1rem"}
-            padding={"15px 10px 0 10px"}
+            borderRadius={'1rem'}
+            padding={'15px 10px 0 10px'}
           >
             <Box
-              height={"100%"}
-              maxHeight={"526px"}
-              sx={{ overflowX: "auto" }}
-              width={"100%"}
+              height={'100%'}
+              maxHeight={'526px'}
+              sx={{ overflowX: 'auto' }}
+              width={'100%'}
             >
               <Box
-                display={"flex"}
-                justifyContent={"space-between"}
-                sx={{ padding: "0 10px" }}
+                display={'flex'}
+                justifyContent={'space-between'}
+                sx={{ padding: '0 10px' }}
               >
-                <Box marginBottom={"0px"}>
+                <Box marginBottom={'0px'}>
                   <Typography
                     variant="h2"
                     component="h2"
-                    marginBottom={"0px"}
-                    fontWeight={"500"}
-                    fontSize={"16px"}
-                    sx={{ color: theme.palette.warning["A200"] }}
+                    marginBottom={'0px'}
+                    fontWeight={'500'}
+                    fontSize={'16px'}
+                    sx={{ color: theme.palette.warning['A200'] }}
                   >
                     {presentCount == 0 && absentCount == 0
-                      ? "Mark Center Attendance"
-                      : "Modify Center Attendance"}
+                      ? 'Mark Center Attendance'
+                      : 'Modify Center Attendance'}
                   </Typography>
                   <Typography
                     variant="h2"
                     sx={{
-                      paddingBottom: "10px",
-                      color: theme.palette.warning["A200"],
-                      fontSize: "14px",
+                      paddingBottom: '10px',
+                      color: theme.palette.warning['A200'],
+                      fontSize: '14px',
                     }}
                     component="h2"
                   >
@@ -306,37 +307,37 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
                     handleAction={handleAction}
                     handleCloseModal={handleCloseModel}
                     buttonNames={{
-                      primary: "Yes",
-                      secondary: "No Go Back",
+                      primary: 'Yes',
+                      secondary: 'Back',
                     }}
                     modalOpen={modalOpen}
                   />
                 </Box>
-                <Box>
+                {/* <Box>
                   <CloseIcon
                     sx={{
-                      cursor: "pointer",
-                      color: theme.palette.warning["A200"],
+                      cursor: 'pointer',
+                      color: theme.palette.warning['A200'],
                     }}
                     onClick={isConfirmation ? confirmationOpen : onClose}
                   />
-                </Box>
+                </Box> */}
               </Box>
-              <Box sx={{ height: "1px", background: "#D0C5B4" }}></Box>
+              <Box sx={{ height: '1px', background: '#D0C5B4' }}></Box>
               {loading && (
-                <Loader showBackdrop={true} loadingText={"Loading"} />
+                <Loader showBackdrop={true} loadingText={'Loading'} />
               )}
 
-              <Box display={"flex"} justifyContent={"space-between"}>
+              <Box display={'flex'} justifyContent={'space-between'}>
                 {dropoutCount > 0 ? (
                   <>
                     <Typography
                       sx={{
-                        marginTop: "10px",
-                        fontSize: "10px",
-                        color: theme.palette.warning["A200"],
-                        padding: "0 8px",
-                        lineHeight: "16px",
+                        marginTop: '10px',
+                        fontSize: '10px',
+                        color: theme.palette.warning['A200'],
+                        padding: '0 8px',
+                        lineHeight: '16px',
                       }}
                     >
                       {/* {t("ATTENDANCE.ACTIVE_STUDENTS", {
@@ -346,12 +347,12 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
                     </Typography>
                     <Typography
                       sx={{
-                        marginTop: "10px",
-                        marginLeft: "0.5rem",
-                        fontSize: "10px",
-                        color: theme.palette.warning["A200"],
-                        padding: "0 8px",
-                        lineHeight: "16px",
+                        marginTop: '10px',
+                        marginLeft: '0.5rem',
+                        fontSize: '10px',
+                        color: theme.palette.warning['A200'],
+                        padding: '0 8px',
+                        lineHeight: '16px',
                       }}
                     >
                       {/* {t("ATTENDANCE.DROPOUT_STUDENTS", {
@@ -363,12 +364,12 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
                 ) : (
                   <Typography
                     sx={{
-                      marginTop: "10px",
-                      marginLeft: "0.5rem",
-                      fontSize: "10px",
-                      color: theme.palette.warning["A200"],
-                      padding: "0 8px",
-                      lineHeight: "16px",
+                      marginTop: '10px',
+                      marginLeft: '0.5rem',
+                      fontSize: '10px',
+                      color: theme.palette.warning['A200'],
+                      padding: '0 8px',
+                      lineHeight: '16px',
                     }}
                   >
                     {/* {t("ATTENDANCE.TOTAL_STUDENTS", {
@@ -380,11 +381,11 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
 
                 <Typography
                   sx={{
-                    marginTop: "10px",
-                    marginLeft: "0.5rem",
-                    fontSize: "10px",
-                    color: theme.palette.warning["A200"],
-                    lineHeight: "16px",
+                    marginTop: '10px',
+                    marginLeft: '0.5rem',
+                    fontSize: '10px',
+                    color: theme.palette.warning['A200'],
+                    lineHeight: '16px',
                   }}
                 >
                   {/* {t("ATTENDANCE.PRESENT_STUDENTS", {
@@ -394,12 +395,12 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
                 </Typography>
                 <Typography
                   sx={{
-                    marginTop: "10px",
-                    marginLeft: "0.5rem",
-                    fontSize: "10px",
-                    color: theme.palette.warning["A200"],
-                    padding: "0 8px 0 10px",
-                    lineHeight: "16px",
+                    marginTop: '10px',
+                    marginLeft: '0.5rem',
+                    fontSize: '10px',
+                    color: theme.palette.warning['A200'],
+                    padding: '0 8px 0 10px',
+                    lineHeight: '16px',
                   }}
                 >
                   {/* {t("ATTENDANCE.ABSENT_STUDENTS", {
@@ -411,11 +412,11 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
 
               {cohortMemberList && cohortMemberList?.length != 0 ? (
                 <Box
-                  height={"64%"}
+                  height={'64%'}
                   sx={{
-                    overflowY: "auto",
-                    marginTop: "10px",
-                    padding: "0 0 10px",
+                    overflowY: 'auto',
+                    marginTop: '10px',
+                    padding: '0 0 10px',
                   }}
                 >
                   <Box className="modalBulk">
@@ -481,30 +482,30 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
             <Box
               // position={'absolute'}
               bottom="15px"
-              display={"flex"}
-              gap={"20px"}
-              flexDirection={"row"}
-              justifyContent={"space-evenly"}
-              margin={"5px 8px 10px"}
+              display={'flex'}
+              gap={'20px'}
+              flexDirection={'row'}
+              justifyContent={'space-evenly'}
+              margin={'5px 8px 10px'}
               sx={{
-                background: "#fff",
+                background: '#fff',
                 // padding: '0px 0 10px 0',
-                width: "93%",
+                width: '93%',
               }}
             >
               <Button
                 variant="outlined"
                 disabled={!isAllAttendanceMarked}
-                onClick={() => submitBulkAttendanceAction(true, "", "")}
+                onClick={() => submitBulkAttendanceAction(true, '', '')}
                 sx={{
-                  width: "128px",
-                  height: "40px",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
+                  width: '128px',
+                  height: '40px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
                 }}
               >
-                {" "}
+                {' '}
                 {/* {t("COMMON.CLEAR_ALL")} */}
                 Clear All
               </Button>
@@ -512,16 +513,30 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
                 variant="contained"
                 color="primary"
                 sx={{
-                  width: "128px",
-                  height: "40px",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
+                  width: '128px',
+                  height: '40px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
                 }}
                 disabled={isAllAttendanceMarked ? false : true}
                 onClick={attendanceUpdate}
               >
-                {presentCount == 0 && absentCount == 0 ? "Mark" : "Modify"}
+                {presentCount == 0 && absentCount == 0 ? 'Mark' : 'Modify'}
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                sx={{
+                  width: '128px',
+                  height: '40px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
+                onClick={isConfirmation ? confirmationOpen : onClose}
+              >
+                Close
               </Button>
             </Box>
           </Box>

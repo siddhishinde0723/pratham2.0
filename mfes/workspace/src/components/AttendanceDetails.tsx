@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-empty-object-type */
-import { attendanceStatusList } from "../services/AttendanceService";
-import { shortDateFormat } from "../utils/Helper";
-import { AttendanceStatusListProps, DropoutMember } from "../utils/interfaces";
-import { Status, cohortPrivileges } from "../utils/app.constant";
-import { AttendanceAPILimit } from "../../app.config";
+import { attendanceStatusList } from '../services/AttendanceService';
+import { shortDateFormat } from '../utils/Helper';
+import { AttendanceStatusListProps, DropoutMember } from '../utils/interfaces';
+import { Status, cohortPrivileges } from '../utils/app.constant';
+import { AttendanceAPILimit } from '../../app.config';
 
 export const fetchAttendanceDetails = async (
   nameUserIdArray: any[],
@@ -25,26 +25,26 @@ export const fetchAttendanceDetails = async (
   let numberOfCohortMembers = 0;
   let dropoutMemberList: Array<DropoutMember> = [];
   let dropoutCount = 0;
-  let bulkAttendanceStatus = "";
+  let bulkAttendanceStatus = '';
 
   const updateBulkAttendanceStatus = (arr: any[]) => {
     const isAllPresent = arr.every(
-      (user: any) => user.attendance === "present"
+      (user: any) => user.attendance === 'present'
     );
-    const isAllAbsent = arr.every((user: any) => user.attendance === "absent");
+    const isAllAbsent = arr.every((user: any) => user.attendance === 'absent');
     bulkAttendanceStatus = isAllPresent
-      ? "present"
+      ? 'present'
       : isAllAbsent
-      ? "absent"
-      : "";
+      ? 'absent'
+      : '';
   };
 
   const getPresentCount = (newArray: { attendance: string }[]) => {
-    return newArray.filter((user) => user.attendance === "present").length;
+    return newArray.filter((user) => user.attendance === 'present').length;
   };
 
   const getAbsentCount = (newArray: { attendance: string }[]) => {
-    return newArray.filter((user) => user.attendance === "absent").length;
+    return newArray.filter((user) => user.attendance === 'absent').length;
   };
 
   if (nameUserIdArray && selectedDate) {
@@ -62,9 +62,9 @@ export const fetchAttendanceDetails = async (
     };
 
     const res = await attendanceStatusList(attendanceStatusData);
-    const response = res?.data?.attendanceList;
+    const response = res?.data?.attendanceList || [];
 
-    if (nameUserIdArray && response) {
+    if (nameUserIdArray) {
       const getUserAttendanceStatus = (
         nameUserIdArray: any[],
         response: any[]
@@ -78,7 +78,7 @@ export const fetchAttendanceDetails = async (
           );
           userAttendanceArray.push({
             userId,
-            attendance: attendance?.attendance || "",
+            attendance: attendance?.attendance || '',
           });
         });
         return userAttendanceArray;
@@ -107,17 +107,17 @@ export const fetchAttendanceDetails = async (
             userId: user.userId,
             name: user.name,
             memberStatus: user.memberStatus,
-            attendance: attendanceEntry?.attendance || "",
+            attendance: attendanceEntry?.attendance || '',
             updatedAt: user.updatedAt,
             userName: user.userName,
           };
         });
 
         if (newArray.length !== 0) {
+          // Count all active members for percentage calculation, not just those with attendance marked
           numberOfCohortMembers = newArray.filter(
             (member) =>
               member.memberStatus === Status.ACTIVE ||
-              member.attendance !== "" ||
               (member.memberStatus === Status.DROPOUT &&
                 shortDateFormat(new Date(member.updatedAt)) >
                   shortDateFormat(new Date(selectedDate))) ||

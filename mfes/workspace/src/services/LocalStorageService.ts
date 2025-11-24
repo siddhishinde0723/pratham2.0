@@ -271,7 +271,10 @@ export const getLocalStoredToken = () => {
 export const getLocalStoredUserRole = () => {
   if (typeof window !== 'undefined') {
     try {
-      const userInfo = JSON.parse(Cookies.get('adminInfo') || '{}');
+      const userInfo = localStorage.getItem('adminInfo')
+        ? JSON.parse(localStorage.getItem('adminInfo') || '{}')
+        : JSON.parse(Cookies.get('adminInfo') || '{}');
+      console.log('getLocalStoredUserRole----', userInfo);
       return userInfo?.role;
     } catch (error) {
       console.error('Error retrieving user role from cookies:', error);

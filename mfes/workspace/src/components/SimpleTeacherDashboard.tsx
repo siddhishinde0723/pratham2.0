@@ -51,6 +51,7 @@ import {
   getTodayDate,
   shortDateFormat,
   ATTENDANCE_ENUM,
+  filterMembersExcludingCurrentUser,
 } from '../utils/Helper';
 import ModalComponent from '../components/Modal';
 import MarkBulkAttendance from '../components/MarkBulkAttendance'; // ADD THIS IMPORT
@@ -261,7 +262,7 @@ const SimpleTeacherDashboard = () => {
     // Add telemetry if needed
     // telemetryFactory.interact(telemetryInteract);
   };
-
+  console.log('attendanceData---', attendanceData);
   const handleClose = () => {
     setOpen(false);
     setIsRemoteCohort(false);
@@ -465,20 +466,40 @@ const SimpleTeacherDashboard = () => {
         setCentersData(centers);
 
         if (centers.length > 0) {
-          const defaultCenter = centers[0];
-          setSelectedCenterId(defaultCenter.centerId);
+          // Check if there's a saved center selection in localStorage
+          const savedCenterId = localStorage.getItem('selectedCenterId');
+          const savedClassId = localStorage.getItem('classId');
 
-          // Extract batches for the default center
-          const batches = defaultCenter.childData.map((batch: any) => ({
+          // Use saved center if it exists in the centers list, otherwise use default
+          const selectedCenter = savedCenterId
+            ? centers.find((c: any) => c.centerId === savedCenterId) ||
+              centers[0]
+            : centers[0];
+
+          setSelectedCenterId(selectedCenter.centerId);
+          localStorage.setItem('selectedCenterId', selectedCenter.centerId);
+
+          // Extract batches for the selected center
+          const batches = selectedCenter.childData.map((batch: any) => ({
             batchId: batch.cohortId,
             batchName: batch.name,
             parentId: batch.parentId,
           }));
           setBatchesData(batches);
 
-          // Set default batch if available
+          // Set batch: use saved batch if it exists and belongs to selected center, otherwise use first batch
           if (batches.length > 0) {
-            setClassId(batches[0].batchId);
+            const selectedBatch =
+              savedClassId &&
+              batches.find((b: any) => b.batchId === savedClassId)
+                ? batches.find((b: any) => b.batchId === savedClassId)
+                : batches[0];
+
+            if (selectedBatch) {
+              setClassId(selectedBatch.batchId);
+              localStorage.setItem('classId', selectedBatch.batchId);
+              localStorage.setItem('cohortId', selectedBatch.batchId);
+            }
           }
         }
       } else {
@@ -495,6 +516,8 @@ const SimpleTeacherDashboard = () => {
   const handleCenterChange = (event: any) => {
     const centerId = event.target.value;
     setSelectedCenterId(centerId);
+    // Save to localStorage for synchronization with other pages
+    localStorage.setItem('selectedCenterId', centerId);
 
     // Find the selected center and get its batches
     const selectedCenter = centersData.find(
@@ -510,9 +533,14 @@ const SimpleTeacherDashboard = () => {
 
       // Reset batch selection
       if (batches.length > 0) {
-        setClassId(batches[0].batchId);
+        const defaultBatchId = batches[0].batchId;
+        setClassId(defaultBatchId);
+        localStorage.setItem('classId', defaultBatchId);
+        localStorage.setItem('cohortId', defaultBatchId);
       } else {
         setClassId('');
+        localStorage.removeItem('classId');
+        localStorage.removeItem('cohortId');
       }
     }
   };
@@ -521,6 +549,9 @@ const SimpleTeacherDashboard = () => {
   const handleBatchChange = (event: any) => {
     const batchId = event.target.value;
     setClassId(batchId);
+    // Save to localStorage for synchronization with other pages
+    localStorage.setItem('classId', batchId);
+    localStorage.setItem('cohortId', batchId);
     console.log('Selected batch ID:', batchId); // This will be passed to cohortmember/list API
   };
   // Calculate date range for last 7 days
@@ -841,6 +872,7 @@ const SimpleTeacherDashboard = () => {
         includeArchived: true,
       });
       const members = memberResponse?.result?.userDetails || [];
+      const filteredMembers = filterMembersExcludingCurrentUser(members);
       const totalMembers = members.length;
 
       // Process each date
@@ -884,7 +916,7 @@ const SimpleTeacherDashboard = () => {
     }
   };
 
-  // Fetch attendance for single center
+  // Fetch attendance for single center also past date list of students who have missed attendance
   const fetchSingleCenterAttendance = async () => {
     console.log('Class id---', classId);
     try {
@@ -916,27 +948,26 @@ const SimpleTeacherDashboard = () => {
         const nameUserIdArray = resp
           ?.map((entry: any) => ({
             userId: entry.userId,
-            name: entry.firstName,
+            name: entry.firstName + ' ' + entry.lastName,
             memberStatus: entry.status,
             createdAt: entry.createdAt,
             updatedAt: entry.updatedAt,
             userName: entry.username,
           }))
           .filter((member: any) => {
-            const createdAt = new Date(member.createdAt);
-            createdAt.setHours(0, 0, 0, 0);
             const updatedAt = new Date(member.updatedAt);
             updatedAt.setHours(0, 0, 0, 0);
             const currentDate = new Date(selectedDate);
             currentDate.setHours(0, 0, 0, 0);
 
-            if (
-              member.memberStatus === 'ARCHIVED' &&
-              updatedAt <= currentDate
-            ) {
-              return false;
+            // For past dates, show all active members
+            // Only filter out archived members who were archived before the selected date
+            if (member.memberStatus === 'ARCHIVED') {
+              // Only exclude if archived before the selected date
+              return updatedAt > currentDate;
             }
-            return createdAt <= new Date(selectedDate);
+            // Show all active and dropout members regardless of creation date
+            return true;
           });
         console.log('Filtered members:', nameUserIdArray);
         // Fetch actual attendance details

@@ -16,6 +16,7 @@ import {
   handleKeyDown,
   sortAttendanceNumber,
   toPascalCase,
+  filterMembersExcludingCurrentUser,
 } from '../utils/Helper';
 import {
   CohortAttendancePercentParam,
@@ -319,21 +320,42 @@ const AttendanceOverview: React.FC<AttendanceOverviewProps> = () => {
 
         // Set default center and batch if available
         if (centers.length > 0) {
-          const defaultCenter = centers[0];
-          setSelectedCenterId(defaultCenter.centerId);
+          // Check if there's a saved center selection in localStorage
+          const savedCenterId = localStorage.getItem('selectedCenterId');
+          const savedClassId = localStorage.getItem('classId');
 
-          // Filter batches for the default center
-          const defaultBatches = allBatches.filter(
-            (batch: any) => batch.parentId === defaultCenter.centerId
+          // Use saved center if it exists in the centers list, otherwise use default
+          const selectedCenter = savedCenterId
+            ? centers.find((c: any) => c.centerId === savedCenterId) ||
+              centers[0]
+            : centers[0];
+
+          setSelectedCenterId(selectedCenter.centerId);
+          if (!savedCenterId) {
+            localStorage.setItem('selectedCenterId', selectedCenter.centerId);
+          }
+
+          // Filter batches for the selected center
+          const filteredBatches = allBatches.filter(
+            (batch: any) => batch.parentId === selectedCenter.centerId
           );
-          setBatchesData(defaultBatches);
+          setBatchesData(filteredBatches);
 
-          // Set default batch if available
-          if (defaultBatches.length > 0) {
-            const defaultBatchId = defaultBatches[0].batchId;
-            setClassId(defaultBatchId);
-            localStorage.setItem('classId', defaultBatchId);
-            localStorage.setItem('cohortId', defaultBatchId);
+          // Set batch: use saved batch if it exists and belongs to selected center, otherwise use first batch
+          if (filteredBatches.length > 0) {
+            const selectedBatch =
+              savedClassId &&
+              filteredBatches.find((b: any) => b.batchId === savedClassId)
+                ? filteredBatches.find((b: any) => b.batchId === savedClassId)
+                : filteredBatches[0];
+
+            if (selectedBatch) {
+              setClassId(selectedBatch.batchId);
+              if (!savedClassId || savedClassId !== selectedBatch.batchId) {
+                localStorage.setItem('classId', selectedBatch.batchId);
+                localStorage.setItem('cohortId', selectedBatch.batchId);
+              }
+            }
           }
         }
 
@@ -364,6 +386,8 @@ const AttendanceOverview: React.FC<AttendanceOverviewProps> = () => {
   const handleCenterChange = (event: any) => {
     const centerId = event.target.value;
     setSelectedCenterId(centerId);
+    // Save to localStorage for synchronization with other pages
+    localStorage.setItem('selectedCenterId', centerId);
 
     // Filter batches for selected center
     const allBatches = centersData.flatMap((center: any) =>
@@ -388,6 +412,8 @@ const AttendanceOverview: React.FC<AttendanceOverviewProps> = () => {
       localStorage.setItem('cohortId', defaultBatchId);
     } else {
       setClassId('');
+      localStorage.removeItem('classId');
+      localStorage.removeItem('cohortId');
     }
   };
 
@@ -537,7 +563,8 @@ const AttendanceOverview: React.FC<AttendanceOverviewProps> = () => {
         });
         const resp = response?.result?.userDetails;
         if (resp) {
-          const nameUserIdArray = resp?.map((entry: any) => ({
+          const filteredMembers = filterMembersExcludingCurrentUser(resp);
+          const nameUserIdArray = filteredMembers?.map((entry: any) => ({
             userId: entry.userId,
             name:
               toPascalCase(entry?.firstName || '') +
@@ -1307,6 +1334,12 @@ const AttendanceOverview: React.FC<AttendanceOverviewProps> = () => {
                   numberOfColumns={3}
                   firstColumnName={t('COMMON.ATTENDANCE')}
                   secondColumnName={t('COMMON.CLASS_MISSED')}
+                  sortName={sortName}
+                  sortAttendance={sortAttendance}
+                  sortClassesMissed={sortClassesMissed}
+                  onSortName={handleSortName}
+                  onSortAttendance={handleSortAttendance}
+                  onSortClassesMissed={handleSortClassesMissed}
                 />
                 <Box>
                   {inLineLoading ? (

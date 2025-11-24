@@ -277,6 +277,12 @@ export interface LearListHeaderProps {
   numberOfColumns: number;
   firstColumnName: string;
   secondColumnName?: string;
+  sortName?: 'asc' | 'desc' | null;
+  sortAttendance?: 'asc' | 'desc' | null;
+  sortClassesMissed?: 'asc' | 'desc' | null;
+  onSortName?: () => void;
+  onSortAttendance?: () => void;
+  onSortClassesMissed?: () => void;
 }
 
 export interface MarksObtainedCardProps {

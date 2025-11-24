@@ -20,6 +20,7 @@ export enum Publish {
 export enum Role {
   SCTA = 'Content creator',
   CCTA = 'Content reviewer',
+  
 }
 export enum ContentStatus {
   PUBLISHED = 'Published',
@@ -58,11 +59,11 @@ export const getMenuItems = (
     t('DASHBOARD.LAST_SEVEN_DAYS_RANGE', {
       date_range: dateRange,
     }),
-    // t('DASHBOARD.AS_OF_TODAY_DATE', {
-    //   day_date: currentDayMonth,
-    // }),
-    // t('COMMON.LAST_MONTH'),
-    // t('COMMON.LAST_SIX_MONTHS'),
+    t('DASHBOARD.AS_OF_TODAY_DATE', {
+      day_date: currentDayMonth,
+    }),
+    t('COMMON.LAST_MONTH'),
+    t('COMMON.LAST_SIX_MONTHS'),
     t('COMMON.CUSTOM_RANGE'),
   ];
 };

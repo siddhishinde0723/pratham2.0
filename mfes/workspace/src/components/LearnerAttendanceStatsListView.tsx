@@ -67,7 +67,7 @@ const StudentsStatsList: React.FC<StudentsStatsListProps> = ({
           if (data) {
             const userData = data?.userData;
             setUserData(userData);
-
+            console.log('userData', userData);
             let fullName = '';
 
             if (userData?.firstName) {
@@ -120,7 +120,8 @@ const StudentsStatsList: React.FC<StudentsStatsListProps> = ({
         data={filteredFields}
         userName={fullName || name}
         contactNumber={userData?.mobile}
-        enrollmentNumber={userData?.username || ''}
+        // @ts-expect-error enrollmentId may exist on some backends but not all UserData types
+        enrollmentNumber={userData?.enrollmentId || ''}
       />
       <Stack>
         <Box

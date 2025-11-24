@@ -164,19 +164,18 @@ import API_ENDPOINTS from '../utils/API/APIEndpoints';
 //   }
 // };
 
-
 export const bulkAttendance = async ({
   attendanceDate,
   contextId,
   userAttendance,
 }: BulkAttendanceParams): Promise<any> => {
-  const apiUrl: string = API_ENDPOINTS.bulkAttendance
+  const apiUrl: string = API_ENDPOINTS.bulkAttendance;
   try {
     const response = await post(apiUrl, {
       attendanceDate,
       contextId,
       userAttendance,
-      context: "cohort" // Add context directly
+      context: 'cohort', // Add context directly
     });
     return response?.data;
   } catch (error) {
@@ -189,23 +188,27 @@ export const markAttendance = async ({
   attendanceDate,
   contextId,
   attendance,
-  latitude,longitude,
+  latitude,
+  longitude,
   validLocation,
   absentReason,
-  lateMark
+  lateMark,
+  scope,
 }: MarkAttendanceParams): Promise<any> => {
-  const apiUrl: string = API_ENDPOINTS.attendanceCreate
+  const apiUrl: string = API_ENDPOINTS.attendanceCreate;
   try {
     const response = await post(apiUrl, {
+      scope,
       userId,
       attendanceDate,
       contextId,
       attendance,
-      context: "cohort" ,// Add context directly
-      latitude,longitude,
-  validLocation,
-  absentReason,
-  lateMark
+      context: 'cohort', // Add context directly
+      latitude,
+      longitude,
+      validLocation,
+      absentReason,
+      lateMark,
     });
     return response?.data;
   } catch (error) {
@@ -219,8 +222,8 @@ const postAttendanceList = async ({
   filters = {},
   facets,
 }: any): Promise<any> => {
-  const apiUrl: string = API_ENDPOINTS.attendanceList
-  filters.context = "cohort"; // Ensure context is added to filters
+  const apiUrl: string = API_ENDPOINTS.attendanceList;
+  filters.context = 'cohort'; // Ensure context is added to filters
   try {
     const response = await post(apiUrl, { limit, page, filters, facets });
     return response?.data;
@@ -238,7 +241,7 @@ export const attendanceStatusList = async ({
   return postAttendanceList({
     limit,
     page,
-    filters: { fromDate, toDate, contextId, scope, context: "cohort" }, // Add context to filters
+    filters: { fromDate, toDate, contextId, scope, context: 'cohort' }, // Add context to filters
   });
 };
 
@@ -251,7 +254,7 @@ export const attendanceInPercentageStatusList = async ({
   return postAttendanceList({
     limit,
     page,
-    filters: { contextId, scope, toDate, fromDate, context: "cohort" }, // Add context to filters
+    filters: { contextId, scope, toDate, fromDate, context: 'cohort' }, // Add context to filters
     facets,
   });
 };
@@ -265,7 +268,7 @@ export const overallAttendanceInPercentageStatusList = async ({
   return postAttendanceList({
     limit,
     page,
-    filters: { contextId, scope, context: "cohort" }, // Add context to filters
+    filters: { contextId, scope, context: 'cohort' }, // Add context to filters
     facets,
   });
 };
@@ -278,7 +281,7 @@ export const getLearnerAttendanceStatus = async ({
   return postAttendanceList({
     limit,
     page,
-    filters: { contextId, scope, toDate, fromDate, userId, context: "cohort" }, // Add context to filters
+    filters: { contextId, scope, toDate, fromDate, userId, context: 'cohort' }, // Add context to filters
   });
 };
 
@@ -292,7 +295,7 @@ export const getCohortAttendance = async ({
   return postAttendanceList({
     limit,
     page,
-    filters: { scope, fromDate, toDate, contextId, context: "cohort" }, // Add context to filters
+    filters: { scope, fromDate, toDate, contextId, context: 'cohort' }, // Add context to filters
     facets,
     sort,
   });
@@ -307,7 +310,7 @@ export const getAllCenterAttendance = async ({
   return postAttendanceList({
     limit,
     page,
-    filters: { scope, fromDate, toDate, contextId, context: "cohort" }, // Add context to filters
+    filters: { scope, fromDate, toDate, contextId, context: 'cohort' }, // Add context to filters
     facets,
   });
 };
@@ -317,8 +320,8 @@ export const classesMissedAttendancePercentList = async ({
   facets,
   sort,
 }: any): Promise<any> => {
-  const apiUrl: string = API_ENDPOINTS.attendanceList
-  filters.context = "cohort"; // Add context to filters
+  const apiUrl: string = API_ENDPOINTS.attendanceList;
+  filters.context = 'cohort'; // Add context to filters
   try {
     const response = await post(apiUrl, { filters, facets, sort });
     return response?.data;
