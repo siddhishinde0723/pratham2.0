@@ -153,6 +153,18 @@ export const mockData: Record<string, any> = {
       alt: 'Kenya Logo',
     },
   },
+    '9e2913f7-c4d9-422f-9e09-ed69f543e20a':{
+    CHANNEL_ID: '0136351260261662723',
+    CONTENT_FRAMEWORK: 'chattisgarghboardfw',
+    COLLECTION_FRAMEWORK: 'chattisgarghboardfw',
+    academicYearId:'fcad7d6e-8fc5-4121-bff6-e423e23e0525',
+    LOGO_CONFIG: {
+      sidebar: '/tenants/tekdi-logo.png',
+      login: '/tenants/tekdi-logo.png',
+      favicon: '/tenants/kenya-favicon.ico',
+      alt: 'Kenya Logo'
+    }
+  },
 };
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {

@@ -24,112 +24,130 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  console.log('🚀 [proxy] Starting proxy request');
-  console.log('📋 [proxy] Request details:', {
-    method: req.method,
-    url: req.url,
-    headers: {
-      'content-type': req.headers['content-type'],
-      'content-length': req.headers['content-length'],
-      authorization: req.headers['authorization']
-        ? 'Bearer ***'
-        : 'Not provided',
-      tenantid: req.headers['tenantid'],
-      'x-channel-id': req.headers['x-channel-id'],
-    },
-    query: req.query,
-  });
+ console.log("🚀 [proxy] Starting proxy request");
+ console.log("📋 [proxy] Request details:", {
+   method: req.method,
+   url: req.url,
+   headers: {
+     "content-type": req.headers["content-type"],
+     "content-length": req.headers["content-length"],
+     authorization: req.headers["authorization"]
+       ? "Bearer ***"
+       : "Not provided",
+     tenantid: req.headers["tenantid"],
+     "x-channel-id": req.headers["x-channel-id"],
+   },
+   query: req.query,
+ });
 
-  const { method, body, query } = req;
-  const { path } = query;
 
-  const token =
-    getCookie(req, 'authToken') || (process.env.AUTH_API_TOKEN as string);
+ const { method, body, query } = req;
+ const { path } = query;
 
-  const BASE_URL = (
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    process.env.NEXT_PUBLIC_MIDDLEWARE_URL ||
-    'https://shiksha-dev-middleware.tekdinext.com'
-  ).toString();
-  if (!BASE_URL) {
-    console.warn(
-      'Proxy BASE_URL env not set. Please set NEXT_PUBLIC_BASE_URL to your middleware base, e.g., https://interface.tekdinext.com/interface/v1'
-    );
-  }
-  const tenantId = getCookie(req, 'tenantId');
 
-  console.log('🔐 [proxy] Authentication details:', {
-    baseURL: BASE_URL,
-    hasToken: !!token,
-    tenantId,
-    path,
-  });
+ const token =
+   getCookie(req, "authToken") || (process.env.AUTH_API_TOKEN as string);
 
-  if (!tenantId) {
-    console.log('❌ [proxy] Tenant ID not found in cookies');
-    return res.status(400).json({ error: 'Tenant ID not found in cookies' });
-  }
 
-  const tenantConfig = mockData[tenantId];
+ const BASE_URL = (
+   process.env.NEXT_PUBLIC_BASE_URL ||
+   process.env.NEXT_PUBLIC_MIDDLEWARE_URL ||
+   "https://shiksha-dev-middleware.tekdinext.com"
+ ).toString();
+ if (!BASE_URL) {
+   console.warn(
+     "Proxy BASE_URL env not set. Please set NEXT_PUBLIC_BASE_URL to your middleware base, e.g., https://interface.tekdinext.com/interface/v1"
+   );
+ }
+ const tenantId = getCookie(req, "tenantId");
 
-  console.log('🏢 [proxy] Tenant config:', {
-    tenantId,
-    hasConfig: !!tenantConfig,
-    channelId: tenantConfig?.CHANNEL_ID,
-  });
 
-  if (!tenantConfig) {
-    return res.status(404).json({ message: 'Tenant configuration not found' });
-  }
-  const CHANNEL_ID = tenantConfig?.CHANNEL_ID;
+ console.log("🔐 [proxy] Authentication details:", {
+   baseURL: BASE_URL,
+   hasToken: !!token,
+   tenantId,
+   path,
+ });
 
-  if (!token) {
-    console.error('No valid token available');
-    return res.status(401).json({ message: 'Unauthorized: Token is required' });
-  }
 
-  // console.log("Using token:", token);
+ if (!tenantId) {
+   console.log("❌ [proxy] Tenant ID not found in cookies");
+   return res.status(400).json({ error: "Tenant ID not found in cookies" });
+ }
 
-  let pathString = Array.isArray(path) ? path.join('/') : (path as string);
 
-  if (pathString === '/action/data/v1/form/read') {
-    const { action, subType, type } = body.request;
-    if (action === 'save' && subType === 'resource') {
-      return res.status(200).json(genericEditorSaveFormResponse);
-    }
+ const tenantConfig = mockData[tenantId];
 
-    if (action === 'question-meta-save' && subType === 'questions') {
-      return res.status(200).json(contentEditorQuestionMetaFormResponse);
-    }
 
-    if (action === 'question-filter-view' && subType === 'questions') {
-      return res.status(200).json(contentEditorQuestionFormResponse);
-    }
+ console.log("🏢 [proxy] Tenant config:", {
+   tenantId,
+   hasConfig: !!tenantConfig,
+   channelId: tenantConfig?.CHANNEL_ID,
+ });
 
-    if (action === 'review' && subType === 'resource') {
-      const framework = tenantConfig?.CONTENT_FRAMEWORK;
-      console.log('framework ==>', framework);
 
-      switch (framework) {
-        case 'atree-framework':
-          return res.status(200).json(genericEditorReviewFormResponseatree);
+ if (!tenantConfig) {
+   return res.status(404).json({ message: "Tenant configuration not found" });
+ }
+ const CHANNEL_ID = tenantConfig?.CHANNEL_ID;
 
-        case 'KEF-framework':
-          return res.status(200).json(genericEditorReviewFormResponseshiksha);
 
-        case 'shikshalokam-framework':
-        case 'shikshagraha-framework':
-        case 'oblf-framework':
-        case 'shikshagrahanew-framework':
-        case 'kenya-framework':
-        case 'chattisgarghboardfw':
-        case 'agrinettest-framework':
-          return res.status(200).json(genericEditorReviewFormResponseshiksha);
-        case 'badal-framework':
-          return res.status(200).json(genericEditorReviewFormResponsebadal);
-        case 'swadhaar-framework':
-          return res.status(200).json(genericEditorReviewFormResponseswadhaar);
-        case 'krdpr-framework':
+ if (!token) {
+   console.error("No valid token available");
+   return res.status(401).json({ message: "Unauthorized: Token is required" });
+ }
+
+
+ // console.log("Using token:", token);
+
+
+ let pathString = Array.isArray(path) ? path.join("/") : (path as string);
+
+
+ if (pathString === "/action/data/v1/form/read") {
+   const { action, subType, type } = body.request;
+   if (action === "save" && subType === "resource") {
+     return res.status(200).json(genericEditorSaveFormResponse);
+   }
+
+
+   if (action === "question-meta-save" && subType === "questions") {
+     return res.status(200).json(contentEditorQuestionMetaFormResponse);
+   }
+
+
+   if (action === "question-filter-view" && subType === "questions") {
+     return res.status(200).json(contentEditorQuestionFormResponse);
+   }
+
+
+   if (action === "review" && subType === "resource") {
+     const framework = tenantConfig?.CONTENT_FRAMEWORK;
+     console.log("framework ==>", framework);
+
+
+     switch (framework) {
+       case "atree-framework":
+         return res.status(200).json(genericEditorReviewFormResponseatree);
+
+
+       case "KEF-framework":
+         return res.status(200).json(genericEditorReviewFormResponseshiksha);
+
+
+       case "shikshalokam-framework":
+       case "shikshagraha-framework":
+       case "oblf-framework":
+       case "shikshagrahanew-framework":
+       case "kenya-framework":
+       case "agrinettest-framework":
+            case "chattisgarghboardfw":
+         return res.status(200).json(genericEditorReviewFormResponseshiksha);
+       case "badal-framework":
+         return res.status(200).json(genericEditorReviewFormResponsebadal);
+       case "swadhaar-framework":
+         return res.status(200).json(genericEditorReviewFormResponseswadhaar);
+        case "krdpr-framework":
           return res.status(200).json(genericEditorReviewFormResponsekrdpr);
         case 'Colab-framework':
           return res.status(200).json(genericEditorReviewFormResponsecolab);

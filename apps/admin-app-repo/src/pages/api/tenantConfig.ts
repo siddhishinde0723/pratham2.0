@@ -138,7 +138,7 @@ export const mockData: Record<string, any> = {
       alt: 'Kenya Logo'
     }
   },
-  '9e2913f7-c4d9-422f-9e09-ed69f543e20a':{
+    '9e2913f7-c4d9-422f-9e09-ed69f543e20a':{
     CHANNEL_ID: '0136351260261662723',
     CONTENT_FRAMEWORK: 'chattisgarghboardfw',
     COLLECTION_FRAMEWORK: 'chattisgarghboardfw',
