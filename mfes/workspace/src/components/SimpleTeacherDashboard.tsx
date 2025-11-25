@@ -1,7 +1,6 @@
-/* eslint-disable react/no-unescaped-entities */
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -19,202 +18,206 @@ import {
   Radio,
   // Link,
   styled,
-} from "@mui/material";
-import Link from "next/link";
-import { useRouter } from "next/router";
-import { format, isAfter, isValid, parse, startOfDay } from "date-fns";
-import { useTheme } from "@mui/material/styles";
-import ArrowForwardSharpIcon from "@mui/icons-material/ArrowForwardSharp";
-import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
-import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
-import PeopleIcon from "@mui/icons-material/People";
+} from '@mui/material';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { format, isAfter, isValid, parse, startOfDay } from 'date-fns';
+import { useTheme } from '@mui/material/styles';
+import ArrowForwardSharpIcon from '@mui/icons-material/ArrowForwardSharp';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import PeopleIcon from '@mui/icons-material/People';
 import {
   classesMissedAttendancePercentList,
   getAllCenterAttendance,
   getCohortAttendance,
   markAttendance,
   getLearnerAttendanceStatus,
-} from "../services/AttendanceService";
-import { ShowSelfAttendance } from "../../app.config";
-import { getCohortList } from "../services/CohortServices";
-import { getMyCohortMemberList } from "../services/MyClassDetailsService";
-import { getUserDetails } from "../services/ProfileService";
+} from '../services/AttendanceService';
+import { getAcademicYear } from '../services/AcademicYearService';
+import { ShowSelfAttendance } from '../../app.config';
+import { getCohortList } from '../services/CohortServices';
+import { getMyCohortMemberList } from '../services/MyClassDetailsService';
+import { getUserDetails } from '../services/ProfileService';
 import {
   AttendancePercentageProps,
   CohortAttendancePercentParam,
   CohortMemberList,
   CustomField,
   ICohort,
-} from "../utils/interfaces";
+} from '../utils/interfaces';
 import {
   getTodayDate,
   shortDateFormat,
   ATTENDANCE_ENUM,
-} from "../utils/Helper";
-import ModalComponent from "../components/Modal";
-import MarkBulkAttendance from "../components/MarkBulkAttendance"; // ADD THIS IMPORT
-import { showToastMessage } from "../components/Toastify"; // ADD THIS IMPORT
-import { fetchAttendanceDetails } from "../components/AttendanceDetails";
-import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
-import "react-circular-progressbar/dist/styles.css";
-import LocationModal from "./LocationModal";
-import useGeolocation from "./useGeoLocation";
+  filterMembersExcludingCurrentUser,
+} from '../utils/Helper';
+import ModalComponent from '../components/Modal';
+import MarkBulkAttendance from '../components/MarkBulkAttendance'; // ADD THIS IMPORT
+import { showToastMessage } from '../components/Toastify'; // ADD THIS IMPORT
+import { fetchAttendanceDetails } from '../components/AttendanceDetails';
+import { CircularProgressbar, buildStyles } from 'react-circular-progressbar';
+import 'react-circular-progressbar/dist/styles.css';
+import LocationModal from './LocationModal';
+import useGeolocation from './useGeoLocation';
 // Styled components
 const DashboardContainer = styled(Box)({
-  minHeight: "100vh",
-  backgroundColor: "#f5f5f5",
-  marginRight: "20px",
+  minHeight: '100vh',
+  backgroundColor: '#f5f5f5',
+  marginRight: '20px',
 });
 
 const HeaderBox = styled(Box)({
-  display: "flex",
-  justifyContent: "center",
+  display: 'flex',
+  justifyContent: 'center',
 });
 
 const HeaderContent = styled(Box)(({ theme }) => ({
-  display: "flex",
-  width: "100%",
-  justifyContent: "space-between",
-  alignItems: "center",
+  display: 'flex',
+  width: '100%',
+  justifyContent: 'space-between',
+  alignItems: 'center',
   backgroundColor: (theme.palette.warning as any).A400,
-  padding: "1rem 1.5rem",
+  padding: '1rem 1.5rem',
 }));
 
 const MainContent = styled(Box)({
-  display: "flex",
-  justifyContent: "center",
+  display: 'flex',
+  justifyContent: 'center',
 });
 
 const ContentWrapper = styled(Box)({
-  paddingBottom: "25px",
-  width: "100%",
-  background: "linear-gradient(180deg, #fffdf7 0%, #f8efda 100%)",
-  borderRadius: "8px",
+  paddingBottom: '25px',
+  width: '100%',
+  background: 'linear-gradient(180deg, #fffdf7 0%, #f8efda 100%)',
+  borderRadius: '8px',
 });
 
 const StatusCard = styled(Card)(({ theme }) => ({
-  height: "100%",
-  borderRadius: "8px",
-  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-  border: "1px solid #e0e0e0",
-  "& .MuiCardContent-root": {
-    padding: "16px",
+  height: '100%',
+  borderRadius: '8px',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+  border: '1px solid #e0e0e0',
+  '& .MuiCardContent-root': {
+    padding: '16px',
   },
 }));
 
 const CardHeader = styled(Box)({
-  display: "flex",
-  alignItems: "center",
-  marginBottom: "16px",
+  display: 'flex',
+  alignItems: 'center',
+  marginBottom: '16px',
 });
 
 const CardIcon = styled(Box)({
-  fontSize: "18px",
-  marginRight: "8px",
-  padding: "6px",
-  borderRadius: "4px",
+  fontSize: '18px',
+  marginRight: '8px',
+  padding: '6px',
+  borderRadius: '4px',
 });
 
 const CalendarContainer = styled(Box)({
-  marginTop: "16px",
+  marginTop: '16px',
 });
 
 const HorizontalCalendarScroll = styled(Box)({
-  display: "flex",
-  overflowX: "auto",
-  gap: "8px",
-  padding: "8px 0",
-  "&::-webkit-scrollbar": {
-    height: "4px",
+  display: 'flex',
+  overflowX: 'auto',
+  gap: '8px',
+  padding: '8px 0',
+  '&::-webkit-scrollbar': {
+    height: '4px',
   },
-  "&::-webkit-scrollbar-track": {
-    background: "#f1f1f1",
-    borderRadius: "2px",
+  '&::-webkit-scrollbar-track': {
+    background: '#f1f1f1',
+    borderRadius: '2px',
   },
-  "&::-webkit-scrollbar-thumb": {
-    background: "#c1c1c1",
-    borderRadius: "2px",
+  '&::-webkit-scrollbar-thumb': {
+    background: '#c1c1c1',
+    borderRadius: '2px',
   },
-  "&::-webkit-scrollbar-thumb:hover": {
-    background: "#a8a8a8",
+  '&::-webkit-scrollbar-thumb:hover': {
+    background: '#a8a8a8',
   },
 });
 
 const CalendarCell = styled(Box)(({ theme }) => ({
-  position: "relative",
-  height: "3.5rem",
-  width: "3rem",
-  minWidth: "3rem",
-  padding: "4px",
-  overflow: "hidden",
-  fontSize: "0.875em",
+  position: 'relative',
+  height: '3.5rem',
+  width: '3rem',
+  minWidth: '3rem',
+  padding: '4px',
+  overflow: 'hidden',
+  fontSize: '0.875em',
   border: `1px solid ${(theme.palette.warning as any).A100}`,
-  borderRadius: "4px",
-  cursor: "pointer",
-  transition: "0.25s ease-out",
-  display: "flex",
-  flexDirection: "column",
-  justifyContent: "flex-start",
-  alignItems: "center",
-  backgroundColor: "#fff",
-  "&:hover": {
-    backgroundColor: "#f5f5f5",
+  borderRadius: '4px',
+  cursor: 'pointer',
+  transition: '0.25s ease-out',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'flex-start',
+  alignItems: 'center',
+  backgroundColor: '#fff',
+  '&:hover': {
+    backgroundColor: '#f5f5f5',
   },
 }));
 
 const DayHeader = styled(Typography)({
-  fontSize: "0.7em",
-  fontWeight: "600",
-  color: "#666",
+  fontSize: '0.7em',
+  fontWeight: '600',
+  color: '#666',
   lineHeight: 1,
-  marginBottom: "2px",
+  marginBottom: '2px',
 });
 
 const DateNumber = styled(Typography)({
-  fontSize: "0.875em",
-  fontWeight: "500",
+  fontSize: '0.875em',
+  fontWeight: '500',
   lineHeight: 1,
-  marginTop: "2px",
+  marginTop: '2px',
 });
 
 const LearnerTag = styled(Box)({
-  display: "inline-block",
-  backgroundColor: "#fffbe6",
-  border: "1px solid #ffe58f",
-  color: "#faad14",
-  borderRadius: "4px",
-  padding: "4px 8px",
-  fontSize: "12px",
-  margin: "2px",
+  display: 'inline-block',
+  backgroundColor: '#fffbe6',
+  border: '1px solid #ffe58f',
+  color: '#faad14',
+  borderRadius: '4px',
+  padding: '4px 8px',
+  fontSize: '12px',
+  margin: '2px',
 });
 
 const SimpleTeacherDashboard = () => {
   const theme = useTheme();
-  const [classId, setClassId] = useState("1");
+  const [classId, setClassId] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date());
-  const [yearSelect, setYearSelect] = useState("2024-2025 (Active)");
+  const [yearSelect, setYearSelect] = useState('2025-2026');
+  const [academicYearsList, setAcademicYearsList] = useState<Array<any>>([]);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<any>(null);
   const [cohortsData, setCohortsData] = useState<Array<ICohort>>([]);
   const [centersData, setCentersData] = useState<Array<any>>([]);
   const [batchesData, setBatchesData] = useState<Array<any>>([]);
-  const [selectedCenterId, setSelectedCenterId] = useState("");
+  const [selectedCenterId, setSelectedCenterId] = useState('');
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [open, setOpen] = useState(false);
   const [isRemoteCohort, setIsRemoteCohort] = useState(false);
   const [cohortPresentPercentage, setCohortPresentPercentage] =
-    useState("No Attendance");
+    useState('No Attendance');
   const [lowAttendanceLearnerList, setLowAttendanceLearnerList] = useState<any>(
-    "No Learners with Low Attendance"
+    'No Learners with Low Attendance'
   );
   const [allCenterAttendanceData, setAllCenterAttendanceData] = useState<any>(
     []
   );
   const [attendanceStats, setAttendanceStats] = useState<any>(null);
-  const [startDateRange, setStartDateRange] = useState("");
-  const [endDateRange, setEndDateRange] = useState("");
-  const [dateRange, setDateRange] = useState("");
+  const [startDateRange, setStartDateRange] = useState('');
+  const [endDateRange, setEndDateRange] = useState('');
+  const [dateRange, setDateRange] = useState('');
   const [selectedDate, setSelectedDate] = React.useState<string>(
     getTodayDate()
   );
@@ -225,7 +228,7 @@ const SimpleTeacherDashboard = () => {
     numberOfCohortMembers: 0,
     dropoutMemberList: [],
     dropoutCount: 0,
-    bulkAttendanceStatus: "",
+    bulkAttendanceStatus: '',
   });
   const [selfAttendanceData, setSelfAttendanceData] = useState<any[]>([]);
   const [selectedSelfAttendance, setSelectedSelfAttendance] = useState<
@@ -250,8 +253,8 @@ const SimpleTeacherDashboard = () => {
   const { getLocation } = useGeolocation();
   // Get current month and year for display (showing last 30 days)
   const today = new Date();
-  const currentMonth = today.toLocaleString("default", {
-    month: "long",
+  const currentMonth = today.toLocaleString('default', {
+    month: 'long',
   });
   const currentYear = today.getFullYear();
   const handleModalToggle = () => {
@@ -259,26 +262,26 @@ const SimpleTeacherDashboard = () => {
     // Add telemetry if needed
     // telemetryFactory.interact(telemetryInteract);
   };
-
+  console.log('attendanceData---', attendanceData);
   const handleClose = () => {
     setOpen(false);
     setIsRemoteCohort(false);
   };
   // ADD THIS FUNCTION TO HANDLE ATTENDANCE DATA UPDATE
   const handleAttendanceDataUpdate = (data: any) => {
-    console.log("Updating attendance data:", data);
+    console.log('Updating attendance data:', data);
     setAttendanceData(data);
   };
   const handleRemoteSession = () => {
     try {
       // Check if it's a remote cohort (you might need to adjust this logic based on your data)
       const teacherApp = JSON.parse(
-        localStorage.getItem("teacherApp") ?? "null"
+        localStorage.getItem('teacherApp') ?? 'null'
       );
       const cohort = teacherApp?.state?.cohorts?.find?.(
         (c: any) => c.cohortId === classId
       );
-      const REMOTE_COHORT_TYPE = "REMOTE" as const;
+      const REMOTE_COHORT_TYPE = 'REMOTE' as const;
 
       if (cohort?.cohortType === REMOTE_COHORT_TYPE) {
         // if (true) {
@@ -290,24 +293,131 @@ const SimpleTeacherDashboard = () => {
         handleModalToggle();
       }
     } catch (error) {
-      console.error("Error parsing teacher app data:", error);
+      console.error('Error parsing teacher app data:', error);
       handleModalToggle();
+    }
+  };
+  // Fetch academic years
+  // Fetch academic years
+  // Fetch academic years
+  const fetchAcademicYears = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No token available for academic years request');
+        throw new Error('No authentication token');
+      }
+
+      console.log(
+        'Fetching academic years with token:',
+        token.substring(0, 10) + '...'
+      );
+
+      const response = await getAcademicYear();
+      console.log('Academic years response:', response);
+
+      if (response && Array.isArray(response)) {
+        setAcademicYearsList(response);
+
+        // Find the current active academic year
+        const currentDate = new Date();
+        let activeAcademicYear = response.find((year: any) => {
+          const startDate = new Date(year.startDate);
+          const endDate = new Date(year.endDate);
+          return currentDate >= startDate && currentDate <= endDate;
+        });
+
+        // If no active year found, use the first one or the one with latest start date
+        if (!activeAcademicYear) {
+          activeAcademicYear = response.reduce((latest: any, current: any) => {
+            if (!latest) return current;
+            return new Date(current.startDate) > new Date(latest.startDate)
+              ? current
+              : latest;
+          }, null);
+        }
+
+        if (activeAcademicYear) {
+          // Set the display name for the year selection
+          const yearDisplayName =
+            activeAcademicYear.session ||
+            `${new Date(activeAcademicYear.startDate).getFullYear()}-${new Date(
+              activeAcademicYear.endDate
+            ).getFullYear()}`;
+
+          setYearSelect(yearDisplayName);
+          setSelectedAcademicYear(activeAcademicYear);
+
+          // Store the academic year ID in localStorage
+          localStorage.setItem('academicYearId', activeAcademicYear.id);
+          setAcademicYearId(activeAcademicYear.id);
+
+          console.log('Set active academic year:', {
+            displayName: yearDisplayName,
+            id: activeAcademicYear.id,
+          });
+        } else if (response.length > 0) {
+          // Fallback to first academic year
+          const firstYear = response[0];
+          const yearDisplayName =
+            firstYear.session ||
+            `${new Date(firstYear.startDate).getFullYear()}-${new Date(
+              firstYear.endDate
+            ).getFullYear()}`;
+
+          setYearSelect(yearDisplayName);
+          setSelectedAcademicYear(firstYear);
+          localStorage.setItem('academicYearId', firstYear.id);
+          setAcademicYearId(firstYear.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching academic years:', error);
+      throw error; // Re-throw to handle in calling function
     }
   };
   // Initialize user and data
   useEffect(() => {
     const initializeDashboard = async () => {
-      if (typeof window !== "undefined" && window.localStorage) {
-        const token = localStorage.getItem("token");
-        const storedUserId = localStorage.getItem("userId");
-        const storedAcademicYearId = localStorage.getItem("academicYearId");
-        if (token) {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const token = localStorage.getItem('token');
+        const storedUserId = localStorage.getItem('userId');
+
+        console.log('Auth Check:', {
+          hasToken: !!token,
+          token: token ? `${token.substring(0, 10)}...` : 'none',
+          userId: storedUserId,
+        });
+
+        // Check if token exists and is valid
+        if (!token) {
+          console.log('No token found, redirecting to login');
+          router.push('/login');
+          return;
+        }
+
+        // Validate token by making a simple API call
+        try {
           setIsAuthenticated(true);
           setUserId(storedUserId);
-          setAcademicYearId(storedAcademicYearId);
+
+          // Try to fetch academic years to validate token
+          await fetchAcademicYears();
+
+          // If successful, fetch user cohorts
           await fetchUserCohorts(storedUserId);
-        } else {
-          router.push("/login");
+        } catch (error: any) {
+          console.error('Authentication failed:', error);
+
+          // If token is invalid, clear storage and redirect
+          if (error?.response?.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('academicYearId');
+            showToastMessage('Session expired. Please login again.', 'error');
+            router.push('/login');
+            return;
+          }
         }
       }
     };
@@ -316,51 +426,88 @@ const SimpleTeacherDashboard = () => {
   }, []);
 
   // Fetch user cohorts
+  // Fetch user cohorts
   const fetchUserCohorts = async (userId: string | null) => {
-    if (!userId) return;
+    if (!userId) {
+      console.error('No user ID provided for fetching cohorts');
+      return;
+    }
 
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No token available for cohorts request');
+        throw new Error('No authentication token');
+      }
+
       setLoading(true);
       const headers: { [key: string]: string } = {};
       if (academicYearId) {
-        headers["academicYearId"] = academicYearId;
+        headers['academicYearId'] = academicYearId;
       }
+
       const response = await getCohortList(userId, {
-        customField: "true",
-        children: "true",
+        customField: 'true',
+        children: 'true',
       });
-      const userDetails = await getUserDetails(userId, true);
-      console.log("getCohortList==", response);
+
+      console.log('getCohortList response:', response);
+
       if (response && response.length > 0) {
         setCohortsData(response);
-        setClassId(response[0]?.cohortId || "");
+
         // Extract centers (parent cohorts)
         const centers = response.map((center: any) => ({
           centerId: center.cohortId,
           centerName: center.cohortName,
           childData: center.childData || [],
         }));
-        setCentersData(centers);
-        if (centers.length > 0) {
-          const defaultCenter = centers[0];
-          setSelectedCenterId(defaultCenter.centerId);
 
-          // Extract batches for the default center
-          const batches = defaultCenter.childData.map((batch: any) => ({
+        setCentersData(centers);
+
+        if (centers.length > 0) {
+          // Check if there's a saved center selection in localStorage
+          const savedCenterId = localStorage.getItem('selectedCenterId');
+          const savedClassId = localStorage.getItem('classId');
+
+          // Use saved center if it exists in the centers list, otherwise use default
+          const selectedCenter = savedCenterId
+            ? centers.find((c: any) => c.centerId === savedCenterId) ||
+              centers[0]
+            : centers[0];
+
+          setSelectedCenterId(selectedCenter.centerId);
+          localStorage.setItem('selectedCenterId', selectedCenter.centerId);
+
+          // Extract batches for the selected center
+          const batches = selectedCenter.childData.map((batch: any) => ({
             batchId: batch.cohortId,
             batchName: batch.name,
             parentId: batch.parentId,
           }));
           setBatchesData(batches);
 
-          // Set default batch if available
+          // Set batch: use saved batch if it exists and belongs to selected center, otherwise use first batch
           if (batches.length > 0) {
-            setClassId(batches[0].batchId);
+            const selectedBatch =
+              savedClassId &&
+              batches.find((b: any) => b.batchId === savedClassId)
+                ? batches.find((b: any) => b.batchId === savedClassId)
+                : batches[0];
+
+            if (selectedBatch) {
+              setClassId(selectedBatch.batchId);
+              localStorage.setItem('classId', selectedBatch.batchId);
+              localStorage.setItem('cohortId', selectedBatch.batchId);
+            }
           }
         }
+      } else {
+        console.log('No cohorts data received');
       }
     } catch (error) {
-      console.error("Error fetching cohorts:", error);
+      console.error('Error fetching cohorts:', error);
+      // Don't throw here, just log the error
     } finally {
       setLoading(false);
     }
@@ -369,6 +516,8 @@ const SimpleTeacherDashboard = () => {
   const handleCenterChange = (event: any) => {
     const centerId = event.target.value;
     setSelectedCenterId(centerId);
+    // Save to localStorage for synchronization with other pages
+    localStorage.setItem('selectedCenterId', centerId);
 
     // Find the selected center and get its batches
     const selectedCenter = centersData.find(
@@ -384,9 +533,14 @@ const SimpleTeacherDashboard = () => {
 
       // Reset batch selection
       if (batches.length > 0) {
-        setClassId(batches[0].batchId);
+        const defaultBatchId = batches[0].batchId;
+        setClassId(defaultBatchId);
+        localStorage.setItem('classId', defaultBatchId);
+        localStorage.setItem('cohortId', defaultBatchId);
       } else {
-        setClassId("");
+        setClassId('');
+        localStorage.removeItem('classId');
+        localStorage.removeItem('cohortId');
       }
     }
   };
@@ -395,7 +549,10 @@ const SimpleTeacherDashboard = () => {
   const handleBatchChange = (event: any) => {
     const batchId = event.target.value;
     setClassId(batchId);
-    console.log("Selected batch ID:", batchId); // This will be passed to cohortmember/list API
+    // Save to localStorage for synchronization with other pages
+    localStorage.setItem('classId', batchId);
+    localStorage.setItem('cohortId', batchId);
+    console.log('Selected batch ID:', batchId); // This will be passed to cohortmember/list API
   };
   // Calculate date range for last 7 days
   useEffect(() => {
@@ -407,12 +564,12 @@ const SimpleTeacherDashboard = () => {
       startRangeDate.setHours(0, 0, 0, 0);
 
       const startDay = startRangeDate.getDate();
-      const startDayMonth = startRangeDate.toLocaleString("default", {
-        month: "long",
+      const startDayMonth = startRangeDate.toLocaleString('default', {
+        month: 'long',
       });
       const endDay = endRangeDate.getDate();
-      const endDayMonth = endRangeDate.toLocaleString("default", {
-        month: "long",
+      const endDayMonth = endRangeDate.toLocaleString('default', {
+        month: 'long',
       });
 
       if (startDayMonth === endDayMonth) {
@@ -423,7 +580,7 @@ const SimpleTeacherDashboard = () => {
 
       const formattedStartDate = shortDateFormat(startRangeDate);
       const formattedEndDate = shortDateFormat(endRangeDate);
-      console.log("Setting date range:", {
+      console.log('Setting date range:', {
         startDate: formattedStartDate,
         endDate: formattedEndDate,
         startRangeDate,
@@ -446,21 +603,21 @@ const SimpleTeacherDashboard = () => {
 
     // Check if selected date is in the future
     if (selected > today) {
-      return "futureDate";
+      return 'futureDate';
     }
 
     // Check if attendance is marked for the selected date
     const isAttendanceMarked =
       attendanceData.presentCount > 0 || attendanceData.absentCount > 0;
 
-    console.log("Attendance Check:", {
+    console.log('Attendance Check:', {
       selectedDate,
       presentCount: attendanceData.presentCount,
       absentCount: attendanceData.absentCount,
       isAttendanceMarked,
     });
 
-    return isAttendanceMarked ? "marked" : "notMarked";
+    return isAttendanceMarked ? 'marked' : 'notMarked';
   };
 
   const currentAttendance = getCurrentAttendanceStatusValue();
@@ -468,27 +625,46 @@ const SimpleTeacherDashboard = () => {
 
   // Fetch self attendance data
   const fetchSelfAttendance = async () => {
-    if (!classId || classId === "all") return;
+    if (!classId || classId === 'all') return;
 
     try {
-      const userId = localStorage.getItem("userId");
+      const userId = localStorage.getItem('userId');
       if (!userId) return;
 
       const limit = 300;
       const page = 0;
-      const filters = {
+
+      // Try with "self" scope first
+      let filters = {
         contextId: classId,
         userId: userId,
-        scope: "self",
+        scope: 'self',
         toDate: selectedDate,
         fromDate: selectedDate,
       };
 
-      const response = await getLearnerAttendanceStatus({
+      let response = await getLearnerAttendanceStatus({
         limit,
         page,
         filters,
       });
+
+      // If no results with "self" scope, try with "student" scope (as API might return student scope)
+      if (
+        !response?.data?.attendanceList ||
+        response.data.attendanceList.length === 0
+      ) {
+        filters = {
+          ...filters,
+          scope: 'student',
+        };
+        response = await getLearnerAttendanceStatus({
+          limit,
+          page,
+          filters,
+        });
+      }
+
       if (response?.data?.attendanceList) {
         if (response.data.attendanceList.length > 0) {
           setSelfAttendanceData(response.data.attendanceList);
@@ -502,7 +678,7 @@ const SimpleTeacherDashboard = () => {
         }
       }
     } catch (error) {
-      console.error("Error fetching self attendance:", error);
+      console.error('Error fetching self attendance:', error);
       setSelfAttendanceData([]);
       setSelectedSelfAttendance(null);
     }
@@ -511,7 +687,7 @@ const SimpleTeacherDashboard = () => {
   // Request location permission
   const requestLocationPermission = () => {
     if (!navigator.geolocation) {
-      showToastMessage("Geolocation is not supported by your browser", "error");
+      showToastMessage('Geolocation is not supported by your browser', 'error');
       return;
     }
 
@@ -526,10 +702,10 @@ const SimpleTeacherDashboard = () => {
         setIsSelfAttendanceModalOpen(true);
       },
       (error) => {
-        console.error("Error getting location:", error);
+        console.error('Error getting location:', error);
         showToastMessage(
-          "Failed to get location. Please enable location services.",
-          "error"
+          'Failed to get location. Please enable location services.',
+          'error'
         );
         setIsLocationModalOpen(false);
       },
@@ -546,23 +722,23 @@ const SimpleTeacherDashboard = () => {
     if (!selectedSelfAttendance) return;
 
     try {
-      const userId = localStorage.getItem("userId");
+      const userId = localStorage.getItem('userId');
       if (!userId) {
-        showToastMessage("User ID not found", "error");
+        showToastMessage('User ID not found', 'error');
         return;
       }
 
       // Get location using useGeolocation hook
       const locationData = await getLocation(true);
-      
+
       const data: any = {
         userId: userId,
         attendance: selectedSelfAttendance?.toLowerCase(),
         attendanceDate: selectedDate,
         contextId: classId,
-        scope: "self",
-        context: "cohort",
-        absentReason: "",
+        scope: 'self',
+        context: 'cohort',
+        absentReason: '',
         lateMark: true,
         validLocation: false,
       };
@@ -572,14 +748,37 @@ const SimpleTeacherDashboard = () => {
         data.latitude = locationData.latitude;
         data.longitude = locationData.longitude;
       }
-      console.log("locationdata==", data);
+      console.log('locationdata==', data);
       const response = await markAttendance(data);
-      if (response?.responseCode === 200 || response?.responseCode === 201) {
+      console.log('markAttendance response==', response);
+
+      // Check both responseCode and params.status for success
+      if (
+        (response?.responseCode === 200 || response?.responseCode === 201) &&
+        response?.params?.status === 'successful'
+      ) {
         const successMessage =
-          response?.params?.successmessage || "Attendance marked successfully";
-        showToastMessage(successMessage, "success");
+          response?.params?.successmessage || 'Attendance marked successfully';
+        showToastMessage(successMessage, 'success');
         setIsSelfAttendanceModalOpen(false);
         setSelectedSelfAttendance(null);
+
+        // Update self attendance state directly from response if available
+        if (response?.data?.attendance) {
+          const attendanceValue = response.data.attendance.toLowerCase();
+          setSelectedSelfAttendance(attendanceValue);
+
+          // Update selfAttendanceData with response data
+          const updatedSelfAttendance = [
+            {
+              attendance: response.data.attendance,
+              attendanceDate: response.data.attendanceDate,
+              ...response.data,
+            },
+          ];
+          setSelfAttendanceData(updatedSelfAttendance);
+        }
+
         // Refresh attendance data to show updated status
         await fetchSelfAttendance();
         fetchAttendanceData();
@@ -587,25 +786,25 @@ const SimpleTeacherDashboard = () => {
         const errorMessage =
           response?.params?.errmsg ||
           response?.params?.err ||
-          "Something went wrong";
-        showToastMessage(errorMessage, "error");
+          'Something went wrong';
+        showToastMessage(errorMessage, 'error');
       } else {
-        showToastMessage("Something went wrong", "error");
+        showToastMessage('Something went wrong', 'error');
       }
     } catch (error) {
-      console.error("Error marking self attendance:", error);
-      showToastMessage("Something went wrong", "error");
+      console.error('Error marking self attendance:', error);
+      showToastMessage('Something went wrong', 'error');
     }
   };
 
   // Fetch attendance data when classId changes
   useEffect(() => {
-    console.log("useEffect triggered - fetching attendance data", {
+    console.log('useEffect triggered - fetching attendance data', {
       classId,
       selectedDate,
       handleSaveHasRun,
     });
-    if (classId && classId !== "all") {
+    if (classId && classId !== 'all') {
       fetchAttendanceData();
       fetchDayWiseAttendanceData();
       if (ShowSelfAttendance) {
@@ -616,14 +815,14 @@ const SimpleTeacherDashboard = () => {
 
   // Fetch attendance data for all 30 days
   const fetchDayWiseAttendanceData = async () => {
-    if (!classId || classId === "all") return;
+    if (!classId || classId === 'all') return;
 
     // Validate UUID format
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(classId)) {
       console.warn(
-        "fetchDayWiseAttendanceData: Invalid UUID format for classId:",
+        'fetchDayWiseAttendanceData: Invalid UUID format for classId:',
         classId
       );
       return;
@@ -633,20 +832,20 @@ const SimpleTeacherDashboard = () => {
       const calendarDays = generateCalendarData();
       if (calendarDays.length === 0) return;
 
-      const firstDate = calendarDays[0].dateString;
-      const lastDate = calendarDays[calendarDays.length - 1].dateString;
+      const firstDate = calendarDays[calendarDays.length - 1].dateString;
+      const lastDate = calendarDays[0].dateString;
 
       const cohortAttendanceData: CohortAttendancePercentParam = {
         limit: 1000,
         page: 0,
         filters: {
-          scope: "student",
+          scope: 'student',
           fromDate: firstDate,
           toDate: lastDate,
           contextId: classId,
         },
-        facets: ["attendanceDate"],
-        sort: ["present_percentage", "asc"],
+        facets: ['attendanceDate'],
+        sort: ['present_percentage', 'asc'],
       };
 
       const response = await getCohortAttendance(cohortAttendanceData);
@@ -673,6 +872,7 @@ const SimpleTeacherDashboard = () => {
         includeArchived: true,
       });
       const members = memberResponse?.result?.userDetails || [];
+      const filteredMembers = filterMembersExcludingCurrentUser(members);
       const totalMembers = members.length;
 
       // Process each date
@@ -694,7 +894,7 @@ const SimpleTeacherDashboard = () => {
 
       setDayWiseAttendanceData(processedData);
     } catch (error) {
-      console.error("Error fetching day-wise attendance data:", error);
+      console.error('Error fetching day-wise attendance data:', error);
     }
   };
 
@@ -704,21 +904,21 @@ const SimpleTeacherDashboard = () => {
 
     setLoading(true);
     try {
-      if (classId !== "all") {
+      if (classId !== 'all') {
         await fetchSingleCenterAttendance();
       } else {
         await fetchAllCentersAttendance();
       }
     } catch (error) {
-      console.error("Error fetching attendance data:", error);
+      console.error('Error fetching attendance data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch attendance for single center
+  // Fetch attendance for single center also past date list of students who have missed attendance
   const fetchSingleCenterAttendance = async () => {
-    console.log("Class id---", classId);
+    console.log('Class id---', classId);
     try {
       // Fetch cohort member list
       // Validate UUID format before making API call
@@ -726,7 +926,7 @@ const SimpleTeacherDashboard = () => {
         /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(classId)) {
         console.warn(
-          "fetchAttendanceData: Invalid UUID format for classId:",
+          'fetchAttendanceData: Invalid UUID format for classId:',
           classId
         );
         return;
@@ -743,34 +943,33 @@ const SimpleTeacherDashboard = () => {
       });
 
       const resp = response?.result?.userDetails;
-      console.log("Cohort member response:", resp);
+      console.log('Cohort member response:', resp);
       if (resp) {
         const nameUserIdArray = resp
           ?.map((entry: any) => ({
             userId: entry.userId,
-            name: entry.firstName,
+            name: entry.firstName + ' ' + entry.lastName,
             memberStatus: entry.status,
             createdAt: entry.createdAt,
             updatedAt: entry.updatedAt,
             userName: entry.username,
           }))
           .filter((member: any) => {
-            const createdAt = new Date(member.createdAt);
-            createdAt.setHours(0, 0, 0, 0);
             const updatedAt = new Date(member.updatedAt);
             updatedAt.setHours(0, 0, 0, 0);
             const currentDate = new Date(selectedDate);
             currentDate.setHours(0, 0, 0, 0);
 
-            if (
-              member.memberStatus === "ARCHIVED" &&
-              updatedAt <= currentDate
-            ) {
-              return false;
+            // For past dates, show all active members
+            // Only filter out archived members who were archived before the selected date
+            if (member.memberStatus === 'ARCHIVED') {
+              // Only exclude if archived before the selected date
+              return updatedAt > currentDate;
             }
-            return createdAt <= new Date(selectedDate);
+            // Show all active and dropout members regardless of creation date
+            return true;
           });
-        console.log("Filtered members:", nameUserIdArray);
+        console.log('Filtered members:', nameUserIdArray);
         // Fetch actual attendance details
         if (nameUserIdArray && selectedDate && classId) {
           await fetchAttendanceDetails(
@@ -783,7 +982,7 @@ const SimpleTeacherDashboard = () => {
         // Get low attendance learners
         const fromDate = startDateRange;
         const toDate = endDateRange;
-        console.log("Fetching low attendance learners with date range:", {
+        console.log('Fetching low attendance learners with date range:', {
           fromDate,
           toDate,
           startDateRange,
@@ -793,17 +992,17 @@ const SimpleTeacherDashboard = () => {
           contextId: classId,
           fromDate,
           toDate,
-          scope: "student",
+          scope: 'student',
         };
 
         const attendanceResponse = await classesMissedAttendancePercentList({
           filters: attendanceFilters,
-          facets: ["userId"],
-          sort: ["absent_percentage", "asc"],
+          facets: ['userId'],
+          sort: ['absent_percentage', 'asc'],
         });
 
-        console.log("Low Attendance API Response:", attendanceResponse);
-        console.log("Low Attendance Structure Check:", {
+        console.log('Low Attendance API Response:', attendanceResponse);
+        console.log('Low Attendance Structure Check:', {
           hasData: !!attendanceResponse?.data,
           hasResult: !!attendanceResponse?.data?.result,
           hasUserId: !!attendanceResponse?.data?.result?.userId,
@@ -813,9 +1012,9 @@ const SimpleTeacherDashboard = () => {
         });
         const attendanceData = attendanceResponse?.data?.result?.userId;
         if (attendanceData) {
-          console.log("Processing low attendance data:", attendanceData);
+          console.log('Processing low attendance data:', attendanceData);
           console.log(
-            "Number of students in attendance data:",
+            'Number of students in attendance data:',
             Object.keys(attendanceData).length
           );
           const filteredData = Object.keys(attendanceData).map((userId) => ({
@@ -829,13 +1028,13 @@ const SimpleTeacherDashboard = () => {
               (user: { userId: string }) => user.userId === attendance.userId
             );
             return Object.assign({}, attendance, {
-              name: user ? user.name : "Unknown",
+              name: user ? user.name : 'Unknown',
             });
           });
 
-          mergedArray = mergedArray.filter((item) => item.name !== "Unknown");
+          mergedArray = mergedArray.filter((item) => item.name !== 'Unknown');
           console.log(
-            "Merged attendance data for threshold check:",
+            'Merged attendance data for threshold check:',
             mergedArray
           );
 
@@ -843,11 +1042,11 @@ const SimpleTeacherDashboard = () => {
           const LOW_ATTENDANCE_THRESHOLD = 75;
           const studentsWithLowestAttendance = mergedArray.filter((user) => {
             const hasAbsence = user.absent && user.absent > 0;
-            const percentNum = parseFloat(user.present_percent || "0");
+            const percentNum = parseFloat(user.present_percent || '0');
             const isLowAttendance = percentNum < LOW_ATTENDANCE_THRESHOLD;
             console.log(
               `${user.name}: ${user.present_percent}% (${
-                isLowAttendance ? "LOW" : "OK"
+                isLowAttendance ? 'LOW' : 'OK'
               })`
             );
             return (
@@ -857,7 +1056,7 @@ const SimpleTeacherDashboard = () => {
           });
 
           console.log(
-            "Students with low attendance:",
+            'Students with low attendance:',
             studentsWithLowestAttendance
           );
           if (studentsWithLowestAttendance.length) {
@@ -865,16 +1064,16 @@ const SimpleTeacherDashboard = () => {
               (student) => student.name
             );
             console.log(
-              "Setting low attendance learners:",
+              'Setting low attendance learners:',
               namesOfLowestAttendance
             );
             setLowAttendanceLearnerList(namesOfLowestAttendance);
           } else {
-            console.log("No students with low attendance");
+            console.log('No students with low attendance');
             setLowAttendanceLearnerList([]);
           }
         } else {
-          console.log("No attendance data received from API");
+          console.log('No attendance data received from API');
         }
 
         // Get cohort attendance percentage
@@ -882,48 +1081,48 @@ const SimpleTeacherDashboard = () => {
           limit: 1000,
           page: 0,
           filters: {
-            scope: "student",
+            scope: 'student',
             fromDate: startDateRange,
             toDate: endDateRange,
             contextId: classId,
           },
-          facets: ["contextId"],
-          sort: ["present_percentage", "asc"],
+          facets: ['contextId'],
+          sort: ['present_percentage', 'asc'],
         };
 
         console.log(
-          "Fetching cohort attendance with params:",
+          'Fetching cohort attendance with params:',
           cohortAttendanceData
         );
         const cohortRes = await getCohortAttendance(cohortAttendanceData);
-        console.log("Cohort Attendance API Response:", cohortRes);
+        console.log('Cohort Attendance API Response:', cohortRes);
         const cohortResponse = cohortRes?.data?.result;
-        console.log("Cohort response:", cohortResponse);
+        console.log('Cohort response:', cohortResponse);
         const contextData = cohortResponse?.contextId?.[classId];
 
-        console.log("Context data for classId:", classId, contextData);
+        console.log('Context data for classId:', classId, contextData);
 
         if (contextData?.present_percentage) {
           // present_percentage comes as a string from API, so parse it first
           const presentPercent = parseFloat(contextData.present_percentage);
           const percentageString = presentPercent.toFixed(1);
           console.log(
-            "Setting cohort present percentage:",
+            'Setting cohort present percentage:',
             percentageString,
-            "from",
+            'from',
             contextData.present_percentage
           );
           setCohortPresentPercentage(percentageString);
         } else if (contextData?.absent_percentage) {
-          console.log("Only absent percentage available, setting to 0");
-          setCohortPresentPercentage("0");
+          console.log('Only absent percentage available, setting to 0');
+          setCohortPresentPercentage('0');
         } else {
           console.log("No attendance data, setting to 'No Attendance'");
-          setCohortPresentPercentage("No Attendance");
+          setCohortPresentPercentage('No Attendance');
         }
       }
     } catch (error) {
-      console.error("Error fetching single center attendance:", error);
+      console.error('Error fetching single center attendance:', error);
     }
   };
 
@@ -933,13 +1132,13 @@ const SimpleTeacherDashboard = () => {
       const cohortIds = cohortsData.map((cohort) => cohort.cohortId);
       const limit = 300;
       const page = 0;
-      const facets = ["contextId"];
+      const facets = ['contextId'];
 
       const fetchPromises = cohortIds.map(async (cohortId) => {
         const filters = {
           fromDate: startDateRange,
           toDate: endDateRange,
-          scope: "student",
+          scope: 'student',
           contextId: cohortId,
         };
 
@@ -983,39 +1182,79 @@ const SimpleTeacherDashboard = () => {
 
       setAllCenterAttendanceData(nameIDAttendanceArray);
     } catch (error) {
-      console.error("Error fetching all centers attendance:", error);
+      console.error('Error fetching all centers attendance:', error);
     }
   };
-  // Generate calendar data for last 30 days till today
-  const generateCalendarData = () => {
+  // Generate calendar data based on selected academic year
+  const generateCalendarData = (academicYear?: any) => {
     const today = new Date();
     today.setHours(23, 59, 59, 999);
     const days = [];
+    const yearToUse = academicYear || selectedAcademicYear;
 
-    // Generate last 30 days from today backwards
-    for (let i = 29; i >= 0; i--) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      date.setHours(0, 0, 0, 0);
+    // If academic year is selected, use its date range
+    if (yearToUse && yearToUse.startDate && yearToUse.endDate) {
+      const startDate = new Date(yearToUse.startDate);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(yearToUse.endDate);
+      endDate.setHours(23, 59, 59, 999);
 
-      // Only include dates that are not in the future
-      if (date <= today) {
-        const dayName = ["S", "M", "T", "W", "T", "F", "S"][date.getDay()];
-        const dateStr = shortDateFormat(date);
-        days.push({
-          date: date.getDate(),
-          day: dayName,
-          fullDate: date,
-          dateString: dateStr,
-        });
+      // Use today as the end date if it's before the academic year end date
+      const effectiveEndDate = today < endDate ? today : endDate;
+
+      // Generate dates from effective end date backwards (up to 30 days or to start date)
+      const maxDays = 30;
+      let daysGenerated = 0;
+
+      for (let i = 0; i < maxDays && daysGenerated < maxDays; i++) {
+        const date = new Date(effectiveEndDate);
+        date.setDate(date.getDate() - i);
+        date.setHours(0, 0, 0, 0);
+
+        // Only include dates within academic year range and not in the future
+        if (date >= startDate && date <= today) {
+          const dayName = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][date.getDay()];
+          const dateStr = shortDateFormat(date);
+          days.push({
+            date: date.getDate(),
+            day: dayName,
+            fullDate: date,
+            dateString: dateStr,
+            isToday: i === 0,
+          });
+          daysGenerated++;
+        }
+      }
+    } else {
+      // Fallback: Generate last 30 days from today backwards
+      for (let i = 0; i < 30; i++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        date.setHours(0, 0, 0, 0);
+
+        // Only include dates that are not in the future
+        if (date <= today) {
+          const dayName = ['S', 'M', 'T', 'W', 'T', 'F', 'S'][date.getDay()];
+          const dateStr = shortDateFormat(date);
+          days.push({
+            date: date.getDate(),
+            day: dayName,
+            fullDate: date,
+            dateString: dateStr,
+            isToday: i === 0,
+          });
+        }
       }
     }
 
     return days;
   };
 
-  const calendarDays = generateCalendarData();
-  const weekDays = ["S", "M", "T", "W", "T", "F", "S"];
+  const calendarDays = useMemo(
+    () => generateCalendarData(),
+    [selectedAcademicYear]
+  );
+  const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
   // Handle date click
   const handleDateClick = (dateString: string) => {
@@ -1024,10 +1263,10 @@ const SimpleTeacherDashboard = () => {
 
   // Handle calendar icon/month click to navigate to attendance-history
   const handleCalendarClick = () => {
-    if (classId && classId !== "all") {
+    if (classId && classId !== 'all') {
       router.push(`/attendance-history?classId=${classId}`);
     } else {
-      router.push("/attendance-history");
+      router.push('/attendance-history');
     }
   };
 
@@ -1041,26 +1280,65 @@ const SimpleTeacherDashboard = () => {
     handleCalendarClick();
   };
   const handleChangeYear = (event: any) => {
-    setYearSelect(event.target.value);
+    const selectedYearDisplayName = event.target.value;
+
+    // Find the selected academic year object by matching display name
+    const selectedYear = academicYearsList.find((year: any) => {
+      const yearDisplayName =
+        year.session ||
+        `${new Date(year.startDate).getFullYear()}-${new Date(
+          year.endDate
+        ).getFullYear()}`;
+      return yearDisplayName === selectedYearDisplayName;
+    });
+
+    if (selectedYear) {
+      // Set the display name
+      const yearDisplayName =
+        selectedYear.session ||
+        `${new Date(selectedYear.startDate).getFullYear()}-${new Date(
+          selectedYear.endDate
+        ).getFullYear()}`;
+
+      setYearSelect(yearDisplayName);
+      setSelectedAcademicYear(selectedYear);
+
+      // Store the academic year ID
+      localStorage.setItem('academicYearId', selectedYear.id);
+      setAcademicYearId(selectedYear.id);
+
+      // Refresh cohorts data with new academic year
+      const userId = localStorage.getItem('userId');
+      if (userId) {
+        fetchUserCohorts(userId);
+      }
+
+      console.log('Changed academic year to:', {
+        displayName: yearDisplayName,
+        id: selectedYear.id,
+        startDate: selectedYear.startDate,
+        endDate: selectedYear.endDate,
+      });
+    }
   };
   // Handle class selection change
   const handleClassChange = (event: any) => {
     const selectedClassId = event.target.value;
     setClassId(selectedClassId);
-    console.log("Selected class:", selectedClassId); // Debug log
+    console.log('Selected class:', selectedClassId); // Debug log
   };
   // ADD THIS FUNCTION TO HANDLE SAVE SUCCESS
   const handleSaveSuccess = (isModified?: boolean) => {
-    console.log("handleSaveSuccess called, isModified:", isModified);
+    console.log('handleSaveSuccess called, isModified:', isModified);
     if (isModified) {
-      showToastMessage("Attendance modified successfully", "success");
+      showToastMessage('Attendance modified successfully', 'success');
     } else {
-      showToastMessage("Attendance marked successfully", "success");
+      showToastMessage('Attendance marked successfully', 'success');
     }
     console.log(
-      "Toggling handleSaveHasRun from",
+      'Toggling handleSaveHasRun from',
       handleSaveHasRun,
-      "to",
+      'to',
       !handleSaveHasRun
     );
     setHandleSaveHasRun(!handleSaveHasRun);
@@ -1072,25 +1350,25 @@ const SimpleTeacherDashboard = () => {
   // Translation function placeholder (replace with your actual t function)
   const t = (key: string) => {
     const translations: { [key: string]: string } = {
-      "COMMON.MARK_CENTER_ATTENDANCE": "Mark Center Attendance",
-      "COMMON.CANCEL": "Cancel",
-      "COMMON.YES_MANUALLY": "Yes, Manually",
-      "COMMON.ARE_YOU_SURE_MANUALLY":
-        "Are you sure you want to manually mark attendance?",
-      "COMMON.ATTENDANCE_IS_USUALLY":
-        "Attendance is usually marked automatically for remote cohorts.",
-      "COMMON.USE_MANUAL":
-        "Use manual marking only if automatic attendance failed.",
-      "COMMON.NOTE_MANUALLY":
-        "Note: Manual attendance will override automatic attendance.",
+      'COMMON.MARK_CENTER_ATTENDANCE': 'Mark Center Attendance',
+      'COMMON.CANCEL': 'Cancel',
+      'COMMON.YES_MANUALLY': 'Yes, Manually',
+      'COMMON.ARE_YOU_SURE_MANUALLY':
+        'Are you sure you want to manually mark attendance?',
+      'COMMON.ATTENDANCE_IS_USUALLY':
+        'Attendance is usually marked automatically for remote cohorts.',
+      'COMMON.USE_MANUAL':
+        'Use manual marking only if automatic attendance failed.',
+      'COMMON.NOTE_MANUALLY':
+        'Note: Manual attendance will override automatic attendance.',
     };
     return translations[key] || key;
   };
   const clickAttendanceOverview = () => {
-    if (classId && classId !== "all") {
+    if (classId && classId !== 'all') {
       router.push(`/attendance-overview?classId=${classId}`);
     } else {
-      router.push("/attendance-overview");
+      router.push('/attendance-overview');
     }
   };
   return (
@@ -1099,10 +1377,10 @@ const SimpleTeacherDashboard = () => {
       <HeaderBox>
         <HeaderContent>
           <Typography
-            textAlign={"left"}
-            fontSize={"22px"}
-            m={"1.5rem 1.2rem 0.8rem"}
-            color={(theme?.palette?.warning as any)?.["300"]}
+            textAlign={'left'}
+            fontSize={'22px'}
+            m={'1.5rem 1.2rem 0.8rem'}
+            color={(theme?.palette?.warning as any)?.['300']}
           >
             Dashboard
           </Typography>
@@ -1110,25 +1388,40 @@ const SimpleTeacherDashboard = () => {
             value={yearSelect}
             onChange={handleChangeYear}
             size="small"
+            disabled={loading || academicYearsList.length === 0}
             sx={{
-              backgroundColor: "white",
-              borderRadius: "8px",
+              backgroundColor: 'white',
+              borderRadius: '8px',
               fontWeight: 500,
-              "& .MuiSelect-select": {
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
+              '& .MuiSelect-select': {
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
               },
             }}
           >
-            <MenuItem value="2023-2024">2023-2024</MenuItem>
-            <MenuItem value="2024-2025 (Active)">
-              2024-2025{" "}
-              <span style={{ color: "green", marginLeft: "6px" }}>
-                (Active)
-              </span>
-            </MenuItem>
-            <MenuItem value="2024-2025 Demo">2024-2025 Demo</MenuItem>
+            {academicYearsList.length > 0 ? (
+              academicYearsList.map((year: any) => {
+                const displayName =
+                  year.session ||
+                  `${new Date(year.startDate).getFullYear()}-${new Date(
+                    year.endDate
+                  ).getFullYear()}`;
+
+                return (
+                  <MenuItem key={year.id} value={displayName}>
+                    {displayName}
+                    {/* {year.isActive && (
+                      <span style={{ color: 'green', marginLeft: '6px' }}>
+                        (Active)
+                      </span>
+                    )} */}
+                  </MenuItem>
+                );
+              })
+            ) : (
+              <MenuItem value={yearSelect}>{yearSelect}</MenuItem>
+            )}
           </Select>
         </HeaderContent>
       </HeaderBox>
@@ -1139,32 +1432,33 @@ const SimpleTeacherDashboard = () => {
           {/* Day-wise Attendance Section */}
           <Box>
             <Box
-              display={"flex"}
-              flexDirection={"column"}
-              padding={"1.5rem 2.2rem 1rem 1.2rem"}
+              display={'flex'}
+              flexDirection={'column'}
+              padding={'1.5rem 2.2rem 1rem 1.2rem'}
             >
               <Box
-                display={"flex"}
-                justifyContent={"space-between"}
-                alignItems={"center"}
-                marginBottom={"16px"}
-                marginRight={"25px"}
+                display={'flex'}
+                justifyContent={'space-between'}
+                alignItems={'center'}
+                marginBottom={'16px'}
+                marginRight={'25px'}
               >
                 <Typography
                   variant="h2"
-                  sx={{ fontSize: "14px" }}
-                  color={(theme.palette.warning as any)["300"]}
-                  fontWeight={"500"}
+                  sx={{ fontSize: '14px' }}
+                  color={(theme.palette.warning as any)['300']}
+                  fontWeight={'500'}
                 >
                   Day-Wise Attendance
                 </Typography>
+
                 {/* Center Selection */}
                 {centersData.length > 0 && (
-                  <Box sx={{ padding: "0 1.2rem 1rem" }}>
+                  <Box sx={{ padding: '1rem 1.2rem 1rem' }}>
                     <FormControl
                       fullWidth
                       size="small"
-                      sx={{ maxWidth: "200px" }}
+                      sx={{ maxWidth: '200px' }}
                     >
                       <InputLabel>Center</InputLabel>
                       <Select
@@ -1188,11 +1482,11 @@ const SimpleTeacherDashboard = () => {
 
                 {/* Batch Selection */}
                 {batchesData.length > 0 && (
-                  <Box sx={{ padding: "0 1.2rem 1rem" }}>
+                  <Box sx={{ padding: '1rem 1.2rem 1rem' }}>
                     <FormControl
                       fullWidth
                       size="small"
-                      sx={{ maxWidth: "200px" }}
+                      sx={{ maxWidth: '200px' }}
                     >
                       <InputLabel>Batch</InputLabel>
                       <Select
@@ -1213,30 +1507,32 @@ const SimpleTeacherDashboard = () => {
 
                 {/* Month Navigation */}
                 <Box
-                  display={"flex"}
+                  display={'flex'}
                   sx={{
-                    cursor: "pointer",
+                    cursor: 'pointer',
                     color: theme.palette.secondary.main,
-                    gap: "4px",
-                    alignItems: "center",
+                    gap: '4px',
+                    alignItems: 'center',
+                    boxShadow: '0px 4px 8px 3px #00000026',
+                    padding: '4px 8px',
                   }}
                   onClick={handleCalendarClick}
                 >
-                  <Button
+                  {/* <Button
                     size="small"
                     onClick={(e) => {
                       e.stopPropagation();
                       handlePreviousMonth();
                     }}
-                    sx={{ minWidth: "auto", padding: "4px" }}
+                    sx={{ minWidth: 'auto', padding: '4px' }}
                   >
                     ‹
-                  </Button>
+                  </Button> */}
                   <Typography
                     style={{
-                      fontWeight: "500",
-                      minWidth: "100px",
-                      textAlign: "center",
+                      fontWeight: '500',
+                      minWidth: '100px',
+                      textAlign: 'center',
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1245,18 +1541,18 @@ const SimpleTeacherDashboard = () => {
                   >
                     {currentMonth} {currentYear}
                   </Typography>
-                  <Button
+                  {/* <Button
                     size="small"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleNextMonth();
                     }}
-                    sx={{ minWidth: "auto", padding: "4px" }}
+                    sx={{ minWidth: 'auto', padding: '4px' }}
                   >
                     ›
-                  </Button>
+                  </Button> */}
                   <CalendarMonthIcon
-                    sx={{ fontSize: "12px", ml: 0.5, cursor: "pointer" }}
+                    sx={{ fontSize: '12px', ml: 0.5, cursor: 'pointer' }}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleCalendarClick();
@@ -1264,7 +1560,11 @@ const SimpleTeacherDashboard = () => {
                   />
                 </Box>
               </Box>
-
+              <Box>
+                <Typography variant="caption" color="#666">
+                  Last 30 Days
+                </Typography>
+              </Box>
               {/* Horizontal Calendar Section */}
               <CalendarContainer>
                 {/* Horizontal Scroll Calendar */}
@@ -1289,25 +1589,25 @@ const SimpleTeacherDashboard = () => {
                       <Box
                         key={index}
                         sx={{
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          gap: "2px",
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '2px',
                         }}
                       >
                         {/* Day character or "Today" text above box */}
                         <Typography
                           sx={{
-                            fontSize: "0.7em",
-                            fontWeight: "600",
-                            color: "#666",
+                            fontSize: '0.7em',
+                            fontWeight: '600',
+                            color: '#666',
 
                             // color: isToday ? "#ff9800" : "#666",
                             lineHeight: 1,
-                            marginBottom: "2px",
+                            marginBottom: '2px',
                           }}
                         >
-                          {isToday ? "Today" : dayData.day}
+                          {isToday ? 'Today' : dayData.day}
                         </Typography>
                         {/* Calendar Cell with date and circular progress inside */}
                         <CalendarCell
@@ -1315,7 +1615,7 @@ const SimpleTeacherDashboard = () => {
                           sx={{
                             backgroundColor: isSelected
                               ? theme.palette.primary.light
-                              : "#fff",
+                              : '#fff',
                           }}
                         >
                           {/* Date number at top */}
@@ -1326,13 +1626,13 @@ const SimpleTeacherDashboard = () => {
                           {isMarked ? (
                             <Box
                               sx={{
-                                position: "relative",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                width: "20px",
-                                height: "20px",
-                                marginTop: "2px",
+                                position: 'relative',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '20px',
+                                height: '20px',
+                                marginTop: '2px',
                               }}
                             >
                               <CircularProgress
@@ -1341,10 +1641,10 @@ const SimpleTeacherDashboard = () => {
                                 size={20}
                                 thickness={10}
                                 sx={{
-                                  color: "#4caf50",
-                                  position: "absolute",
-                                  "& .MuiCircularProgress-circle": {
-                                    strokeLinecap: "round",
+                                  color: '#4caf50',
+                                  position: 'absolute',
+                                  '& .MuiCircularProgress-circle': {
+                                    strokeLinecap: 'round',
                                   },
                                 }}
                               />
@@ -1376,29 +1676,29 @@ const SimpleTeacherDashboard = () => {
               </CalendarContainer>
             </Box>
 
-            <Box sx={{ padding: "0 20px" }}>
-              <Divider sx={{ borderBottomWidth: "0.1rem" }} />
+            <Box sx={{ padding: '0 20px' }}>
+              <Divider sx={{ borderBottomWidth: '0.1rem' }} />
             </Box>
           </Box>
           <Box
-            height={"auto"}
-            width={"auto"}
-            padding={"1rem"}
-            borderRadius={"1rem"}
-            bgcolor={"#4A4640"}
-            textAlign={"left"}
-            margin={"15px 35px 15px 25px"}
-            sx={{ opacity: classId === "all" ? 0.5 : 1 }}
-            justifyContent={"space-between"}
-            display={"flex"}
-            alignItems={"center"}
+            height={'auto'}
+            width={'auto'}
+            padding={'1rem'}
+            borderRadius={'1rem'}
+            bgcolor={'#4A4640'}
+            textAlign={'left'}
+            margin={'15px 35px 15px 25px'}
+            sx={{ opacity: classId === 'all' ? 0.5 : 1 }}
+            justifyContent={'space-between'}
+            display={'flex'}
+            alignItems={'center'}
           >
             <Box display="flex" alignItems="center" gap="12px">
-              {currentAttendance !== "notMarked" &&
-                currentAttendance !== "futureDate" && (
+              {currentAttendance !== 'notMarked' &&
+                currentAttendance !== 'futureDate' && (
                   <>
                     {/* CircularProgressbar */}
-                    <Box sx={{ width: "30px", height: "30px" }}>
+                    <Box sx={{ width: '30px', height: '30px' }}>
                       <CircularProgressbar
                         value={
                           attendanceData?.numberOfCohortMembers &&
@@ -1409,10 +1709,10 @@ const SimpleTeacherDashboard = () => {
                             : 0
                         }
                         styles={buildStyles({
-                          pathColor: "#4caf50",
-                          trailColor: "#E6E6E6",
-                          strokeLinecap: "round",
-                          backgroundColor: "#fff",
+                          pathColor: '#4caf50',
+                          trailColor: '#E6E6E6',
+                          strokeLinecap: 'round',
+                          backgroundColor: '#fff',
                         })}
                         strokeWidth={20}
                         background
@@ -1423,9 +1723,9 @@ const SimpleTeacherDashboard = () => {
                     <Box>
                       <Typography
                         sx={{
-                          fontSize: "12px",
-                          fontWeight: "600",
-                          color: "#F4F4F4",
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: '#F4F4F4',
                         }}
                         variant="h6"
                       >
@@ -1436,14 +1736,14 @@ const SimpleTeacherDashboard = () => {
                                 attendanceData.numberOfCohortMembers) *
                               100
                             ).toFixed(2)
-                          : "0"}
+                          : '0'}
                         % Attendance
                       </Typography>
                       <Typography
                         sx={{
-                          fontSize: "12px",
-                          fontWeight: "600",
-                          color: "#F4F4F4",
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: '#F4F4F4',
                         }}
                         variant="h6"
                       >
@@ -1453,24 +1753,24 @@ const SimpleTeacherDashboard = () => {
                     </Box>
                   </>
                 )}
-              {currentAttendance === "notMarked" && (
+              {currentAttendance === 'notMarked' && (
                 <Typography
                   sx={{
                     color: (theme.palette.warning as any).A400,
                   }}
-                  fontSize={"0.8rem"}
+                  fontSize={'0.8rem'}
                 >
                   Not started
                 </Typography>
               )}
-              {currentAttendance === "futureDate" && (
+              {currentAttendance === 'futureDate' && (
                 <Typography
                   sx={{
-                    color: (theme.palette.warning as any)["300"],
+                    color: (theme.palette.warning as any)['300'],
                   }}
-                  fontSize={"0.8rem"}
-                  fontStyle={"italic"}
-                  fontWeight={"500"}
+                  fontSize={'0.8rem'}
+                  fontStyle={'italic'}
+                  fontWeight={'500'}
                 >
                   Future date - can't mark
                 </Typography>
@@ -1481,47 +1781,47 @@ const SimpleTeacherDashboard = () => {
               variant="contained"
               color="primary"
               sx={{
-                minWidth: "84px",
-                height: "2.5rem",
+                minWidth: '84px',
+                height: '2.5rem',
                 padding: theme.spacing(1),
-                fontWeight: "500",
+                fontWeight: '500',
               }}
-              disabled={classId === "all"}
+              disabled={classId === 'all'}
               onClick={handleRemoteSession}
             >
-              {currentAttendance === "notMarked" ? "Mark" : "Modify"}
+              {currentAttendance === 'notMarked' ? 'Mark' : 'Modify'}
             </Button>
           </Box>
           {/* Self Attendance Card */}
           {ShowSelfAttendance && (
             <Box
-              height={"auto"}
-              width={"auto"}
-              padding={"1rem"}
-              borderRadius={"1rem"}
-              bgcolor={"#4A4640"}
-              textAlign={"left"}
-              margin={"15px 35px 15px 25px"}
-              sx={{ opacity: classId === "all" ? 0.5 : 1 }}
-              justifyContent={"space-between"}
-              display={"flex"}
-              alignItems={"center"}
+              height={'auto'}
+              width={'auto'}
+              padding={'1rem'}
+              borderRadius={'1rem'}
+              bgcolor={'#4A4640'}
+              textAlign={'left'}
+              margin={'15px 35px 15px 25px'}
+              sx={{ opacity: classId === 'all' ? 0.5 : 1 }}
+              justifyContent={'space-between'}
+              display={'flex'}
+              alignItems={'center'}
             >
               <Box display="flex" alignItems="center" gap="12px">
                 {selfAttendanceData?.length > 0 ? (
-                  <Box display={"flex"} alignItems={"center"}>
+                  <Box display={'flex'} alignItems={'center'}>
                     <Typography
                       sx={{
                         color: (theme.palette.warning as any).A400,
                       }}
-                      fontSize={"0.9rem"}
+                      fontSize={'0.9rem'}
                     >
                       {selfAttendanceData[0]?.attendance?.toLowerCase() ===
                       ATTENDANCE_ENUM.PRESENT
-                        ? "Present"
+                        ? 'Present'
                         : selfAttendanceData[0]?.attendance?.toLowerCase() ===
                           ATTENDANCE_ENUM.ABSENT
-                        ? "Absent"
+                        ? 'Absent'
                         : selfAttendanceData[0]?.attendance}
                     </Typography>
                     {selfAttendanceData[0]?.attendance?.toLowerCase() ===
@@ -1530,7 +1830,7 @@ const SimpleTeacherDashboard = () => {
                         fontSize="small"
                         sx={{
                           color: theme.palette.success.main,
-                          marginLeft: "4px",
+                          marginLeft: '4px',
                         }}
                       />
                     ) : selfAttendanceData[0]?.attendance?.toLowerCase() ===
@@ -1539,7 +1839,7 @@ const SimpleTeacherDashboard = () => {
                         fontSize="small"
                         sx={{
                           color: theme.palette.error.main,
-                          marginLeft: "4px",
+                          marginLeft: '4px',
                         }}
                       />
                     ) : null}
@@ -1549,7 +1849,7 @@ const SimpleTeacherDashboard = () => {
                     sx={{
                       color: (theme.palette.warning as any).A400,
                     }}
-                    fontSize={"0.8rem"}
+                    fontSize={'0.8rem'}
                   >
                     Not Marked For Self
                   </Typography>
@@ -1560,12 +1860,12 @@ const SimpleTeacherDashboard = () => {
                 variant="contained"
                 color="primary"
                 sx={{
-                  minWidth: "84px",
-                  height: "2.5rem",
+                  minWidth: '84px',
+                  height: '2.5rem',
                   padding: theme.spacing(1),
-                  fontWeight: "500",
+                  fontWeight: '500',
                 }}
-                disabled={classId === "all"}
+                disabled={classId === 'all'}
                 onClick={() => {
                   setIsLocationModalOpen(true);
                 }}
@@ -1575,23 +1875,23 @@ const SimpleTeacherDashboard = () => {
                   ATTENDANCE_ENUM.PRESENT ||
                   selfAttendanceData[0]?.attendance?.toLowerCase() ===
                     ATTENDANCE_ENUM.ABSENT)
-                  ? "Modify For Self"
-                  : "Mark For Self"}
+                  ? 'Modify For Self'
+                  : 'Mark For Self'}
               </Button>
             </Box>
           )}
           {/* Status Cards Section */}
           <Box
             sx={{
-              padding: "1rem 1.2rem",
+              padding: '1rem 1.2rem',
             }}
           >
             <Box
               mb={2}
               sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
               }}
             >
               {/* Left Section (Overview + Last 7 Days) */}
@@ -1612,15 +1912,15 @@ const SimpleTeacherDashboard = () => {
                     clickAttendanceOverview();
                   }}
                   style={{
-                    color: "#1890ff",
-                    textDecoration: "none",
-                    fontWeight: "500",
-                    display: "flex",
-                    alignItems: "center",
-                    cursor: "pointer",
+                    color: '#1890ff',
+                    textDecoration: 'none',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
                   }}
                 >
-                  More Details →
+                  More Details
                 </a>
               </Link>
             </Box>
@@ -1628,25 +1928,22 @@ const SimpleTeacherDashboard = () => {
               <Typography>Loading...</Typography>
             ) : (
               <Grid container spacing={2}>
-                {classId && classId !== "all" ? (
+                {classId && classId !== 'all' ? (
                   <>
                     {/* Single Center View */}
                     <Grid item xs={12} md={4}>
                       <StatusCard>
                         <CardContent sx={{ pt: 0 }}>
                           <Box textAlign="center" mb={2} p={2}>
-                            <Typography
-                              fontSize={"11px"}
-                              color="rgb(124, 118, 111)"
-                            >
+                            <Typography fontSize={'13px'} color="#000000">
                               Center Attendance
                             </Typography>
                             <Typography
-                              fontWeight="700"
-                              color="#000000"
-                              sx={{ fontSize: "16px", lineHeight: 1 }}
+                              fontWeight="500"
+                              color="rgb(124, 118, 111)"
+                              sx={{ fontSize: '16px', lineHeight: 1 }}
                             >
-                              {cohortPresentPercentage === "No Attendance"
+                              {cohortPresentPercentage === 'No Attendance'
                                 ? cohortPresentPercentage
                                 : `${cohortPresentPercentage}%`}
                             </Typography>
@@ -1659,28 +1956,49 @@ const SimpleTeacherDashboard = () => {
                       <StatusCard>
                         <CardContent sx={{ pt: 0 }}>
                           <Box textAlign="center" mb={2} p={2}>
-                            <Typography
-                              fontSize={"11px"}
-                              color="rgb(124, 118, 111)"
-                            >
+                            <Typography fontSize={'13px'} color="#000000">
                               Low Attendance Learners
                             </Typography>
                             <Typography
-                              fontWeight="700"
-                              color="#000000"
-                              sx={{ fontSize: "16px", lineHeight: 1 }}
+                              fontWeight="500"
+                              color="rgb(124, 118, 111)"
+                              sx={{ fontSize: '16px', lineHeight: 1 }}
                             >
                               {Array.isArray(lowAttendanceLearnerList) &&
-                              lowAttendanceLearnerList.length > 0
-                                ? lowAttendanceLearnerList
+                              lowAttendanceLearnerList.length > 0 ? (
+                                <>
+                                  {lowAttendanceLearnerList
                                     .slice(0, 2)
-                                    .join(", ") +
-                                  (lowAttendanceLearnerList.length > 2
-                                    ? ` and ${
-                                        lowAttendanceLearnerList.length - 2
-                                      } more`
-                                    : "")
-                                : "No Learners with Low Attendance"}
+                                    .join(', ')}
+                                  {lowAttendanceLearnerList.length > 2 && (
+                                    <>
+                                      {' '}
+                                      and{' '}
+                                      <Link
+                                        href="/attendance-overview"
+                                        legacyBehavior
+                                      >
+                                        <a
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            clickAttendanceOverview();
+                                          }}
+                                          style={{
+                                            color: '#1890ff',
+                                            textDecoration: 'none',
+                                            fontWeight: '500',
+                                            cursor: 'pointer',
+                                          }}
+                                        >
+                                          more
+                                        </a>
+                                      </Link>
+                                    </>
+                                  )}
+                                </>
+                              ) : (
+                                'No Learners with Low Attendance'
+                              )}
                             </Typography>
                           </Box>
                         </CardContent>
@@ -1695,7 +2013,7 @@ const SimpleTeacherDashboard = () => {
                         <CardContent sx={{ pt: 0 }}>
                           <Box textAlign="center" mb={2} p={2}>
                             <Typography
-                              fontSize={"11px"}
+                              fontSize={'11px'}
                               color="rgb(124, 118, 111)"
                             >
                               {item.name}
@@ -1703,7 +2021,7 @@ const SimpleTeacherDashboard = () => {
                             <Typography
                               fontWeight="700"
                               color="#000000"
-                              sx={{ fontSize: "16px", lineHeight: 1 }}
+                              sx={{ fontSize: '16px', lineHeight: 1 }}
                             >
                               {item.presentPercentage}%
                             </Typography>
@@ -1738,52 +2056,52 @@ const SimpleTeacherDashboard = () => {
       {isRemoteCohort && (
         <ModalComponent
           open={isRemoteCohort}
-          heading={t("COMMON.MARK_CENTER_ATTENDANCE")}
-          secondaryBtnText={t("COMMON.CANCEL")}
-          btnText={t("COMMON.YES_MANUALLY")}
+          heading={t('COMMON.MARK_CENTER_ATTENDANCE')}
+          secondaryBtnText={t('COMMON.CANCEL')}
+          btnText={t('COMMON.YES_MANUALLY')}
           selectedDate={selectedDate ? new Date(selectedDate) : undefined}
           onClose={handleClose}
           handlePrimaryAction={() => handleModalToggle()}
         >
-          <Box sx={{ padding: "0 16px" }}>
+          <Box sx={{ padding: '0 16px' }}>
             <Box
               sx={{
-                color: (theme?.palette?.warning as any)?.["300"],
-                fontSize: "16px",
-                fontWeight: "500",
+                color: (theme?.palette?.warning as any)?.['300'],
+                fontSize: '16px',
+                fontWeight: '500',
               }}
             >
-              {t("COMMON.ARE_YOU_SURE_MANUALLY")}
+              {t('COMMON.ARE_YOU_SURE_MANUALLY')}
             </Box>
             <Box
               sx={{
-                color: (theme?.palette?.warning as any)?.["300"],
-                fontSize: "14px",
-                fontWeight: "400",
-                mt: "10px",
+                color: (theme?.palette?.warning as any)?.['300'],
+                fontSize: '14px',
+                fontWeight: '400',
+                mt: '10px',
               }}
             >
-              {t("COMMON.ATTENDANCE_IS_USUALLY")}
+              {t('COMMON.ATTENDANCE_IS_USUALLY')}
             </Box>
             <Box
               sx={{
-                color: (theme?.palette?.warning as any)?.["300"],
-                fontSize: "14px",
-                fontWeight: "400",
-                mt: "10px",
+                color: (theme?.palette?.warning as any)?.['300'],
+                fontSize: '14px',
+                fontWeight: '400',
+                mt: '10px',
               }}
             >
-              {t("COMMON.USE_MANUAL")}
+              {t('COMMON.USE_MANUAL')}
             </Box>
             <Box
               sx={{
-                color: (theme?.palette?.warning as any)?.["300"],
-                fontSize: "14px",
-                fontWeight: "500",
-                mt: "10px",
+                color: (theme?.palette?.warning as any)?.['300'],
+                fontSize: '14px',
+                fontWeight: '500',
+                mt: '10px',
               }}
             >
-              {t("COMMON.NOTE_MANUALLY")}
+              {t('COMMON.NOTE_MANUALLY')}
             </Box>
           </Box>
         </ModalComponent>
@@ -1843,18 +2161,18 @@ const SimpleTeacherDashboard = () => {
             }
           }}
         >
-          <Box sx={{ padding: "0 16px" }}>
+          <Box sx={{ padding: '0 16px' }}>
             <Box
-              display={"flex"}
-              justifyContent={"space-between"}
-              alignItems={"center"}
+              display={'flex'}
+              justifyContent={'space-between'}
+              alignItems={'center'}
               mb={2}
             >
               <Typography
                 variant="h2"
                 sx={{
                   color: (theme.palette.warning as any).A200,
-                  fontSize: "14px",
+                  fontSize: '14px',
                 }}
                 component="h2"
               >
@@ -1870,9 +2188,9 @@ const SimpleTeacherDashboard = () => {
             </Box>
             <Divider />
             <Box
-              display={"flex"}
-              justifyContent={"space-between"}
-              alignItems={"center"}
+              display={'flex'}
+              justifyContent={'space-between'}
+              alignItems={'center'}
               mb={2}
               mt={2}
             >
@@ -1880,7 +2198,7 @@ const SimpleTeacherDashboard = () => {
                 variant="h2"
                 sx={{
                   color: (theme.palette.warning as any).A200,
-                  fontSize: "14px",
+                  fontSize: '14px',
                 }}
                 component="h2"
               >

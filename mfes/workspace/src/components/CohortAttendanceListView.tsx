@@ -1,9 +1,9 @@
-import { Box, Grid, Stack, Typography } from "@mui/material";
+import { Box, Grid, Stack, Typography } from '@mui/material';
 
-import useAttendanceRangeColor from "../hooks/useAttendanceRangeColor";
-import { CohortAttendanceListViewProps } from "../utils/interfaces";
-import { useTheme } from "@mui/material/styles";
-import React from "react";
+import useAttendanceRangeColor from '../hooks/useAttendanceRangeColor';
+import { CohortAttendanceListViewProps } from '../utils/interfaces';
+import { useTheme } from '@mui/material/styles';
+import React from 'react';
 
 const CohortAttendanceListView: React.FC<CohortAttendanceListViewProps> = ({
   cohortName,
@@ -16,26 +16,26 @@ const CohortAttendanceListView: React.FC<CohortAttendanceListViewProps> = ({
   return (
     <Stack>
       <Box
-        borderBottom={`1px solid ${theme.palette.warning["A100"]}`}
+        borderBottom={`1px solid ${theme.palette.warning['A100']}`}
         margin="0"
-        alignItems={"center"}
-        bgcolor={theme.palette.warning["A400"]}
-        maxHeight={"auto"}
+        alignItems={'center'}
+        bgcolor={theme.palette.warning['A400']}
+        maxHeight={'auto'}
       >
         <Grid
           container
           alignItems="center"
-          textAlign={"center"}
+          textAlign={'center'}
           justifyContent="space-between"
-          p={"5px"}
+          p={'5px'}
         >
           <Grid item xs={9}>
             <Typography
-              textAlign={"left"}
+              textAlign={'left'}
               sx={{
-                fontSize: "0.875rem",
-                fontWeight: "400",
-                color: theme.palette.warning["300"],
+                fontSize: '0.875rem',
+                fontWeight: '400',
+                color: theme.palette.warning['300'],
               }}
             >
               {cohortName}
@@ -43,7 +43,7 @@ const CohortAttendanceListView: React.FC<CohortAttendanceListViewProps> = ({
           </Grid>
           <Grid item xs={3}>
             <Typography
-              sx={{ fontSize: "1rem", fontWeight: "500", color: textColor }}
+              sx={{ fontSize: '1rem', fontWeight: '500', color: textColor }}
             >
               {attendancePercent}%
             </Typography>

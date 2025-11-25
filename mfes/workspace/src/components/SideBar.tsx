@@ -9,6 +9,7 @@ import OutlinedFlagOutlinedIcon from '@mui/icons-material/OutlinedFlagOutlined';
 import PreviewOutlinedIcon from '@mui/icons-material/PreviewOutlined';
 import StorageIcon from '@mui/icons-material/Storage';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import HowToRegIcon from '@mui/icons-material/HowToReg';
 import {
   Box,
   Drawer,
@@ -67,28 +68,16 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
     }
 
     setUserRole(getLocalStoredUserRole());
-    const userData = Cookies.get('userData');
-
+    const userData = localStorage.getItem('userData')
+      ? JSON.parse(localStorage.getItem('userData') || '{}')
+      : Cookies.get('userData');
     // Check cookies first, then localStorage for showHeader
-    let headerValue = Cookies.get('showHeader');
-    if (!headerValue) {
-      const localStorageValue = localStorage.getItem('showHeader');
-      if (localStorageValue) {
-        headerValue = localStorageValue;
-        // Migrate to cookies if found in localStorage
-        Cookies.set('showHeader', localStorageValue, {
-          expires: 7,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-        });
-        console.log(
-          'SideBar: Migrated showHeader from localStorage to cookies'
-        );
-      }
-    }
+    let headerValue = localStorage.getItem('showHeader')
+      ? localStorage.getItem('showHeader')
+      : Cookies.get('showHeader');
 
     setShowHeader(headerValue === 'true');
-    const tenant = userData ? JSON.parse(userData) : null;
+    const tenant = userData ? userData : null;
     setTenantName(tenant?.tenantData[0]?.tenantName);
     setTenantId(tenant?.tenantData[0]?.tenantId);
   }, []);
@@ -96,9 +85,13 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
   if (userRole === null) return null;
 
   const menuItems = [
-    { text: 'Create', key: 'create', icon: <AddOutlinedIcon /> },
-    { text: 'Drafts', key: 'draft', icon: <CreateOutlinedIcon /> },
-    ...(userRole !== Role.CCTA
+    ...(userRole !== Role.TEACHER
+      ? [
+          { text: 'Create', key: 'create', icon: <AddOutlinedIcon /> },
+          { text: 'Drafts', key: 'draft', icon: <CreateOutlinedIcon /> },
+        ]
+      : []),
+    ...(userRole !== Role.CCTA && userRole !== Role.TEACHER
       ? [
           {
             text: 'Submitted for Review',
@@ -136,22 +129,35 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
             : []),
         ]
       : []),
-    {
-      text: 'My Published Contents',
-      key: 'publish',
-      icon: <OutlinedFlagOutlinedIcon />,
-    },
-    { text: 'All My Contents', key: 'allContents', icon: <AppsOutlinedIcon /> },
-    {
-      text: 'Discover Contents',
-      key: 'discover-contents',
-      icon: <ManageSearchIcon />,
-    },
-    {
-      text: "Attendance",
-      key: "attendance",
-      icon: <ManageSearchIcon />,
-    },
+    ...(userRole === Role.CCTA || userRole === Role.SCTA
+      ? [
+          {
+            text: 'My Published Contents',
+            key: 'publish',
+            icon: <OutlinedFlagOutlinedIcon />,
+          },
+          {
+            text: 'All My Contents',
+            key: 'allContents',
+            icon: <AppsOutlinedIcon />,
+          },
+          {
+            text: 'Discover Contents',
+            key: 'discover-contents',
+            icon: <ManageSearchIcon />,
+          },
+        ]
+      : []),
+
+    ...(userRole == Role.TEACHER
+      ? [
+          {
+            text: 'Attendance',
+            key: 'attendance',
+            icon: <HowToRegIcon />,
+          },
+        ]
+      : []),
   ];
 
   const handleNavigation = (key: string) => {
@@ -207,7 +213,12 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
         sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
       >
         {showHeader ? (
-          <DynamicLogo type="sidebar" width={60} height={60} fallbackSrc="/assets/images/logo.png" />
+          <DynamicLogo
+            type="sidebar"
+            width={60}
+            height={60}
+            fallbackSrc="/assets/images/logo.png"
+          />
         ) : (
           <Box sx={{ textAlign: 'center', mt: 2 }}>
             <Typography

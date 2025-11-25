@@ -87,11 +87,12 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
   const [open, setOpen] = useState(false);
 
   // Ensure data has unique identifiers for React keys
-  const processedData = data?.map((item: any, index: number) => ({
-    ...item,
-    // Ensure each item has a unique identifier for React keys
-    identifier: item.identifier || item.id || `row-${index}`,
-  })) || [];
+  const processedData =
+    data?.map((item: any, index: number) => ({
+      ...item,
+      // Ensure each item has a unique identifier for React keys
+      identifier: item.identifier || item.id || `row-${index}`,
+    })) || [];
 
   const handleClose = () => {
     setOpen(false);
@@ -430,9 +431,7 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
                 }
               } else if (props.column.key === 'action') {
                 return (
-                  <Box onClick={handleOpen}>
-                    <ActionIcon rowData={props.rowData} />
-                  </Box>
+                  <ActionIcon rowData={props.rowData} tableTitle={tableTitle} />
                 );
               } else if (props.column.key === 'contentType') {
                 return (
