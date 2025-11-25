@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-inferrable-types */
 /* eslint-disable prefer-const */
 import { API_ENDPOINTS } from '../utils/API/APIEndpoints';
 import { post } from './RestClient';
@@ -89,7 +90,7 @@ export const searchGroups = async (params: {
   try {
     // Add academic year ID to headers
     const headers = {
-      academicyearid: 'fcad7d6e-8fc5-4121-bff6-e423e23e0525'
+      academicyearid: localStorage.getItem('academicYearId')
     };
     
     // Create API request without location and status filters (they cause 404 errors)
@@ -302,7 +303,7 @@ export const getGroupDetails = async (groupId: string): Promise<GroupDetails | n
 /**
  * Fetch users belonging to a specific group using the cohortmember/list API
  */
-export const getGroupUsers = async (groupId: string, academicYearId: string = 'fcad7d6e-8fc5-4121-bff6-e423e23e0525'): Promise<GroupUser[]> => {
+export const getGroupUsers = async (groupId: string, academicYearId: string = localStorage.getItem('academicYearId') || ""): Promise<GroupUser[]> => {
   try {
     console.log('Fetching users for group:', groupId);
     
@@ -454,7 +455,7 @@ export const createGroup = async (groupData: {
   try {
     // Add academic year ID to headers
     const headers = {
-      academicyearid: 'fcad7d6e-8fc5-4121-bff6-e423e23e0525'
+      academicyearid: localStorage.getItem('academicYearId')
     };
     
     console.log('Creating group with data:', groupData);
@@ -510,18 +511,17 @@ export const updateGroup = async (groupId: string, groupData: Partial<Group>): P
     console.log('Update response:', result);
 
     // Return the updated group data
-    const updatedGroup: Group = {
-      id: groupId,
-      name: groupData.name || '',
-      description: groupData.description || '',
-      state: groupData.state || '',
-      district: groupData.district || '',
-      block: groupData.block || '',
-      village: groupData.village || '',
-      createdAt: groupData.createdAt || new Date().toISOString().split('T')[0],
-      status: groupData.status || 'Active'
-    };
-
+   const updatedGroup: Group = {
+  id: groupId,
+  name: groupData.name || '',
+  description: groupData.description || '',
+  state: groupData.state || '',
+  district: groupData.district || '',
+  block: groupData.block || '',
+  village: groupData.village || '',
+  createdAt: (groupData.createdAt || new Date().toISOString().split('T')[0]) as string,
+  status: groupData.status || 'Active'
+};
     return updatedGroup;
   } catch (error) {
     console.error('Error updating group:', error);
@@ -529,7 +529,7 @@ export const updateGroup = async (groupId: string, groupData: Partial<Group>): P
   }
 };
 
-export const addUserToGroup = async (cohortId: string, userId: string, cohortAcademicYearId: string = 'fcad7d6e-8fc5-4121-bff6-e423e23e0525'): Promise<any> => {
+export const addUserToGroup = async (cohortId: string, userId: string, cohortAcademicYearId: string = localStorage.getItem('academicYearId') || ""): Promise<any> => {
   try {
     console.log('Adding user to group:', { cohortId, userId, cohortAcademicYearId });
     
@@ -660,7 +660,7 @@ export const addContentToGroup = async (groupId: string, contentIds: string[]): 
       throw new Error('Authentication token not found. Please log in again.');
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_INTERFACE_URL || 'https://shiksha-dev-interface.tekdinext.com';
+    const baseUrl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL || 'https://shiksha-dev-interface.tekdinext.com';
     
     console.log('Adding content to group:', {
       baseUrl,
@@ -682,7 +682,7 @@ export const addContentToGroup = async (groupId: string, contentIds: string[]): 
 
       console.log('Sending request for content:', contentId, requestBody);
 
-      const response = await fetch(`${baseUrl}/interface/v1/user/cohortcontent`, {
+      const response = await fetch(`${baseUrl}/user/cohortcontent`, {
         method: 'POST',
         headers: {
           'accept': '*/*',
@@ -747,7 +747,7 @@ export const archiveContentFromGroup = async (groupId: string, contentId: string
       throw new Error('Authentication token not found. Please log in again.');
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_INTERFACE_URL || 'https://shiksha-dev-interface.tekdinext.com';
+    const baseUrl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL || 'https://shiksha-dev-interface.tekdinext.com';
     
     const requestBody = {
       tenantId: tenantId,
@@ -763,7 +763,7 @@ export const archiveContentFromGroup = async (groupId: string, contentId: string
       tenantId
     });
 
-    const response = await fetch(`${baseUrl}/interface/v1/user/cohortcontent`, {
+    const response = await fetch(`${baseUrl}/user/cohortcontent`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -804,7 +804,7 @@ export const activateContentInGroup = async (groupId: string, contentId: string)
       throw new Error('Authentication token not found. Please log in again.');
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_INTERFACE_URL || 'https://shiksha-dev-interface.tekdinext.com';
+    const baseUrl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL || 'https://shiksha-dev-interface.tekdinext.com';
     
     const requestBody = {
       tenantId: tenantId,
@@ -820,7 +820,7 @@ export const activateContentInGroup = async (groupId: string, contentId: string)
       tenantId
     });
 
-    const response = await fetch(`${baseUrl}/interface/v1/user/cohortcontent`, {
+    const response = await fetch(`${baseUrl}user/cohortcontent`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -865,7 +865,7 @@ export const getGroupContent = async (groupId: string): Promise<GroupContentResp
       throw new Error('Authentication token not found. Please log in again.');
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_INTERFACE_URL || 'https://shiksha-dev-interface.tekdinext.com';
+    const baseUrl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL || 'https://shiksha-dev-interface.tekdinext.com';
     
     const requestBody = {
       filter: {
@@ -880,7 +880,7 @@ export const getGroupContent = async (groupId: string): Promise<GroupContentResp
       academicYearId
     });
 
-    const response = await fetch(`${baseUrl}/interface/v1/user/cohortcontent/search`, {
+    const response = await fetch(`${baseUrl}/user/cohortcontent/search`, {
       method: 'POST',
       headers: {
         'accept': '*/*',

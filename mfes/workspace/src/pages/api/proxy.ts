@@ -142,6 +142,7 @@ export default async function handler(
        case "shikshagrahanew-framework":
        case "kenya-framework":
        case "agrinettest-framework":
+            case "chattisgarghboardfw":
          return res.status(200).json(genericEditorReviewFormResponseshiksha);
        case "badal-framework":
          return res.status(200).json(genericEditorReviewFormResponsebadal);
