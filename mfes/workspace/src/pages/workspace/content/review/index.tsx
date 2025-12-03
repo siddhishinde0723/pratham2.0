@@ -14,6 +14,7 @@ import { MIME_TYPE } from '@workspace/utils/app.config';
 import { ContentStatus, Editor, Role } from '@workspace/utils/app.constant';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CloseIcon from '@mui/icons-material/Close';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { Box, Button, Card, Grid, IconButton, Typography } from '@mui/material';
 import $ from 'jquery';
 import { useRouter } from 'next/router';
@@ -31,9 +32,6 @@ import { sendContentNotification } from '@workspace/services/sendContentNotifica
 import useTenantConfig from '@workspace/hooks/useTenantConfig';
 import WorkspaceHeader from '@workspace/components/WorkspaceHeader';
 
-const userFullName = getLocalStoredUserName() || 'Anonymous User';
-const [firstName, lastName] = userFullName.split(' ');
-
 const ReviewContentSubmissions = () => {
   const { tenantConfig, isLoading, error } = useTenantConfig();
   const [isContentInteractiveType, setIsContentInteractiveType] =
@@ -44,7 +42,12 @@ const ReviewContentSubmissions = () => {
   const { isReadOnly } = router.query;
   const delay = (ms: number) =>
     new Promise((resolve) => setTimeout(resolve, ms));
-  const [showHeader, setShowHeader] = useState<boolean | null>(null);
+  const [showHeader, setShowHeader] = useState<boolean>(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userName, setUserName] = useState<{ firstName: string; lastName: string }>({
+    firstName: 'Anonymous',
+    lastName: 'User',
+  });
   const [contentDetails, setContentDetails] = useState<any>(undefined);
   const [openConfirmationPopup, setOpenConfirmationPopup] = useState(false);
   const [confirmationActionType, setConfirmationActionType] = useState<
@@ -53,10 +56,21 @@ const ReviewContentSubmissions = () => {
   const [openCommentPopup, setOpenCommentPopup] = useState<boolean>(false);
   const [publishOpenToast, setPublishOpenToast] = useState<boolean>(false);
   const [requestOpenToast, setRequestOpenToast] = useState<boolean>(false);
+  const [copyUrlToast, setCopyUrlToast] = useState<boolean>(false);
 
+  // Initialize client-side only values (localStorage, etc.)
   useEffect(() => {
-    const headerValue = localStorage.getItem('showHeader');
-    setShowHeader(headerValue === 'true');
+    if (typeof window !== 'undefined') {
+      const headerValue = localStorage.getItem('showHeader');
+      setShowHeader(headerValue === 'true');
+      
+      const userFullName = getLocalStoredUserName() || 'Anonymous User';
+      const [firstName, lastName] = userFullName.split(' ');
+      setUserName({ firstName, lastName: lastName || '' });
+      
+      const role = getLocalStoredUserRole();
+      setUserRole(role);
+    }
   }, []);
 
   useEffect(() => {
@@ -83,8 +97,8 @@ const ReviewContentSubmissions = () => {
             V1PlayerConfig.context.channel = tenantConfig?.CHANNEL_ID;
             V1PlayerConfig.context.tags = [tenantConfig?.CHANNEL_ID];
             V1PlayerConfig.context.app = [tenantConfig?.CHANNEL_ID];
-            V1PlayerConfig.context.userData.firstName = firstName;
-            V1PlayerConfig.context.userData.lastName = lastName || '';
+            V1PlayerConfig.context.userData.firstName = userName.firstName;
+            V1PlayerConfig.context.userData.lastName = userName.lastName;
             setIsContentInteractiveType(true);
           } else {
             setIsContentInteractiveType(false);
@@ -92,8 +106,8 @@ const ReviewContentSubmissions = () => {
             playerConfig.context.contentId = data.identifier;
             playerConfig.context.channel = tenantConfig?.CHANNEL_ID;
             playerConfig.context.tags = [tenantConfig?.CHANNEL_ID];
-            playerConfig.context.userData.firstName = firstName;
-            playerConfig.context.userData.lastName = lastName || '';
+            playerConfig.context.userData.firstName = userName.firstName;
+            playerConfig.context.userData.lastName = userName.lastName;
 
             // Debug video content
             if (
@@ -115,12 +129,12 @@ const ReviewContentSubmissions = () => {
     if (identifier) {
       loadContent();
     }
-  }, [tenantConfig?.CHANNEL_ID, identifier]);
+  }, [tenantConfig?.CHANNEL_ID, identifier, userName.firstName, userName.lastName]);
 
   const redirectToReviewPage = () => {
     if (isDiscoverContent === 'true') {
       router.push({ pathname: `/workspace/content/discover-contents` });
-    } else if (getLocalStoredUserRole() === Role.CCTA) {
+    } else if (userRole === Role.CCTA) {
       router.push({ pathname: `/workspace/content/up-review` });
     } else router.push({ pathname: `/workspace/content/submitted` });
   };
@@ -146,15 +160,72 @@ const ReviewContentSubmissions = () => {
 
   const confirmPublishContent = async (checkedItems: string[]) => {
     try {
+      // Step 1: Publish the content first
       const response = await publishContent(identifier as string, {
         publishChecklist: checkedItems,
       });
       console.log('Published successfully:', response);
-      // Add toaster success message here
+      
+      // Step 2: Fetch the content again to get latest data including artifactUrl
+      console.log('[ArtifactWorkflow] Fetching content after publish...');
+      const updatedContent = await fetchContent(identifier as string);
+      console.log('[ArtifactWorkflow] Content fetched:', updatedContent);
+      
+      // Step 3: Process artifact workflow (download → upload → update → republish)
+      // This runs automatically for PDF and MP4 files, skips YouTube links
+      // Call the API route (server-side) instead of directly using the service
+      try {
+        console.log('[ArtifactWorkflow] Starting artifact processing workflow via API...');
+        
+        const apiResponse = await fetch('/mfe_workspace/api/content/process-artifact', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contentData: updatedContent,
+          }),
+        });
+
+        if (!apiResponse.ok) {
+          throw new Error(`API request failed with status ${apiResponse.status}`);
+        }
+
+        const workflowResult = await apiResponse.json();
+        
+        if (workflowResult.success) {
+          console.log('[ArtifactWorkflow] Workflow completed successfully:', workflowResult.message);
+          if (workflowResult.uploadedUrl) {
+            console.log('[ArtifactWorkflow] File uploaded to:', workflowResult.uploadedUrl);
+          }
+          
+          // Refresh content to get the updated URL property
+          if (identifier) {
+            try {
+              const refreshedContent = await fetchContent(identifier as string);
+              setContentDetails(refreshedContent);
+              console.log('[ArtifactWorkflow] Content refreshed with updated URL');
+            } catch (refreshError) {
+              console.error('[ArtifactWorkflow] Failed to refresh content:', refreshError);
+            }
+          }
+        } else {
+          console.warn('[ArtifactWorkflow] Workflow completed with warnings:', workflowResult.message);
+          if (workflowResult.error) {
+            console.error('[ArtifactWorkflow] Error details:', workflowResult.error);
+          }
+        }
+      } catch (workflowError) {
+        // Log workflow errors but don't block the publish success flow
+        console.error('[ArtifactWorkflow] Error in artifact workflow:', workflowError);
+        // You can optionally show a warning toast here if needed
+      }
+      
+      // Step 4: Close popup and show success
       setOpenConfirmationPopup(false);
       await delay(2000);
 
-      if (getLocalStoredUserRole() === Role.CCTA) {
+      if (userRole === Role.CCTA) {
         setPublishOpenToast(true);
         // Redirect reviewer back to up for review page after showing success message
         setTimeout(() => {
@@ -180,7 +251,7 @@ const ReviewContentSubmissions = () => {
       console.log('Comment submitted successfully:', response);
       // Add toaster success message here
       setOpenCommentPopup(false);
-      if (getLocalStoredUserRole() === Role.CCTA) {
+      if (userRole === Role.CCTA) {
         setRequestOpenToast(true);
         // sendContentRejectNotification(comment)
       } else {
@@ -241,6 +312,12 @@ const ReviewContentSubmissions = () => {
             type="success"
           />
         )}
+        {copyUrlToast && (
+          <ToastNotification
+            message="Cloud URL copied to clipboard!"
+            type="success"
+          />
+        )}
 
         <Box
           display="flex"
@@ -251,11 +328,12 @@ const ReviewContentSubmissions = () => {
           <IconButton onClick={handleBackClick}>
             <ArrowBackIcon />
           </IconButton>
-          {getLocalStoredUserRole() === Role.CCTA &&
+          {userRole === Role.CCTA &&
             isDiscoverContent !== 'true' &&
             isReadOnly !== 'true' && (
               <Typography
                 variant="h5"
+                component="h5"
                 sx={{
                   fontFamily: 'inherit',
                   fontWeight: 'bold',
@@ -501,12 +579,84 @@ const ReviewContentSubmissions = () => {
                         {formatDate(contentDetails.lastUpdatedOn)}
                       </Box>
                     </Box>
+
+                    {contentDetails.url && (
+                      <Box sx={{ mb: 2 }}>
+                        <Box
+                          sx={{
+                            fontWeight: '600',
+                            color: '#969088',
+                            fontSize: '12px',
+                            mb: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                          }}
+                        >
+                          Cloud URL:
+                          <IconButton
+                            size="small"
+                            onClick={async () => {
+                              try {
+                                await navigator.clipboard.writeText(contentDetails.url);
+                                setCopyUrlToast(true);
+                                setTimeout(() => setCopyUrlToast(false), 3000);
+                                console.log('Cloud URL copied to clipboard:', contentDetails.url);
+                              } catch (err) {
+                                console.error('Failed to copy URL:', err);
+                                // Fallback for older browsers
+                                const textArea = document.createElement('textarea');
+                                textArea.value = contentDetails.url;
+                                textArea.style.position = 'fixed';
+                                textArea.style.opacity = '0';
+                                document.body.appendChild(textArea);
+                                textArea.select();
+                                try {
+                                  document.execCommand('copy');
+                                  setCopyUrlToast(true);
+                                  setTimeout(() => setCopyUrlToast(false), 3000);
+                                  console.log('Cloud URL copied to clipboard (fallback):', contentDetails.url);
+                                } catch (fallbackErr) {
+                                  console.error('Fallback copy failed:', fallbackErr);
+                                }
+                                document.body.removeChild(textArea);
+                              }
+                            }}
+                            sx={{
+                              padding: '4px',
+                              color: '#969088',
+                              '&:hover': {
+                                color: '#4D4639',
+                                backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                              },
+                            }}
+                            title="Copy Cloud URL"
+                          >
+                            <ContentCopyIcon sx={{ fontSize: '16px' }} />
+                          </IconButton>
+                        </Box>
+                        <Box
+                          sx={{
+                            fontWeight: '400',
+                            color: '#4D4639',
+                            fontSize: '14px',
+                            wordBreak: 'break-all',
+                            backgroundColor: '#f5f5f5',
+                            padding: '8px',
+                            borderRadius: '4px',
+                            fontFamily: 'monospace',
+                          }}
+                        >
+                          {contentDetails.url}
+                        </Box>
+                      </Box>
+                    )}
                   </Box>
                 </Box>
               </Grid>
             </Grid>
 
-            {getLocalStoredUserRole() === Role.CCTA &&
+            {userRole === Role.CCTA &&
               isDiscoverContent !== 'true' &&
               isReadOnly !== 'true' && (
                 <Box

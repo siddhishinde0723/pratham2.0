@@ -109,6 +109,7 @@ interface content {
   access?: string;
   url?: string;
   resource?: string;
+  channel?: string;
 }
 
 
@@ -283,6 +284,7 @@ interface content {
       author: item.author,
       access: item.access,
       url: item.url,
+      channel: item.channel,
       posterImage: item.posterImage,
       appicon: item.appicon,
       resource: item.resource,

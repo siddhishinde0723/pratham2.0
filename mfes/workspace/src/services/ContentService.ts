@@ -92,6 +92,7 @@ const getReqBodyWithStatus = (
             primaryCategory,
             createdBy: { '!=': getLocalStoredUserId() },
             state: state,
+            channel: channel,
           },
 
           query,
@@ -307,6 +308,16 @@ export const publishContent = async (
     return response.data;
   } catch (error) {
     console.error('Error during publishing:', error);
+    throw error;
+  }
+};
+
+export const sendForReview = async (identifier: string) => {
+  try {
+    const response = await post(`/action/content/v3/review/${identifier}`, {});
+    return response.data;
+  } catch (error) {
+    console.error('Error sending content for review:', error);
     throw error;
   }
 };

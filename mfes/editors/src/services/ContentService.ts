@@ -87,6 +87,7 @@ const getReqBodyWithStatus = (
             primaryCategory,
             createdBy: { "!=": getLocalStoredUserId() },
             state: state,
+            channel: channel,
           },
 
           query,

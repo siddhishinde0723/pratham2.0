@@ -12,6 +12,8 @@ export const MIME_TYPE = {
     "text/x-url",
     "video/x-youtube",
     "video/youtube",
+    "audio/mp3",
+    "audio/mpeg",
   ],
   QUESTIONSET_MIME_TYPE: "application/vnd.sunbird.questionset",
   COURSE_MIME_TYPE: "application/vnd.ekstep.content-collection",

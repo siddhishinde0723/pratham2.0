@@ -44,6 +44,27 @@ export default async function handler(
  const { method, body, query } = req;
  const { path } = query;
 
+ // Internal API routes that should be handled by Next.js, not proxied
+ const internalRoutes = [
+   '/api/content/process-artifact',
+   '/api/telemetry',
+   '/api/fileUpload',
+   '/api/s3-assets',
+   '/api/tenantConfig',
+   '/api/content/import-data',
+ ];
+
+ let pathString = Array.isArray(path) ? path.join("/") : (path as string);
+ 
+ // If this is an internal route, it should have been handled by Next.js already
+ // If we reach here, the rewrite caught it incorrectly - return 404 so Next.js can handle it
+ if (pathString && internalRoutes.includes(pathString)) {
+   console.log("⚠️ [proxy] Internal route detected that should be handled by Next.js:", pathString);
+   return res.status(404).json({ 
+     error: 'Route should be handled by Next.js API route',
+     message: `Internal route ${pathString} should not be proxied`
+   });
+ }
 
  const token =
    getCookie(req, "authToken") || (process.env.AUTH_API_TOKEN as string);
@@ -101,10 +122,8 @@ export default async function handler(
  // console.log("Using token:", token);
 
 
- let pathString = Array.isArray(path) ? path.join("/") : (path as string);
-
-
- if (pathString === "/action/data/v1/form/read") {
+  // pathString is already defined above, so we can use it directly
+  if (pathString === "/action/data/v1/form/read") {
    const { action, subType, type } = body.request;
    if (action === "save" && subType === "resource") {
      return res.status(200).json(genericEditorSaveFormResponse);
@@ -137,7 +156,7 @@ export default async function handler(
 
        case "shikshalokam-framework":
        case "shikshagraha-framework":
-       case "oblf-framework":
+       case "oblf-fw":
        case "shikshagrahanew-framework":
        case "kenya-framework":
        case "agrinettest-framework":
@@ -181,6 +200,23 @@ export default async function handler(
       '/api/channel/v1/read/'
     );
     console.log('Proxy: Transformed channel path to:', pathString);
+  }
+
+  // Intercept composite search API calls and ensure channel is included in filters
+  if (pathString === '/action/composite/v3/search' && method === 'POST' && body?.request) {
+    console.log('🔍 [proxy] Composite search API detected, checking for channel in filters');
+    
+    if (!body.request.filters) {
+      body.request.filters = {};
+    }
+    
+    // Add channel to filters if it's missing
+    if (!body.request.filters.channel && CHANNEL_ID) {
+      console.log('➕ [proxy] Adding channel to filters:', CHANNEL_ID);
+      body.request.filters.channel = CHANNEL_ID;
+    } else if (body.request.filters.channel) {
+      console.log('✅ [proxy] Channel already present in filters:', body.request.filters.channel);
+    }
   }
 
   console.log('🔄 [proxy] Processing request:', {
@@ -268,6 +304,39 @@ export default async function handler(
     // If upstream sends JSON, forward JSON. Otherwise, forward raw text to avoid JSON parse errors
     if (contentType.includes('application/json')) {
       const data = await response.json();
+      
+      // Ensure composite search response has proper structure for web component compatibility
+      if (pathString === '/action/composite/v3/search') {
+        // Log response structure for debugging
+        console.log('📊 [proxy] Composite search response structure:', {
+          hasResult: !!data?.result,
+          hasQuestion: !!data?.result?.Question,
+          questionCount: Array.isArray(data?.result?.Question) ? data.result.Question.length : 'not an array',
+          hasQuestionSet: !!data?.result?.QuestionSet,
+          questionSetCount: Array.isArray(data?.result?.QuestionSet) ? data.result.QuestionSet.length : 'not an array',
+          hasContent: !!data?.result?.content,
+          contentCount: Array.isArray(data?.result?.content) ? data.result.content.length : 'not an array',
+          count: data?.result?.count,
+          responseKeys: Object.keys(data || {}),
+          resultKeys: data?.result ? Object.keys(data.result) : 'no result',
+        });
+        
+        // Ensure result structure exists and has expected arrays to prevent Angular component errors
+        if (data && !data.result) {
+          data.result = {};
+        }
+        if (data?.result) {
+          // Ensure Question array exists (even if empty) to prevent component errors
+          if (!data.result.Question) {
+            data.result.Question = [];
+          }
+          // Ensure count exists
+          if (typeof data.result.count === 'undefined') {
+            data.result.count = Array.isArray(data.result.Question) ? data.result.Question.length : 0;
+          }
+        }
+      }
+      
       res.status(response.status).json(data);
     } else {
       const text = await response.text();

@@ -74,7 +74,7 @@ export const getReqBodyWithStatus = (
   const filters: any = {
     status,
     primaryCategory,
-    channel: [channel],
+    channel: channel,
     ...(contentType ? { contentType: [contentType] } : {}),
     ...(state ? { state: [state] } : {}),
   };

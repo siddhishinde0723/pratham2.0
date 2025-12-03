@@ -1191,7 +1191,7 @@ export const genericEditorReviewFormResponseswadhaar = {
           {
             code: 'topic',
             visible: true,
-            depends: ['subTopic'],
+            depends: ['subtopic'],
             editable: true,
             dataType: 'list',
             renderingHints: {},
@@ -1204,7 +1204,7 @@ export const genericEditorReviewFormResponseswadhaar = {
             placeholder: 'Select Topic',
           },
           {
-            code: 'subTopic',
+            code: 'subtopic',
             visible: true,
             depends: [],
             editable: true,

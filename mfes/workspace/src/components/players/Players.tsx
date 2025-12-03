@@ -17,12 +17,15 @@ const Players = ({ playerConfig }: PlayerProps) => {
       return <SunbirdVideoPlayer playerConfig={playerConfig} />;
     case "video/mp4":
       return <SunbirdVideoPlayer playerConfig={playerConfig} />;
+    case "audio/mp3":
+    case "audio/mpeg":
+      return <SunbirdVideoPlayer playerConfig={playerConfig} />;
     case "application/vnd.sunbird.questionset":
       return <SunbirdQuMLPlayer playerConfig={playerConfig} />;
     case "application/epub":
       return <SunbirdEpubPlayer playerConfig={playerConfig} />;
     default:
-      return <div>Unsupported media type</div>;
+      return <div>Unsupported media type: {mimeType}</div>;
   }
 };
 

@@ -6,6 +6,7 @@ import { Table as KaTable } from 'ka-table';
 import { DataType, EditingMode, SortingMode } from 'ka-table/enums';
 import { Typography, useTheme, IconButton, Box, Grid } from '@mui/material';
 import UpReviewTinyImage from '@mui/icons-material/LibraryBooks';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import 'ka-table/style.css';
 import DeleteIcon from '@mui/icons-material/Delete';
 import router from 'next/router';
@@ -98,6 +99,31 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
     setOpen(false);
   };
   const handleOpen = () => setOpen(true);
+
+  const handleCopyUrl = async (url: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent triggering the row click
+    try {
+      await navigator.clipboard.writeText(url);
+      console.log('Cloud URL copied to clipboard:', url);
+      // You can add a toast notification here if needed
+    } catch (err) {
+      console.error('Failed to copy URL:', err);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = url;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        console.log('Cloud URL copied to clipboard (fallback):', url);
+      } catch (fallbackErr) {
+        console.error('Fallback copy failed:', fallbackErr);
+      }
+      document.body.removeChild(textArea);
+    }
+  };
 
   const openEditor = (content: any) => {
     const identifier = content?.identifier;
@@ -329,18 +355,38 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
                       </Grid>
                       <Grid item xs={9} md={9} lg={9} xl={10}>
                         <div>
-                          <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <Typography
                               variant="body1"
                               sx={{
                                 fontWeight: 500,
                                 color: '#1F1B13',
                                 fontSize: '14px',
+                                flex: 1,
                               }}
                               className="one-line-text"
                             >
-                              {props.rowData.name}
+                              {props.rowData.name || 'Untitled'}
                             </Typography>
+                            {/* Show copy icon only for swadhaar-channel content with URL */}
+                            {props.rowData.channel === 'swadhaar-channel' &&
+                              props.rowData.url && (
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => handleCopyUrl(props.rowData.url, e)}
+                                  sx={{
+                                    padding: '4px',
+                                    color: '#969088',
+                                    '&:hover': {
+                                      color: '#4D4639',
+                                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                                    },
+                                  }}
+                                  title="Copy Cloud URL"
+                                >
+                                  <ContentCopyIcon sx={{ fontSize: '16px' }} />
+                                </IconButton>
+                              )}
                           </div>
                           <div>
                             <Typography
@@ -355,7 +401,7 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
                             >
                               {props.column.key === 'name'
                                 ? props.rowData.primaryCategory
-                                : props.rowData.description}
+                                : props.rowData.description || props.rowData.primaryCategory || '-'}
                             </Typography>
                           </div>
                         </div>
