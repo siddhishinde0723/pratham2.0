@@ -219,9 +219,23 @@ export default function CourseHierarchy() {
         }
 
         return hierarchyResponse;
-      } catch (error) {
-        console.error('Error fetching solution details:', error);
-        setError('Failed to load course hierarchy');
+      } catch (error: any) {
+        console.error('Error fetching course hierarchy:', error);
+        console.error('Error details:', {
+          message: error?.message,
+          response: error?.response?.data,
+          status: error?.response?.status,
+        });
+        
+        // Check if the error is due to content not being published or in review
+        const errorMessage = error?.response?.data?.params?.errmsg || error?.message || '';
+        if (errorMessage.toLowerCase().includes('not found') || 
+            errorMessage.toLowerCase().includes('does not exist') ||
+            error?.response?.status === 404) {
+          setError('Course hierarchy is not available. The course may be in Draft/Review status or may not have any content added yet.');
+        } else {
+          setError(`Failed to load course hierarchy: ${errorMessage || 'Unknown error'}`);
+        }
         setCourseHierarchyData([]);
       } finally {
         setLoading(false);

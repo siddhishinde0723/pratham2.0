@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { Table as KaTable } from 'ka-table';
 import { DataType, EditingMode, SortingMode } from 'ka-table/enums';
-import { Typography, useTheme, IconButton, Box, Grid } from '@mui/material';
+import { Typography, useTheme, IconButton, Box, Grid, Snackbar, Alert } from '@mui/material';
 import UpReviewTinyImage from '@mui/icons-material/LibraryBooks';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import 'ka-table/style.css';
@@ -86,6 +86,7 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
 }) => {
   const theme = useTheme<any>();
   const [open, setOpen] = useState(false);
+  const [showReviewToast, setShowReviewToast] = useState(false);
 
   // Ensure data has unique identifiers for React keys
   const processedData =
@@ -180,33 +181,16 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
 
     // Save mode in cookies
     Cookies.set('contentMode', mode);
+    
     // Generic routing for cases other than 'draft'
     if (content?.mimeType === MIME_TYPE.QUESTIONSET_MIME_TYPE) {
       router.push({ pathname: `/editor`, query: { identifier } });
     } else if (tableTitle === 'submitted') {
-      content.contentType === 'Course'
-        ? router.push({
-            pathname: `/course-hierarchy/${identifier}`,
-            query: { identifier, isReadOnly: true, previousPage: 'submitted' },
-          })
-        : router.push({
-            pathname: `/workspace/content/review`,
-            query: { identifier },
-          });
-    } else if (tableTitle === 'all-content' && mode === 'review') {
-      content.contentType === 'Course'
-        ? router.push({
-            pathname: `/course-hierarchy/${identifier}`,
-            query: {
-              identifier,
-              isReadOnly: true,
-              previousPage: 'allContents',
-            },
-          })
-        : router.push({
-            pathname: `/workspace/content/review`,
-            query: { identifier, isReadOnly: true },
-          });
+      // Submitted content always goes to read-only details view
+      router.push({
+        pathname: `/workspace/content/review`,
+        query: { identifier },
+      });
     } else if (tableTitle === 'discover-contents') {
       content.contentType === 'Course'
         ? router.push({
@@ -243,6 +227,9 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
       MIME_TYPE.COLLECTION_MIME_TYPE.includes(content?.mimeType)
     ) {
       router.push({ pathname: `/collection`, query: { identifier } });
+    } else if (content?.contentType === 'Course' || content?.primaryCategory === 'Course') {
+      // Fallback: if it's a course but didn't match other conditions, open in collection editor
+      router.push({ pathname: `/collection`, query: { identifier } });
     }
   };
   return (
@@ -260,14 +247,25 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
                 props.column.key === 'name' ||
                 props.column.key === 'title_and_description'
               ) {
+                // Check if content is in Review status for all-content table
+                const isReviewStatus = tableTitle === 'all-content' && props.rowData.status === 'Review';
+                
                 return (
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      cursor: 'pointer',
+                      cursor: isReviewStatus ? 'not-allowed' : 'pointer',
+                      opacity: isReviewStatus ? 0.6 : 1,
                     }}
-                    onClick={() => openEditor(props.rowData)}
+                    onClick={() => {
+                      if (!isReviewStatus) {
+                        openEditor(props.rowData);
+                      } else {
+                        setShowReviewToast(true);
+                      }
+                    }}
+                    title={isReviewStatus ? 'Click to see why this content is locked' : ''}
                   >
                     <Grid container alignItems="center" spacing={1}>
                       <Grid item xs={3} md={3} lg={3} xl={2}>
@@ -469,6 +467,11 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
                   );
               } else if (props.column.key === 'contentAction') {
                 {
+                  // Disable action for Review status in all-content table
+                  const isReviewStatus = tableTitle === 'all-content' && props.rowData.status === 'Review';
+                  if (isReviewStatus) {
+                    return <div style={{ opacity: 0.3 }}>-</div>;
+                  }
                   return (
                     <>
                       <ActionIcon rowData={props.rowData} />
@@ -476,6 +479,11 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
                   );
                 }
               } else if (props.column.key === 'action') {
+                // Disable action for Review status in all-content table
+                const isReviewStatus = tableTitle === 'all-content' && props.rowData.status === 'Review';
+                if (isReviewStatus) {
+                  return <div style={{ opacity: 0.3 }}>-</div>;
+                }
                 return (
                   <ActionIcon rowData={props.rowData} tableTitle={tableTitle} />
                 );
@@ -509,6 +517,22 @@ const KaTableComponent: React.FC<CustomTableProps> = ({
           text: 'No data found',
         }}
       />
+      
+      {/* Toast notification for Review status content */}
+      <Snackbar
+        open={showReviewToast}
+        autoHideDuration={4000}
+        onClose={() => setShowReviewToast(false)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setShowReviewToast(false)} 
+          severity="warning" 
+          sx={{ width: '100%' }}
+        >
+          Content in Review status cannot be opened from this page. Please go to &ldquo;Up For Review&rdquo; page to review and publish this content.
+        </Alert>
+      </Snackbar>
     </>
   );
 };
