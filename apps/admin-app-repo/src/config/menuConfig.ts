@@ -23,6 +23,16 @@ const UNIVERSAL_ADMIN_MENU = {
         link: '/content-reviewer',
         roles: [Role.ADMIN, Role.CENTRAL_ADMIN],
       },
+      {
+        title: 'Teacher',
+        link: '/TeacherList',
+        roles: [Role.ADMIN, Role.CENTRAL_ADMIN],
+      },
+      {
+        title: 'Students',
+        link: '/StudentList',
+        roles: [Role.ADMIN, Role.CENTRAL_ADMIN],
+      },
     ],
   },
 
@@ -54,10 +64,16 @@ const UNIVERSAL_ADMIN_MENU = {
       },
     ],
   },
+  classes: {
+    title: 'Classes',
+    icon: '/images/centers.svg',
+    link: '/classes',
+    roles: [Role.ADMIN, Role.CENTRAL_ADMIN],
+  },
 };
 
 // ✅ Universal menu config function (no tenant logic)
-export const getMenuConfigForTenant = () => {
+export const getMenuConfigForTenant = (p0: string) => {
   return { ...UNIVERSAL_ADMIN_MENU };
 };
 
