@@ -29,7 +29,13 @@ function Logout() {
      preserveLocalStorage();
     }
     queryClient.clear();
-   router.replace("/login");
+    // Force redirect to login and clear any workspace URLs
+    // Use window.location to ensure complete URL change
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    } else {
+      router.replace("/login");
+    }
   }, []);
 
   return <Loader showBackdrop={true} loadingText={t("COMMON.LOADING")} />;

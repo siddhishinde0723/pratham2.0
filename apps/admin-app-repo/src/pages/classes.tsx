@@ -1399,14 +1399,14 @@ const Centers = () => {
                                     <PersonAddIcon fontSize="small" />
                                   </IconButton>
                                 </Tooltip>
-                                <Tooltip title="Edit Class">
+                                {/* <Tooltip title="Edit Class">
                                   <IconButton
                                     size="small"
                                     onClick={() => handleEditCenter(center)}
                                   >
                                     <EditIcon fontSize="small" />
                                   </IconButton>
-                                </Tooltip>
+                                </Tooltip> */}
                                 <Tooltip title={archiveProps.tooltip}>
                                   <IconButton
                                     size="small"

@@ -87,7 +87,8 @@ const Header: React.FC<HeaderProps> = ({ toggleDrawer, openDrawer }) => {
   };
 
   const handleLogoutClick = async () => {
-    router.replace("/logout");
+    const loginUrl = process.env.NEXT_PUBLIC_ADMIN_LOGIN_URL;
+    
     logEvent({
       action: "logout-clicked-header",
       category: "Dashboard",
@@ -130,6 +131,63 @@ const Header: React.FC<HeaderProps> = ({ toggleDrawer, openDrawer }) => {
         // );
       } catch (updateError) {
         console.error("Error updating device notification:", updateError);
+      }
+    }
+    
+    // Clear localStorage (preserve some keys if needed)
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const keysToKeep = [
+        'preferredLanguage',
+        'mui-mode',
+        'mui-color-scheme-dark',
+        'mui-color-scheme-light',
+        'hasSeenTutorial',
+      ];
+      const valuesToKeep: { [key: string]: any } = {};
+      keysToKeep.forEach((key: string) => {
+        valuesToKeep[key] = localStorage.getItem(key);
+      });
+      localStorage.clear();
+      keysToKeep.forEach((key: string) => {
+        if (valuesToKeep[key] !== null) {
+          localStorage.setItem(key, valuesToKeep[key]);
+        }
+      });
+    }
+    
+    // In MFE architecture, redirect to admin app login page
+    // Get the base URL and construct login URL
+    if (typeof window !== 'undefined') {
+      try {
+        // Get the base URL from current location
+        const baseUrl = `${window.location.protocol}//${window.location.host}`;
+        const adminLoginUrl = loginUrl || `${baseUrl}/login`;
+        
+        console.log('🔄 Logout - Base URL:', baseUrl);
+        console.log('🔄 Logout - Admin Login URL:', adminLoginUrl);
+        console.log('🔄 Logout - Current URL:', window.location.href);
+        console.log('🔄 Logout - Is in iframe?', window.parent !== window);
+        console.log('🔄 Logout - Is top window?', window.top !== window);
+        
+        // Try to access top window first (for nested iframes)
+        // Then try parent window, then fallback to current window
+        if (window.top && window.top !== window) {
+          console.log('🔄 Redirecting via window.top to:', adminLoginUrl);
+          window.top.location.href = adminLoginUrl;
+        } else if (window.parent && window.parent !== window) {
+          console.log('🔄 Redirecting via window.parent to:', adminLoginUrl);
+          window.parent.location.href = adminLoginUrl;
+        } else {
+          // Not in iframe, redirect directly
+          console.log('🔄 Redirecting directly to:', adminLoginUrl);
+          window.location.href = adminLoginUrl;
+        }
+      } catch (error) {
+        // If cross-origin error, use direct redirect with constructed URL
+        console.warn('⚠️ Cannot access parent/top window, using direct redirect:', error);
+        const baseUrl = `${window.location.protocol}//${window.location.host}`;
+        const adminLoginUrl = loginUrl || `${baseUrl}/login`;
+        window.location.href = adminLoginUrl;
       }
     }
   };
@@ -284,7 +342,7 @@ const Header: React.FC<HeaderProps> = ({ toggleDrawer, openDrawer }) => {
                 <LogoutOutlinedIcon
                   sx={{ color: theme.palette.warning["300"] }}
                 />
-                {t("COMMON.LOGOUT")}
+               Logout
               </MenuItem>
             </StyledMenu>
           </Stack>

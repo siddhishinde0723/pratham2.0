@@ -174,9 +174,7 @@ const ManageUserHeader = () => {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {t('COMMON.HI', {
-                    name: firstLetterInUpperCase(userName ?? ''),
-                  })}
+                  {t('Hi',)} {localStorage.getItem('name')}
                 </Typography>
               </Box>
             </Box>
@@ -325,7 +323,7 @@ const ManageUserHeader = () => {
                     },
                   }}
                 >
-                  {t('COMMON.LOGOUT')}
+                 Logout
                 </Button>
               </Box>
             </Box>

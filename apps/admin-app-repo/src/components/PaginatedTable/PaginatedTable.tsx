@@ -159,7 +159,7 @@ const PaginatedTable = ({
                   {col.label}
                 </TableCell>
               ))}
-              {actions.length > 0 && <TableCell>Actions</TableCell>}
+              {actions.length > 0 && <TableCell>Archive User</TableCell>}
             </TableRow>
           </TableHead>
           <TableBody>

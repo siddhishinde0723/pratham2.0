@@ -865,6 +865,7 @@ const UserTable: React.FC<UserTableProps> = ({
     setFilters((prevFilters) => ({
       ...prevFilters,
       firstName: keyword,
+      username: keyword, // Also search by username
     }));
   };
   useEffect(() => {

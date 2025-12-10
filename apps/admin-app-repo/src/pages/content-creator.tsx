@@ -1,49 +1,66 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @nx/enforce-module-boundaries */
 // @ts-nocheck
-import React, { useState, useEffect } from 'react';
-import DynamicForm from '@/components/DynamicForm/DynamicForm';
-import Loader from '@/components/Loader';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ContentCreatorSearchSchema,
-  ContentCreatorUISchema,
-} from '../constant/Forms/ContentCreatorSearch';
-
+import { debounce } from 'lodash';
 import { RoleId, RoleName, Status, TenantName } from '@/utils/app.constant';
 import { userList } from '@/services/UserList';
-import { Box, Typography } from '@mui/material';
-import PaginatedTable from '@/components/PaginatedTable/PaginatedTable';
-import { Button } from '@mui/material';
+import {
+  Container,
+  Paper,
+  Typography,
+  Button,
+  Box,
+  Chip,
+  IconButton,
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tooltip,
+  TextField,
+  InputAdornment,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Pagination,
+  SelectChangeEvent,
+  Avatar,
+  Card,
+  CardContent,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Refresh as RefreshIcon,
+  Search as SearchIcon,
+  Person as PersonIcon,
+  Group as GroupIcon,
+  Badge as BadgeIcon,
+  Phone as PhoneIcon,
+} from '@mui/icons-material';
 import SimpleModal from '@/components/SimpleModal';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import { deleteUser } from '@/services/UserService';
-import LockIcon from '@mui/icons-material/Lock';
-import LockOpenIcon from '@mui/icons-material/LockOpen';
-import Image from 'next/image';
+import { Archive } from 'lucide-react';
 import {
-  extractMatchingKeys,
-  fetchForm,
   searchListData,
 } from '@/components/DynamicForm/DynamicFormCallback';
-import { FormContext } from '@/components/DynamicForm/DynamicFormConstant';
 import AddUserForm from '@/components/AddUserForm';
 import TenantService from '@/services/TenantService';
 
 const ContentCreator = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [schema, setSchema] = useState(ContentCreatorSearchSchema);
-  const [uiSchema, setUiSchema] = useState(ContentCreatorUISchema);
-  const [addSchema, setAddSchema] = useState(null);
-  const [addUiSchema, setAddUiSchema] = useState(null);
-  const [prefilledAddFormData, setPrefilledAddFormData] = useState({});
   const [pageLimit, setPageLimit] = useState<number>(10);
   const [pageOffset, setPageOffset] = useState<number>(0);
-  const [prefilledFormData, setPrefilledFormData] = useState({});
   const [loading, setLoading] = useState<boolean>(false);
   const [response, setResponse] = useState({});
   const [currentPage, setCurrentPage] = useState(0);
   const [openModal, setOpenModal] = React.useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const { t, i18n } = useTranslation();
 
@@ -51,42 +68,33 @@ const ContentCreator = () => {
 
   useEffect(() => {
     if (response?.result?.totalCount !== 0) {
-      searchData(prefilledFormData, 0);
+      searchData({}, 0);
     }
   }, [pageLimit]);
+  
   useEffect(() => {
-    // Fetch form schema from API and set it in state.
-    const fetchData = async () => {
-      const responseForm = await fetchForm([
-        {
-          fetchUrl: `${process.env.NEXT_PUBLIC_MIDDLEWARE_URL}/form/read?context=${FormContext.contentCreator.context}&contextType=${FormContext.contentCreator.contextType}`,
-          header: {},
-        },
-        {
-          fetchUrl: `${process.env.NEXT_PUBLIC_MIDDLEWARE_URL}/form/read?context=${FormContext.contentCreator.context}&contextType=${FormContext.contentCreator.contextType}`,
-          header: {
-            tenantid: localStorage.getItem('tenantId'),
-          },
-        },
-      ]);
-      console.log('responseForm', responseForm);
-      setAddSchema(responseForm?.schema);
-      setAddUiSchema(responseForm?.uiSchema);
-    };
-
-    fetchData();
+    // Initial load
+    searchData({}, 0);
   }, []);
 
-  const updatedUiSchema = {
-    ...uiSchema,
-    'ui:submitButtonOptions': {
-      norender: true, // Hide submit button if isHide is true
-    },
-  };
+  // Handle search input change - trigger search with debounce
+  const debouncedSearch = useMemo(
+    () =>
+      debounce((value: string) => {
+        if (value.trim()) {
+          const searchFormData = { firstName: value };
+          searchData(searchFormData, 0);
+        } else {
+          searchData({}, 0);
+        }
+      }, 500),
+    []
+  );
 
-  const SubmitaFunction = async (formData: any) => {
-    setPrefilledFormData(formData);
-    await searchData(formData, 0);
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    debouncedSearch(value);
   };
 
   const searchData = async (formData: any, newPage: any) => {
@@ -99,186 +107,136 @@ const ContentCreator = () => {
     const { sortBy, firstName } = formData;
     const staticSort = ['firstName', sortBy || 'asc'];
 
-    // Add firstName to formData if provided for search
-    const searchFormData = firstName ? { ...formData, firstName } : formData;
+    // Sequential search: First by firstName, then by username if no results
+    if (firstName) {
+      // First, try searching by firstName
+      const searchFormDataFirstName = { ...formData };
+      searchFormDataFirstName.firstName = firstName;
+      // Remove username to search only by firstName
+      delete searchFormDataFirstName.username;
 
-    console.log('Content Creator searchData called with:', {
-      formData,
-      searchFormData,
-      staticFilter,
-      firstName,
-    });
+      console.log('Content Creator: Searching by firstName:', firstName);
 
-    await searchListData(
-      searchFormData,
-      newPage,
-      staticFilter,
-      pageLimit,
-      setPageOffset,
-      setCurrentPage,
-      setResponse,
-      userList,
-      staticSort
-    );
+      // Make first API call with firstName
+      const { sortBy: _, ...restFormData } = searchFormDataFirstName;
+      const filtersFirstName = {
+        ...staticFilter,
+        ...Object.entries(restFormData).reduce((acc, [key, value]) => {
+          if (value !== undefined && value !== '') {
+            if (key === 'status') {
+              acc[key] = [value];
+            } else {
+              acc[key] = value;
+            }
+          }
+          return acc;
+        }, {} as Record<string, any>),
+      };
+
+      const dataFirstName = {
+        limit: pageLimit,
+        offset: newPage * pageLimit,
+        sort: staticSort,
+        filters: filtersFirstName,
+      };
+
+      const respFirstName = await userList(dataFirstName);
+      const totalCountFirstName = respFirstName?.totalCount || 0;
+      const userDetailsFirstName = respFirstName?.getUserDetails || [];
+
+      console.log('Content Creator: firstName search results:', {
+        totalCount: totalCountFirstName,
+        usersFound: userDetailsFirstName.length,
+      });
+
+      // If results found with firstName, use those results
+      if (totalCountFirstName > 0 && userDetailsFirstName.length > 0) {
+        setPageOffset(newPage * pageLimit);
+        setCurrentPage(newPage);
+        setResponse({ result: respFirstName });
+        return;
+      }
+
+      // If no results with firstName, try searching by username
+      console.log('Content Creator: No results with firstName, searching by username:', firstName);
+      const searchFormDataUsername = { ...formData };
+      searchFormDataUsername.username = firstName;
+      // Remove firstName to search only by username
+      delete searchFormDataUsername.firstName;
+
+      const { sortBy: __, ...restFormDataUsername } = searchFormDataUsername;
+      const filtersUsername = {
+        ...staticFilter,
+        ...Object.entries(restFormDataUsername).reduce((acc, [key, value]) => {
+          if (value !== undefined && value !== '') {
+            if (key === 'status') {
+              acc[key] = [value];
+            } else {
+              acc[key] = value;
+            }
+          }
+          return acc;
+        }, {} as Record<string, any>),
+      };
+
+      const dataUsername = {
+        limit: pageLimit,
+        offset: newPage * pageLimit,
+        sort: staticSort,
+        filters: filtersUsername,
+      };
+
+      const respUsername = await userList(dataUsername);
+      console.log('Content Creator: username search results:', {
+        totalCount: respUsername?.totalCount || 0,
+        usersFound: (respUsername?.getUserDetails || []).length,
+      });
+
+      setPageOffset(newPage * pageLimit);
+      setCurrentPage(newPage);
+      setResponse({ result: respUsername });
+    } else {
+      // No search term, use normal search
+      await searchListData(
+        formData,
+        newPage,
+        staticFilter,
+        pageLimit,
+        setPageOffset,
+        setCurrentPage,
+        setResponse,
+        userList,
+        staticSort
+      );
+    }
   };
 
-  // Define table columns
-  let columns = [
-    {
-      keys: ['firstName', 'middleName', 'lastName'],
-      label: 'Content Creator Name',
-      render: (row: any) =>
-        `${row.firstName || ''} ${row.middleName || ''} ${
-          row.lastName || ''
-        }`.trim(),
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      getStyle: (row: any) => ({
-        color: row.status === 'active' ? 'green' : 'red',
-      }),
-    },
-    // State column removed for ADMIN users
-  ];
-
-  const scpCustomColumns = [
-    {
-      key: 'BOARD',
-      label: 'Board',
-      render: (row) => {
-        const board =
-          row.customFields.find((field) => field.label === 'BOARD')
-            ?.selectedValues[0]?.value || '-';
-        return `${board}`;
-      },
-    },
-    {
-      key: 'MEDIUM',
-      label: 'Medium',
-      render: (row) => {
-        const medium =
-          row.customFields.find((field) => field.label === 'MEDIUM')
-            ?.selectedValues[0]?.value || '-';
-        return `${medium}`;
-      },
-    },
-    {
-      key: 'GRADE',
-      label: 'Grade',
-      render: (row) => {
-        const grade =
-          row.customFields.find((field) => field.label === 'GRADE')
-            ?.selectedValues[0]?.value || '-';
-        return `${grade}`;
-      },
-    },
-    {
-      key: 'SUBJECT',
-      label: 'subject',
-      render: (row) => {
-        const subject =
-          row.customFields.find((field) => field.label === 'SUBJECT')
-            ?.selectedValues[0]?.value || '-';
-        return `${subject}`;
-      },
-    },
-  ];
-
-  const youthnetCustomColumns = [
-    {
-      key: 'DOMAIN',
-      label: 'Domain',
-      render: (row) => {
-        const domain =
-          row.customFields.find((field) => field.label === 'DOMAIN')
-            ?.selectedValues[0]?.value || '-';
-        return `${domain}`;
-      },
-    },
-    {
-      key: 'SUB-DOMAIN',
-      label: 'Sub Domain',
-      render: (row) => {
-        const subDomain =
-          row.customFields.find((field) => field.label === 'SUB-DOMAIN')
-            ?.selectedValues[0]?.value || '-';
-        return `${subDomain}`;
-      },
-    },
-    {
-      key: 'STREAM',
-      label: 'Stream',
-      render: (row) => {
-        const stream =
-          row.customFields.find((field) => field.label === 'STREAM')
-            ?.selectedValues[0]?.value || '-';
-        return `${stream}`;
-      },
-    },
-  ];
-  if (
-    storedUserData.tenantData[0].tenantName === TenantName.SECOND_CHANCE_PROGRAM
-  ) {
-    columns = [...columns, ...scpCustomColumns];
-  } else if (storedUserData.tenantData[0].tenantName === TenantName.YOUTHNET) {
-    columns = [...columns, ...youthnetCustomColumns];
-  }
-
-  // Define actions
-  const actions = [
-    {
-      icon: (row) => (
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            cursor: 'pointer',
-            backgroundColor:
-              row.status === 'active'
-                ? 'rgb(227, 234, 240)'
-                : 'rgb(255, 235, 238)',
-            padding: '10px',
-            borderRadius: '4px',
-          }}
-        >
-          {row.status === 'active' ? (
-            <LockOpenIcon sx={{ color: 'green' }} />
-          ) : (
-            <LockIcon sx={{ color: 'red' }} />
-          )}
-        </Box>
-      ),
-      callback: async (row: any) => {
-        console.log('row:', row);
-        const userId = row?.userId;
-        const newStatus = row.status === 'active' ? 'archived' : 'active';
-
-        const response = await deleteUser(userId, {
-          userData: {
-            status: newStatus,
-          },
-        });
-
-        if (response) {
-          setPrefilledFormData({});
-          searchData(prefilledFormData, currentPage);
-          setOpenModal(false);
-        }
-      },
-    },
-  ];
-
-  // Pagination handlers
-  const handlePageChange = (newPage: any) => {
-    console.log('Page changed to:', newPage);
-    searchData(prefilledFormData, newPage);
+  // Helper function to get custom field value
+  const getCustomFieldValue = (row: any, fieldLabel: string) => {
+    return row.customFields?.find((field: any) => field.label === fieldLabel)
+      ?.selectedValues[0]?.value || '-';
   };
 
-  const handleRowsPerPageChange = (newRowsPerPage: any) => {
-    console.log('Rows per page changed to:', newRowsPerPage);
-    setPageLimit(newRowsPerPage);
+  // Handle refresh
+  const handleRefresh = () => {
+    const searchFormData = searchTerm ? { firstName: searchTerm } : {};
+    searchData(searchFormData, currentPage);
+  };
+
+  // Handle page change
+  const handlePageChange = (
+    event: React.ChangeEvent<unknown>,
+    value: number
+  ) => {
+    setCurrentPage(value - 1);
+    const searchFormData = searchTerm ? { firstName: searchTerm } : {};
+    searchData(searchFormData, value - 1);
+  };
+
+  // Handle rows per page change
+  const handleRowsPerPageChange = (event: SelectChangeEvent) => {
+    setPageLimit(parseInt(event.target.value, 10));
+    setCurrentPage(0);
   };
 
   const handleOpenModal = () => setOpenModal(true);
@@ -287,108 +245,496 @@ const ContentCreator = () => {
     setOpenModal(false);
   };
 
-  //Add Edit Props
-  const extraFieldsUpdate = {};
-  const extraFields = {
-    tenantCohortRoleMapping: [
-      {
-        tenantId: TenantService.getTenantId(),
-        roleId: RoleId.CONTENT_CREATOR,
-      },
-    ],
-    password: Math.floor(10000 + Math.random() * 90000),
+
+  // Calculate stats
+  const creators = response?.result?.getUserDetails || [];
+  const totalCount = response?.result?.totalCount || 0;
+  const activeCount = creators.filter((c: any) => c.status === 'active').length;
+  const archivedCount = creators.filter((c: any) => c.status === 'archived').length;
+
+  // Format date
+  const formatDate = (dateString: string) => {
+    try {
+      if (!dateString) return 'N/A';
+      return new Date(dateString).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+    } catch {
+      return dateString || 'N/A';
+    }
   };
-  const successUpdateMessage =
-    'CONTENT_CREATORS.CONTENT_CREATOR_UPDATED_SUCCESSFULLY';
-  const telemetryUpdateKey = 'content-creator-updated-successfully';
-  const failureUpdateMessage =
-    'CONTENT_CREATORS.NOT_ABLE_UPDATE_CONTENT_CREATOR';
-  const successCreateMessage =
-    'CONTENT_CREATORS.CONTENT_CREATOR_CREATED_SUCCESSFULLY';
-  const telemetryCreateKey = 'content-creator-created-successfully';
-  const failureCreateMessage =
-    'CONTENT_CREATORS.NOT_ABLE_CREATE_CONTENT_CREATOR';
-  const notificationKey = 'onContentCreatorCreate';
-  const notificationMessage =
-    'CONTENT_CREATORS.USER_CREDENTIALS_WILL_BE_SEND_SOON';
-  const notificationContext = 'USER';
+
+  // Get status color
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return 'success';
+      case 'inactive':
+        return 'error';
+      case 'pending':
+        return 'warning';
+      case 'archived':
+        return 'default';
+      default:
+        return 'default';
+    }
+  };
+
+  // Get status text
+  const getStatusText = (status: string) => {
+    if (!status) return 'Unknown';
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  };
+
+  // Get full name
+  const getFullName = (creator: any) => {
+    return `${creator.firstName || ''} ${creator.middleName || ''} ${creator.lastName || ''}`.trim();
+  };
+
+  // Get initials for avatar
+  const getInitials = (creator: any) => {
+    const first = creator.firstName?.charAt(0) || '';
+    const last = creator.lastName?.charAt(0) || '';
+    return `${first}${last}`.toUpperCase();
+  };
+
+  // Handle archive
+  const handleArchive = async (creator: any) => {
+    const userId = creator?.userId;
+    const newStatus = creator.status === 'active' ? 'archived' : 'active';
+
+    const response = await deleteUser(userId, {
+      userData: {
+        status: newStatus,
+      },
+    });
+
+    if (response) {
+      const searchFormData = searchTerm ? { firstName: searchTerm } : {};
+      searchData(searchFormData, currentPage);
+    }
+  };
+
+  // Determine custom columns based on tenant
+  const isSCP = storedUserData.tenantData?.[0]?.tenantName === TenantName.SECOND_CHANCE_PROGRAM;
+  const isYouthNet = storedUserData.tenantData?.[0]?.tenantName === TenantName.YOUTHNET;
 
   return (
-    <>
-      <Box display={'flex'} flexDirection={'column'} gap={2}>
-        {isLoading ? (
-          <Loader showBackdrop={false} loadingText={t('COMMON.LOADING')} />
-        ) : (
-          schema &&
-          uiSchema && (
-            <DynamicForm
-              schema={schema}
-              uiSchema={updatedUiSchema}
-              SubmitaFunction={SubmitaFunction}
-              isCallSubmitInHandle={true}
-              prefilledFormData={prefilledFormData || {}}
-            />
-          )
-        )}
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }} mt={4}>
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={() => {
-              setPrefilledAddFormData({});
-              handleOpenModal();
-            }}
-          >
-            {t('COMMON.ADD_NEW')}{' '}
-          </Button>
-        </Box>
-
-        <SimpleModal
-          open={openModal}
-          onClose={handleCloseModal}
-          showFooter={false}
-          modalTitle={t('CONTENT_CREATOR_REVIEWER.CREATE_CONTENT_CREATOR')}
+    <Container maxWidth="xl" sx={{ py: 3 }}>
+      {/* Header Section */}
+      <Box sx={{ mb: 4 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 3,
+          }}
         >
-          <AddUserForm
-            userType="content-creator"
-            onSuccess={() => {
-              setPrefilledFormData({});
-              searchData({}, 0);
-              setOpenModal(false);
-            }}
-            onCancel={() => {
-              setOpenModal(false);
-            }}
-          />
-        </SimpleModal>
-
-        {response && response?.result?.getUserDetails ? (
-          <Box sx={{ mt: 1 }}>
-            <PaginatedTable
-              count={response?.result?.totalCount}
-              data={response?.result?.getUserDetails}
-              columns={columns}
-              actions={actions}
-              onPageChange={handlePageChange}
-              onRowsPerPageChange={handleRowsPerPageChange}
-              defaultPage={currentPage}
-              defaultRowsPerPage={pageLimit}
-            />
-          </Box>
-        ) : (
-          <Box
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
-            height="20vh"
-          >
-            <Typography marginTop="10px" textAlign={'center'}>
-              {t('COMMON.NO_CONTENT_CREATOR_FOUND')}
+          <Box>
+            <Typography variant="h4" component="h1" fontWeight={600}>
+              Content Creators
+            </Typography>
+            <Typography variant="body2" color="textSecondary">
+              Manage all content creators and their information
             </Typography>
           </Box>
-        )}
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={handleRefresh}
+              disabled={loading}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleOpenModal}
+              sx={{
+                bgcolor: '#1976d2',
+                '&:hover': { bgcolor: '#1565c0' },
+              }}
+            >
+              {t('COMMON.ADD_NEW')} Content Creator
+            </Button>
+          </Box>
+        </Box>
+
+        {/* Stats Cards */}
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+          <Card
+            sx={{
+              flex: 1,
+              minWidth: 200,
+              borderLeft: '4px solid #1976d2',
+            }}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <PersonIcon sx={{ fontSize: 40, color: '#1976d2' }} />
+                <Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    {totalCount}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Total Creators
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+          <Card
+            sx={{
+              flex: 1,
+              minWidth: 200,
+              borderLeft: '4px solid #4caf50',
+            }}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <GroupIcon sx={{ fontSize: 40, color: '#4caf50' }} />
+                <Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    {activeCount}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Active Creators
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+          <Card
+            sx={{
+              flex: 1,
+              minWidth: 200,
+              borderLeft: '4px solid #ff9800',
+            }}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <GroupIcon sx={{ fontSize: 40, color: '#ff9800' }} />
+                <Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    {archivedCount}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Archived Creators
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
+
+        {/* Filter Section */}
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 2,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <Box sx={{ flexGrow: 1, maxWidth: 300 }}>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Search creators by name, username..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Box>
+          </Box>
+        </Paper>
+
+        {/* Creators Table */}
+        <Paper sx={{ position: 'relative', minHeight: 400 }}>
+          {loading ? (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: 400,
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          ) : creators.length === 0 ? (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: 400,
+                flexDirection: 'column',
+                gap: 2,
+              }}
+            >
+              <Typography variant="h6" color="textSecondary">
+                {t('COMMON.NO_CONTENT_CREATOR_FOUND') || 'No Content Creators Found'}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                No content creators available. Try adding a new creator.
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Creator Name</TableCell>
+                      <TableCell>Username</TableCell>
+                      <TableCell>Contact</TableCell>
+                      {isSCP && <TableCell>Board</TableCell>}
+                      {isSCP && <TableCell>Medium</TableCell>}
+                      {isSCP && <TableCell>Grade</TableCell>}
+                      {isSCP && <TableCell>Subject</TableCell>}
+                      {isYouthNet && <TableCell>Domain</TableCell>}
+                      {isYouthNet && <TableCell>Sub Domain</TableCell>}
+                      {isYouthNet && <TableCell>Stream</TableCell>}
+                      <TableCell>Status</TableCell>
+                      <TableCell>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {creators.map((creator: any) => (
+                      <TableRow key={creator.userId} hover>
+                        <TableCell>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2,
+                            }}
+                          >
+                            <Avatar
+                              sx={{
+                                bgcolor:
+                                  creator.status === 'archived'
+                                    ? '#757575'
+                                    : '#1976d2',
+                              }}
+                            >
+                              {getInitials(creator)}
+                            </Avatar>
+                            <Box>
+                              <Typography
+                                variant="body2"
+                                fontWeight="medium"
+                              >
+                                {getFullName(creator)}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="textSecondary"
+                              >
+                                ID: {creator.userId?.substring(0, 8)}...
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                            }}
+                          >
+                            <BadgeIcon fontSize="small" color="action" />
+                            <Typography variant="body2">
+                              {creator.username || 'N/A'}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                            }}
+                          >
+                            {creator.mobile ? (
+                              <>
+                                <PhoneIcon
+                                  fontSize="small"
+                                  color="action"
+                                />
+                                <Typography variant="body2">
+                                  {creator.mobile}
+                                </Typography>
+                              </>
+                            ) : (
+                              <Typography
+                                variant="body2"
+                                color="textSecondary"
+                              >
+                                N/A
+                              </Typography>
+                            )}
+                          </Box>
+                        </TableCell>
+                        {isSCP && (
+                          <>
+                            <TableCell>{getCustomFieldValue(creator, 'BOARD')}</TableCell>
+                            <TableCell>{getCustomFieldValue(creator, 'MEDIUM')}</TableCell>
+                            <TableCell>{getCustomFieldValue(creator, 'GRADE')}</TableCell>
+                            <TableCell>{getCustomFieldValue(creator, 'SUBJECT')}</TableCell>
+                          </>
+                        )}
+                        {isYouthNet && (
+                          <>
+                            <TableCell>{getCustomFieldValue(creator, 'DOMAIN')}</TableCell>
+                            <TableCell>{getCustomFieldValue(creator, 'SUB-DOMAIN')}</TableCell>
+                            <TableCell>{getCustomFieldValue(creator, 'STREAM')}</TableCell>
+                          </>
+                        )}
+                        <TableCell>
+                          <Chip
+                            label={getStatusText(creator.status)}
+                            size="small"
+                            color={getStatusColor(creator.status) as any}
+                            variant={
+                              creator.status === 'archived'
+                                ? 'outlined'
+                                : 'filled'
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip
+                            title={
+                              creator.status === 'active'
+                                ? 'Archive Creator'
+                                : 'Activate Creator'
+                            }
+                          >
+                            <IconButton
+                              size="small"
+                              onClick={() => handleArchive(creator)}
+                              color={
+                                creator.status === 'active'
+                                  ? 'error'
+                                  : 'success'
+                              }
+                              sx={{
+                                ...(creator.status === 'active' && {
+                                  '&:hover': {
+                                    backgroundColor: '#ffebee',
+                                  },
+                                }),
+                                ...(creator.status === 'archived' && {
+                                  '&:hover': {
+                                    backgroundColor: '#e8f5e8',
+                                  },
+                                }),
+                              }}
+                            >
+                              <Archive
+                                size={20}
+                                color={
+                                  creator.status === 'active'
+                                    ? '#f44336'
+                                    : '#4caf50'
+                                }
+                                strokeWidth={2}
+                              />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              {/* Pagination */}
+              {totalCount > pageLimit && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    p: 2,
+                    borderTop: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography variant="body2" color="textSecondary">
+                      Rows per page:
+                    </Typography>
+                    <Select
+                      size="small"
+                      value={pageLimit.toString()}
+                      onChange={handleRowsPerPageChange}
+                      sx={{ minWidth: 80 }}
+                    >
+                      <MenuItem value={10}>10</MenuItem>
+                      <MenuItem value={25}>25</MenuItem>
+                      <MenuItem value={50}>50</MenuItem>
+                      <MenuItem value={100}>100</MenuItem>
+                    </Select>
+                    <Typography variant="body2" color="textSecondary">
+                      {currentPage * pageLimit + 1}-
+                      {Math.min(
+                        (currentPage + 1) * pageLimit,
+                        totalCount
+                      )}{' '}
+                      of {totalCount}
+                    </Typography>
+                  </Box>
+
+                  <Pagination
+                    count={Math.ceil(totalCount / pageLimit)}
+                    page={currentPage + 1}
+                    onChange={handlePageChange}
+                    color="primary"
+                    showFirstButton
+                    showLastButton
+                  />
+                </Box>
+              )}
+            </>
+          )}
+        </Paper>
       </Box>
-    </>
+
+      <SimpleModal
+        open={openModal}
+        onClose={handleCloseModal}
+        showFooter={false}
+        modalTitle={t('CONTENT_CREATOR_REVIEWER.CREATE_CONTENT_CREATOR')}
+      >
+        <AddUserForm
+          userType="content-creator"
+          onSuccess={() => {
+            setSearchTerm('');
+            searchData({}, 0);
+            setOpenModal(false);
+          }}
+          onCancel={() => {
+            setOpenModal(false);
+          }}
+        />
+      </SimpleModal>
+    </Container>
   );
 };
 export async function getStaticProps({ locale }: any) {

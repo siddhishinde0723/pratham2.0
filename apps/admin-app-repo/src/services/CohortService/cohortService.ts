@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-wrapper-object-types */
+/* eslint-disable @nx/enforce-module-boundaries */
 import { CohortMemberList } from '@/utils/Interfaces';
 import { get, post, put, patch } from '../RestClient';
 import axios from 'axios';

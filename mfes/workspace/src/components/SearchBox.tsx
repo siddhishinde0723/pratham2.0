@@ -93,8 +93,16 @@ const SearchBox: React.FC<SearchBarProps> = ({
         ...collectionPrimaryCategories,
         ...contentPrimaryCategories,
       ];
-      setPrimaryCategory(PrimaryCategory || []);
-      localStorage.setItem('PrimaryCategory', JSON.stringify(PrimaryCategory));
+      
+      // Filter to show only specific content types
+      const allowedCategories = ['Course', 'Learning Resource', 'Practice Question Set'];
+      const filteredPrimaryCategory = PrimaryCategory.filter(category => 
+        allowedCategories.includes(category)
+      );
+      
+      setPrimaryCategory(filteredPrimaryCategory || []);
+      localStorage.setItem('PrimaryCategory', JSON.stringify(filteredPrimaryCategory));
+      console.log('Filtered Primary Categories:', filteredPrimaryCategory);
     };
     PrimaryCategoryData();
   }, [tenantConfig]);

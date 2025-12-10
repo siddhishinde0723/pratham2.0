@@ -59,6 +59,7 @@
     "jwt-decode": "^4.0.0",
     "ka-table": "^11.0.2",
     "lodash": "^4.17.21",
+    "lucide-react": "^0.555.0",
     "mathjax-full": "^3.2.2",
     "multer": "^1.4.5-lts.1",
     "next": "14.2.16",
