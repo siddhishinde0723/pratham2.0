@@ -1,12 +1,16 @@
-const baseurl = process.env.NEXT_PUBLIC_MIDDLEWARE_URL || 'https://shiksha-dev-interface.tekdinext.com/interface/v1';
+const baseurl =
+  process.env.NEXT_PUBLIC_MIDDLEWARE_URL ||
+  'https://shiksha-dev-interface.tekdinext.com/interface/v1';
 
 export const API_ENDPOINTS = {
-  contentRead: (doId: string) => `${baseurl}/api/content/v1/read/${doId}?fields=artifactUrl`,
+  contentRead: (doId: string) =>
+    `${baseurl}/api/content/v1/read/${doId}?fields=artifactUrl`,
   academicYearsList: `${baseurl}/academicyears/list`,
   formRead: `${baseurl}/form/read`,
-  accountCreate: `${baseurl}/account/create`, 
+  accountCreate: `${baseurl}/account/create`,
   userUpdate: (userId: string) => `${baseurl}/user/update/${userId}`,
-  myCohorts: (userId: string | string[]) => `${baseurl}/cohort/mycohorts/${userId}`,
+  myCohorts: (userId: string | string[]) =>
+    `${baseurl}/cohort/mycohorts/${userId}`,
   accountLogin: `${baseurl}/account/login`,
   authRefresh: `${baseurl}/account/auth/refresh`,
   authLogout: `${baseurl}/account/auth/logout`,
@@ -14,7 +18,8 @@ export const API_ENDPOINTS = {
   resetPassword: `${baseurl}/user/reset-password`,
   fieldOptionsRead: `${baseurl}/fields/options/read`,
   cohortSearch: `${baseurl}/cohort/search`,
-  fieldOptionDelete: (type: string, option: string) => `${baseurl}/fields/options/delete/${type}?option=${option}`,
+  fieldOptionDelete: (type: string, option: string) =>
+    `${baseurl}/fields/options/delete/${type}?option=${option}`,
   fieldUpdate: (fieldId: string) => `${baseurl}/fields/update/${fieldId}`,
   cohortUpdate: (cohortId: string) => `${baseurl}/cohort/update/${cohortId}`,
   notificationSend: `${baseurl}/notification`,
@@ -24,20 +29,26 @@ export const API_ENDPOINTS = {
   tenantDelete: (tenantId: string) => `${baseurl}/tenant/delete/${tenantId}`,
   tenantSearch: `${baseurl}/tenant/search`,
   userList: `${baseurl}/user/list`,
+  userHierarchicalSearch: `${baseurl}/user/hierarchical-search`,
   cohortMemberList: `${baseurl}/cohortmember/list`,
-  userRead: (userId: string | string[], fieldValue: boolean) => `${baseurl}/user/read/${userId}?fieldvalue=${fieldValue}`,
+  userRead: (userId: string | string[], fieldValue: boolean) =>
+    `${baseurl}/user/read/${userId}?fieldvalue=${fieldValue}`,
   suggestUsername: `${baseurl}/user/suggestUsername`,
   cohortUpdateUser: (userId?: string) => `${baseurl}/cohort/update/${userId}`,
-  formReadWithContext: (context: string, contextType: string) => `${baseurl}/form/read?context=${context}&contextType=${contextType}`,
+  formReadWithContext: (context: string, contextType: string) =>
+    `${baseurl}/form/read?context=${context}&contextType=${contextType}`,
   cohortCreate: `${baseurl}/cohort/create`,
   cohortMemberBulkCreate: `${baseurl}/cohortmember/bulkCreate`,
-  cohortMemberUpdate: (membershipId: string | number) => `${baseurl}/cohortmember/update/${membershipId}`,
+  cohortMemberUpdate: (membershipId: string | number) =>
+    `${baseurl}/cohortmember/update/${membershipId}`,
   notificationTemplate: `${baseurl}/notification-templates`,
-  courseStatus:`${baseurl}/tracking/user_certificate/user_course_status`,
+  courseStatus: `${baseurl}/tracking/user_certificate/user_course_status`,
   courseWiseLernerList: `${baseurl}/tracking/user_certificate/status/search`,
   getCourseName: `${baseurl}/action/composite/v3/search`,
   issueCertificate: `${baseurl}/tracking/certificate/issue`,
   renderCertificate: `${baseurl}/tracking/certificate/render`,
+  createStudentTeacher: `${baseurl}/account/create`,
+  assignClassToTeacher: `${baseurl}/cohortmember/create`,
 };
 
 export const COURSE_PLANNER_UPLOAD_ENDPOINTS = `${process.env.NEXT_PUBLIC_BASE_URL}/prathamservice/v1/course-planner/upload`;

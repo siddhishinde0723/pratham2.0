@@ -34,7 +34,6 @@ import {
   needsUserDataSync,
 } from '@workspace/services/LocalStorageService';
 import { TENANT_DATA } from '@workspace/utils/app.constant';
-import TenantService from '@workspace/services/TenantService';
 const route = process.env.NEXT_PUBLIC_WORKSPACE_ROUTES;
 
 const getIsAdmin = (): boolean => {
@@ -52,8 +51,9 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [tenantName, setTenantName] = useState();
+  const [tenantName, setTenantName] = useState<string | undefined>();
   const [tenantId, setTenantId] = useState<string | null>(null);
+  const [channelId, setChannelId] = useState<string | null>(null);
   const router = useRouter();
   const theme = useTheme<any>();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -72,7 +72,7 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
       ? JSON.parse(localStorage.getItem('userData') || '{}')
       : Cookies.get('userData');
     // Check cookies first, then localStorage for showHeader
-    let headerValue = localStorage.getItem('showHeader')
+    const headerValue = localStorage.getItem('showHeader')
       ? localStorage.getItem('showHeader')
       : Cookies.get('showHeader');
 
@@ -80,9 +80,17 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
     const tenant = userData ? userData : null;
     setTenantName(tenant?.tenantData[0]?.tenantName);
     setTenantId(tenant?.tenantData[0]?.tenantId);
+    
+    // Get channelId from localStorage or cookies
+    const storedChannelId = localStorage.getItem('channelId') || Cookies.get('channelId');
+    setChannelId(storedChannelId || null);
   }, []);
 
   if (userRole === null) return null;
+
+  // Check if current channel is Swadhaar based on channelId
+  // Swadhaar channelId: 01309282781705830427
+  const isSwadhaarChannel = channelId === 'swadhaar-channel';
 
   const menuItems = [
     ...(userRole !== Role.TEACHER
@@ -98,11 +106,16 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
             key: 'submitted',
             icon: <PreviewOutlinedIcon />,
           },
-          {
-            text: 'Bulk Upload',
-            key: 'bulk-upload',
-            icon: <CloudUploadIcon />,
-          },
+          // Hide Bulk Upload for Swadhaar channel
+          ...(!isSwadhaarChannel
+            ? [
+                {
+                  text: 'Bulk Upload',
+                  key: 'bulk-upload',
+                  icon: <CloudUploadIcon />,
+                },
+              ]
+            : []),
         ]
       : []),
     ...(userRole === Role.CCTA
@@ -112,11 +125,16 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
             key: 'up-review',
             icon: <PreviewOutlinedIcon />,
           },
-          {
-            text: 'Bulk Upload',
-            key: 'bulk-upload',
-            icon: <CloudUploadIcon />,
-          },
+          // Hide Bulk Upload for Swadhaar channel
+          ...(!isSwadhaarChannel
+            ? [
+                {
+                  text: 'Bulk Upload',
+                  key: 'bulk-upload',
+                  icon: <CloudUploadIcon />,
+                },
+              ]
+            : []),
 
           ...(tenantId === '3a849655-30f6-4c2b-8707-315f1ed64fbd'
             ? [
@@ -131,11 +149,16 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
       : []),
     ...(userRole === Role.CCTA || userRole === Role.SCTA
       ? [
-          {
-            text: 'My Published Contents',
-            key: 'publish',
-            icon: <OutlinedFlagOutlinedIcon />,
-          },
+          // Hide My Published Contents for Swadhaar channel
+          ...(!isSwadhaarChannel
+            ? [
+                {
+                  text: 'My Published Contents',
+                  key: 'publish',
+                  icon: <OutlinedFlagOutlinedIcon />,
+                },
+              ]
+            : []),
           {
             text: 'All My Contents',
             key: 'allContents',

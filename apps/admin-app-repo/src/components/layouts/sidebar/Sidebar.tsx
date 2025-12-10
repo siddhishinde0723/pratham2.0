@@ -17,14 +17,17 @@ import { useTranslation } from 'next-i18next';
 import Image from 'next/image';
 import { useRouter } from 'next/router';
 import PropTypes from 'prop-types';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import LogoIcon from '../logo/LogoIcon';
 import Buynow from './Buynow';
 import Menuitems from './MenuItems';
 import { getFilteredMenuItems } from './MenuItems';
 
 //menu config dynamic
-import { MENU_CONFIG, getMenuConfigForTenant } from '../../../config/menuConfig';
+import {
+  MENU_CONFIG,
+  getMenuConfigForTenant,
+} from '../../../config/menuConfig';
 import Link from 'next/link';
 
 const Sidebar = ({
@@ -35,7 +38,6 @@ const Sidebar = ({
   //menu config dynamic
   const storedRole = localStorage.getItem('roleName');
   const storedProgram = localStorage.getItem('program');
-  // const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
 
   if (!storedRole && !storedProgram) return null;
 
@@ -46,10 +48,62 @@ const Sidebar = ({
   const lgUp = useMediaQuery((theme: any) => theme?.breakpoints?.up('lg'));
 
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
-    manageUsers: true, // Keep Manage Users expanded by default
-    groups: false, // Groups menu collapsed by default
+    manageUsers: true,
+    groups: false,
   });
+
+  const [filteredMenuConfig, setFilteredMenuConfig] = useState<any>(null);
   const router = useRouter();
+
+  // Check if program is OBLF
+  const isOBLFProgram = localStorage.getItem('channelId') === 'oblf-channel';
+
+  useEffect(() => {
+    // Get menu config dynamically for any tenant
+    const tenantMenuConfig = getMenuConfigForTenant(storedProgram || '');
+
+    // Process and filter menu items
+    const processedMenuConfig: any = {};
+
+    Object.entries(tenantMenuConfig || {}).forEach(
+      ([key, item]: [string, any]) => {
+        // Check if user role has access
+        const isAllowed = item.roles.includes(storedRole);
+
+        if (!isAllowed) return;
+
+        // For non-OBLF programs, hide specific items
+        if (!isOBLFProgram) {
+          // Hide "Classes" for non-OBLF programs
+          if (key === 'classes') {
+            return;
+          }
+
+          // Filter subMenu items for "manageUsers" to hide Teacher and Students
+          if (key === 'manageUsers' && item.subMenu) {
+            const filteredSubMenu = item.subMenu.filter((sub: any) => {
+              // Hide Teacher and Students from submenu for non-OBLF
+              return !(sub.title === 'Teacher' || sub.title === 'Students');
+            });
+
+            // Only add manageUsers if it has subMenu items after filtering
+            if (filteredSubMenu.length > 0) {
+              processedMenuConfig[key] = {
+                ...item,
+                subMenu: filteredSubMenu,
+              };
+            }
+            return;
+          }
+        }
+
+        // For OBLF programs or other items, add as is
+        processedMenuConfig[key] = item;
+      }
+    );
+
+    setFilteredMenuConfig(processedMenuConfig);
+  }, [storedRole, storedProgram, isOBLFProgram]);
 
   const handleToggle = (key: string) => {
     setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -60,18 +114,12 @@ const Sidebar = ({
       ? { backgroundColor: '#FDBF34', color: 'black', borderRadius: '100px' }
       : {};
 
-  // Get menu config dynamically for any tenant
-  const tenantMenuConfig = getMenuConfigForTenant(storedProgram || '');
-  const menuItems = Object.entries(tenantMenuConfig || {}).filter(
-    ([_, item]: [string, any]) => item.roles.includes(storedRole)
-  );
-
-  // console.log('menuItems', JSON.stringify(menuItems));
+  // Don't render until menu config is processed
+  if (!filteredMenuConfig) return null;
 
   const SidebarContent = (
     <Box
       p={2}
-      // minHeight="100%"
       bgcolor="#F8EFDA"
       sx={{
         background: 'linear-gradient(to bottom, white, #F8EFDA)',
@@ -85,69 +133,71 @@ const Sidebar = ({
 
       <Box mt={2}>
         <List component="nav">
-          {menuItems.map(([key, item]: [string, any]) => {
-            const hasSubMenu = item.subMenu && item.subMenu.length > 0;
-            const isAllowed = item.roles.includes(storedRole);
+          {Object.entries(filteredMenuConfig || {}).map(
+            ([key, item]: [string, any]) => {
+              const hasSubMenu = item.subMenu && item.subMenu.length > 0;
 
-            if (!isAllowed) return null;
-
-            return (
-              <div key={key}>
-                <ListItemButton
-                  onClick={() => {
-                    if (hasSubMenu) {
-                      handleToggle(key);
-                    } else if (!hasSubMenu) {
-                      try {
-                        router.push(item.link);
-                      } catch (error) {
-                        console.error('Navigation error:', error);
+              return (
+                <div key={key}>
+                  <ListItemButton
+                    onClick={() => {
+                      if (hasSubMenu) {
+                        handleToggle(key);
+                      } else if (!hasSubMenu) {
+                        try {
+                          router.push(item.link);
+                        } catch (error) {
+                          console.error('Navigation error:', error);
+                        }
                       }
-                    }
-                  }}
-                  style={getActiveStyle(item.link)}
-                >
-                  <ListItemIcon>
-                    <Image
-                      src={item.icon}
-                      alt={t(item.title)}
-                      width={20}
-                      height={20}
-                    />
-                  </ListItemIcon>
-                  <ListItemText primary={t(item.title)} />
-                  {hasSubMenu && (
-                    openMenus[key] ? <ExpandLessIcon /> : <ExpandMoreIcon />
-                  )}
-                </ListItemButton>
+                    }}
+                    style={getActiveStyle(item.link)}
+                  >
+                    <ListItemIcon>
+                      <Image
+                        src={item.icon}
+                        alt={t(item.title)}
+                        width={20}
+                        height={20}
+                      />
+                    </ListItemIcon>
+                    <ListItemText primary={t(item.title)} />
+                    {hasSubMenu &&
+                      (openMenus[key] ? (
+                        <ExpandLessIcon />
+                      ) : (
+                        <ExpandMoreIcon />
+                      ))}
+                  </ListItemButton>
 
-                {hasSubMenu && (
-                  <Collapse in={openMenus[key]} timeout="auto" unmountOnExit>
-                    <List component="div" disablePadding>
-                      {item.subMenu
-                        .filter((sub: any) => sub.roles.includes(storedRole))
-                        .map((sub: any) => (
-                          <ListItemButton
-                            key={sub.link}
-                            sx={{ pl: 4 }}
-                            onClick={() => {
-                              try {
-                                router.push(sub.link);
-                              } catch (error) {
-                                console.error('Navigation error:', error);
-                              }
-                            }}
-                            style={getActiveStyle(sub.link)}
-                          >
-                            <ListItemText primary={t(sub.title)} />
-                          </ListItemButton>
-                        ))}
-                    </List>
-                  </Collapse>
-                )}
-              </div>
-            );
-          })}
+                  {hasSubMenu && (
+                    <Collapse in={openMenus[key]} timeout="auto" unmountOnExit>
+                      <List component="div" disablePadding>
+                        {item.subMenu
+                          .filter((sub: any) => sub.roles.includes(storedRole))
+                          .map((sub: any) => (
+                            <ListItemButton
+                              key={sub.link}
+                              sx={{ pl: 4 }}
+                              onClick={() => {
+                                try {
+                                  router.push(sub.link);
+                                } catch (error) {
+                                  console.error('Navigation error:', error);
+                                }
+                              }}
+                              style={getActiveStyle(sub.link)}
+                            >
+                              <ListItemText primary={t(sub.title)} />
+                            </ListItemButton>
+                          ))}
+                      </List>
+                    </Collapse>
+                  )}
+                </div>
+              );
+            }
+          )}
         </List>
       </Box>
       <Buynow />

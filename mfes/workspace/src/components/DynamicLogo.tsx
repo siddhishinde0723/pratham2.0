@@ -36,6 +36,14 @@ const DynamicLogo: React.FC<DynamicLogoProps> = ({
         const tenantId = tenantService.getTenantId();
         console.log('🟢 DynamicLogo: Tenant ID:', tenantId);
 
+        // Check if tenantId exists before attempting to fetch
+        if (!tenantId) {
+          console.warn('⚠️ DynamicLogo: No tenant ID found, using fallback logo');
+          setError(true);
+          setLoading(false);
+          return;
+        }
+
         const config: any = await tenantService.getTenantConfig();
         console.log('🟢 DynamicLogo: Full config:', config);
 
@@ -55,7 +63,8 @@ const DynamicLogo: React.FC<DynamicLogoProps> = ({
         console.log('🟢 DynamicLogo: Resolved logo config:', resolvedLogoConfig);
         setLogoConfig(resolvedLogoConfig);
       } catch (err) {
-        console.error('❌ Error fetching tenant logo config:', err);
+        // Silently handle errors - use fallback logo instead
+        console.warn('⚠️ DynamicLogo: Error fetching tenant logo config, using fallback:', err);
         setError(true);
       } finally {
         setLoading(false);

@@ -1,100 +1,104 @@
 /* eslint-disable @nx/enforce-module-boundaries */
 // @ts-nocheck
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import Form from '@rjsf/mui';
-import validator from '@rjsf/validator-ajv8';
-import axios from 'axios';
-import DynamicForm from '@/components/DynamicForm/DynamicForm';
-import Loader from '@/components/Loader';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  learnerSearchSchema,
-  learnerSearchUISchema,
-} from '../constant/Forms/LearnerSearch';
-import { Status } from '@/utils/app.constant';
-import { userList } from '@/services/UserList';
-import { Box, Grid, Typography } from '@mui/material';
 import { debounce } from 'lodash';
+import { userList } from '@/services/UserList';
+import {
+  Container,
+  Paper,
+  Typography,
+  Button,
+  Box,
+  Chip,
+  IconButton,
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tooltip,
+  TextField,
+  InputAdornment,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Pagination,
+  SelectChangeEvent,
+  Avatar,
+  Card,
+  CardContent,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Refresh as RefreshIcon,
+  Search as SearchIcon,
+  Person as PersonIcon,
+  Group as GroupIcon,
+  CalendarToday as CalendarIcon,
+  Badge as BadgeIcon,
+  Phone as PhoneIcon,
+} from '@mui/icons-material';
 import { Numbers } from '@mui/icons-material';
-import PaginatedTable from '@/components/PaginatedTable/PaginatedTable';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { Button } from '@mui/material';
 import AddUserForm from '@/components/AddUserForm';
 import SimpleModal from '@/components/SimpleModal';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import { deleteUser } from '@/services/UserService';
-import LockIcon from '@mui/icons-material/Lock';
-import LockOpenIcon from '@mui/icons-material/LockOpen';
+import { Archive } from 'lucide-react';
 import Image from 'next/image';
 import {
-  extractMatchingKeys,
-  fetchForm,
   searchListData,
 } from '@/components/DynamicForm/DynamicFormCallback';
-import { FormContext } from '@/components/DynamicForm/DynamicFormConstant';
 
 const Learner = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [schema, setSchema] = useState(learnerSearchSchema);
-  const [uiSchema, setUiSchema] = useState(learnerSearchUISchema);
-  const [addSchema, setAddSchema] = useState(null);
-  const [addUiSchema, setAddUiSchema] = useState(null);
-  const [prefilledAddFormData, setPrefilledAddFormData] = useState({});
   const [pageLimit, setPageLimit] = useState<number>(10);
   const [pageOffset, setPageOffset] = useState<number>(0);
-  const [prefilledFormData, setPrefilledFormData] = useState({});
   const [loading, setLoading] = useState<boolean>(false);
   const [response, setResponse] = useState({});
   const [currentPage, setCurrentPage] = useState(0);
   const [openModal, setOpenModal] = React.useState<boolean>(false);
   const [roleId, setRoleID] = useState('');
   const [tenantId, setTenantId] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const { t, i18n } = useTranslation();
-  const initialFormData = localStorage.getItem('stateId')
-    ? { state: localStorage.getItem('stateId') }
-    : {};
 
   useEffect(() => {
     if (response?.result?.totalCount !== 0) {
-      searchData(prefilledFormData, 0);
+      searchData({}, 0);
     }
   }, [pageLimit]);
+  
   useEffect(() => {
-    // Fetch form schema from API and set it in state.
-    const fetchData = async () => {
-      const responseForm = await fetchForm([
-        {
-          fetchUrl: `${process.env.NEXT_PUBLIC_MIDDLEWARE_URL}/form/read?context=${FormContext.learner.context}&contextType=${FormContext.learner.contextType}`,
-          header: {},
-        },
-        {
-          fetchUrl: `${process.env.NEXT_PUBLIC_MIDDLEWARE_URL}/form/read?context=${FormContext.learner.context}&contextType=${FormContext.learner.contextType}`,
-          header: {
-            tenantid: localStorage.getItem('tenantId'),
-          },
-        },
-      ]);
-      console.log('responseForm', responseForm);
-      setAddSchema(responseForm?.schema);
-      setAddUiSchema(responseForm?.uiSchema);
-    };
-    fetchData();
     setRoleID(localStorage.getItem('roleId'));
     setTenantId(localStorage.getItem('tenantId'));
+    // Initial load
+    searchData({}, 0);
   }, []);
 
-  const updatedUiSchema = {
-    ...uiSchema,
-    'ui:submitButtonOptions': {
-      norender: true, // Hide submit button if isHide is true
-    },
-  };
+  // Handle search input change - trigger search with debounce
+  const debouncedSearch = useMemo(
+    () =>
+      debounce((value: string) => {
+        if (value.trim()) {
+          const searchFormData = { firstName: value };
+          searchData(searchFormData, 0);
+        } else {
+          searchData({}, 0);
+        }
+      }, 500),
+    []
+  );
 
-  const SubmitaFunction = async (formData: any) => {
-    setPrefilledFormData(formData);
-    await searchData(formData, 0);
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    debouncedSearch(value);
   };
 
   const searchData = async (formData, newPage) => {
@@ -107,111 +111,130 @@ const Learner = () => {
     const { sortBy, firstName } = formData;
     const staticSort = ['firstName', sortBy || 'asc'];
 
-    // Add firstName to formData if provided for search
-    const searchFormData = firstName ? { ...formData, firstName } : formData;
+    // Sequential search: First by firstName, then by username if no results
+    if (firstName) {
+      // First, try searching by firstName
+      const searchFormDataFirstName = { ...formData };
+      searchFormDataFirstName.firstName = firstName;
+      // Remove username to search only by firstName
+      delete searchFormDataFirstName.username;
 
-    console.log('Learners searchData called with:', {
-      formData,
-      searchFormData,
-      staticFilter,
-      firstName,
-    });
+      console.log('Learners: Searching by firstName:', firstName);
 
-    await searchListData(
-      searchFormData,
-      newPage,
-      staticFilter,
-      pageLimit,
-      setPageOffset,
-      setCurrentPage,
-      setResponse,
-      userList,
-      staticSort
-    );
+      // Make first API call with firstName
+      const { sortBy: _, ...restFormData } = searchFormDataFirstName;
+      const filtersFirstName = {
+        ...staticFilter,
+        ...Object.entries(restFormData).reduce((acc, [key, value]) => {
+          if (value !== undefined && value !== '') {
+            if (key === 'status') {
+              acc[key] = [value];
+            } else {
+              acc[key] = value;
+            }
+          }
+          return acc;
+        }, {} as Record<string, any>),
+      };
+
+      const dataFirstName = {
+        limit: pageLimit,
+        offset: newPage * pageLimit,
+        sort: staticSort,
+        filters: filtersFirstName,
+      };
+
+      const respFirstName = await userList(dataFirstName);
+      const totalCountFirstName = respFirstName?.totalCount || 0;
+      const userDetailsFirstName = respFirstName?.getUserDetails || [];
+
+      console.log('Learners: firstName search results:', {
+        totalCount: totalCountFirstName,
+        usersFound: userDetailsFirstName.length,
+      });
+
+      // If results found with firstName, use those results
+      if (totalCountFirstName > 0 && userDetailsFirstName.length > 0) {
+        setPageOffset(newPage * pageLimit);
+        setCurrentPage(newPage);
+        setResponse({ result: respFirstName });
+        return;
+      }
+
+      // If no results with firstName, try searching by username
+      console.log('Learners: No results with firstName, searching by username:', firstName);
+      const searchFormDataUsername = { ...formData };
+      searchFormDataUsername.username = firstName;
+      // Remove firstName to search only by username
+      delete searchFormDataUsername.firstName;
+
+      const { sortBy: __, ...restFormDataUsername } = searchFormDataUsername;
+      const filtersUsername = {
+        ...staticFilter,
+        ...Object.entries(restFormDataUsername).reduce((acc, [key, value]) => {
+          if (value !== undefined && value !== '') {
+            if (key === 'status') {
+              acc[key] = [value];
+            } else {
+              acc[key] = value;
+            }
+          }
+          return acc;
+        }, {} as Record<string, any>),
+      };
+
+      const dataUsername = {
+        limit: pageLimit,
+        offset: newPage * pageLimit,
+        sort: staticSort,
+        filters: filtersUsername,
+      };
+
+      const respUsername = await userList(dataUsername);
+      console.log('Learners: username search results:', {
+        totalCount: respUsername?.totalCount || 0,
+        usersFound: (respUsername?.getUserDetails || []).length,
+      });
+
+      setPageOffset(newPage * pageLimit);
+      setCurrentPage(newPage);
+      setResponse({ result: respUsername });
+    } else {
+      // No search term, use normal search
+      await searchListData(
+        formData,
+        newPage,
+        staticFilter,
+        pageLimit,
+        setPageOffset,
+        setCurrentPage,
+        setResponse,
+        userList,
+        staticSort
+      );
+    }
   };
 
-  // Define table columns
-  const columns = [
-    {
-      keys: ['firstName', 'middleName', 'lastName'],
-      label: 'Leaner Name',
-      render: (row) =>
-        `${row.firstName || ''} ${row.middleName || ''} ${
-          row.lastName || ''
-        }`.trim(),
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      getStyle: (row) => ({ color: row.status === 'active' ? 'green' : 'red' }),
-    },
-    // {
-    //   key: 'STATE',
-    //   label: 'State',
-    //   render: (row) => {
-    //     const state =
-    //       row.customFields.find((field) => field.label === 'STATE')
-    //         ?.selectedValues[0]?.value || '-';
-    //     return `${state}`;
-    //   },
-    // },
-    // Location column removed for ADMIN users
-  ];
-
-  // Define actions
-  const actions = [
-    {
-      icon: (row) => (
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            cursor: 'pointer',
-            backgroundColor:
-              row.status === 'active'
-                ? 'rgb(227, 234, 240)'
-                : 'rgb(255, 235, 238)',
-            padding: '10px',
-            borderRadius: '4px',
-          }}
-        >
-          {row.status === 'active' ? (
-            <LockOpenIcon sx={{ color: 'green' }} />
-          ) : (
-            <LockIcon sx={{ color: 'red' }} />
-          )}
-        </Box>
-      ),
-      callback: async (row) => {
-        console.log('row:', row);
-        const userId = row?.userId;
-        const newStatus = row.status === 'active' ? 'archived' : 'active';
-
-        const response = await deleteUser(userId, {
-          userData: {
-            status: newStatus,
-          },
-        });
-
-        if (response) {
-          setPrefilledFormData({});
-          searchData(prefilledFormData, currentPage);
-          setOpenModal(false);
-        }
-      },
-    },
-  ];
-
-  // Pagination handlers
-  const handlePageChange = (newPage) => {
-    // console.log('Page changed to:', newPage);
-    searchData(prefilledFormData, newPage);
+  // Handle refresh
+  const handleRefresh = () => {
+    const searchFormData = searchTerm ? { firstName: searchTerm } : {};
+    searchData(searchFormData, currentPage);
   };
 
-  const handleRowsPerPageChange = (newRowsPerPage) => {
-    // console.log('Rows per page changed to:', newRowsPerPage);
-    setPageLimit(newRowsPerPage);
+  // Handle page change
+  const handlePageChange = (
+    event: React.ChangeEvent<unknown>,
+    value: number
+  ) => {
+    setCurrentPage(value - 1);
+    const searchFormData = searchTerm ? { firstName: searchTerm } : {};
+    searchData(searchFormData, value - 1);
+  };
+
+  // Handle rows per page change
+  const handleRowsPerPageChange = (event: SelectChangeEvent) => {
+    setPageLimit(parseInt(event.target.value, 10));
+    setCurrentPage(0);
   };
 
   const handleOpenModal = () => setOpenModal(true);
@@ -220,108 +243,471 @@ const Learner = () => {
     setOpenModal(false);
   };
 
-  //Add Edit Props
-  const extraFieldsUpdate = {};
-  const extraFields = {
-    tenantCohortRoleMapping: [
-      {
-        tenantId: tenantId,
-        roleId: roleId,
-      },
-    ],
-    username: 'Leaner',
-    password: Math.floor(10000 + Math.random() * 90000),
-  };
-  const successUpdateMessage = 'LEARNERS.LEARNER_UPDATED_SUCCESSFULLY';
-  const telemetryUpdateKey = 'scp-learner-updated-successfully';
-  const failureUpdateMessage = 'COMMON.NOT_ABLE_UPDATE_LEARNER';
-  const successCreateMessage = 'LEARNERS.LEARNER_CREATED_SUCCESSFULLY';
-  const telemetryCreateKey = 'scp-learner-created-successfully';
-  const failureCreateMessage = 'COMMON.NOT_ABLE_CREATE_LEARNER';
-  const notificationKey = 'onLearnerCreated';
-  const notificationMessage = 'LEARNERS.USER_CREDENTIALS_WILL_BE_SEND_SOON';
-  const notificationContext = 'USER';
 
-  useEffect(() => {
-    setPrefilledFormData(initialFormData);
-  }, []);
+  // Calculate stats
+  const learners = response?.result?.getUserDetails || [];
+  const totalCount = response?.result?.totalCount || 0;
+  const activeCount = learners.filter((l: any) => l.status === 'active').length;
+  const archivedCount = learners.filter((l: any) => l.status === 'archived').length;
+
+  // Format date
+  const formatDate = (dateString: string) => {
+    try {
+      if (!dateString) return 'N/A';
+      return new Date(dateString).toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+    } catch {
+      return dateString || 'N/A';
+    }
+  };
+
+  // Get status color
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return 'success';
+      case 'inactive':
+        return 'error';
+      case 'pending':
+        return 'warning';
+      case 'archived':
+        return 'default';
+      default:
+        return 'default';
+    }
+  };
+
+  // Get status text
+  const getStatusText = (status: string) => {
+    if (!status) return 'Unknown';
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  };
+
+  // Get full name
+  const getFullName = (learner: any) => {
+    return `${learner.firstName || ''} ${learner.middleName || ''} ${learner.lastName || ''}`.trim();
+  };
+
+  // Get initials for avatar
+  const getInitials = (learner: any) => {
+    const first = learner.firstName?.charAt(0) || '';
+    const last = learner.lastName?.charAt(0) || '';
+    return `${first}${last}`.toUpperCase();
+  };
+
+  // Handle archive
+  const handleArchive = async (learner: any) => {
+    const userId = learner?.userId;
+    const newStatus = learner.status === 'active' ? 'archived' : 'active';
+
+    const response = await deleteUser(userId, {
+      userData: {
+        status: newStatus,
+      },
+    });
+
+    if (response) {
+      const searchFormData = searchTerm ? { firstName: searchTerm } : {};
+      searchData(searchFormData, currentPage);
+    }
+  };
+
 
   return (
-    <>
-      <Box display={'flex'} flexDirection={'column'} gap={2}>
-        {isLoading ? (
-          <Loader showBackdrop={false} loadingText={t('COMMON.LOADING')} />
-        ) : (
-          schema &&
-          uiSchema && (
-            <DynamicForm
-              schema={schema}
-              uiSchema={updatedUiSchema}
-              SubmitaFunction={SubmitaFunction}
-              isCallSubmitInHandle={true}
-              prefilledFormData={prefilledFormData}
-            />
-          )
-        )}
-        <Box mt={4} sx={{ display: 'flex', justifyContent: 'end' }}>
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={() => {
-              setPrefilledAddFormData({});
-              handleOpenModal();
-            }}
-          >
-            {t('COMMON.ADD_NEW')}{' '}
-          </Button>
-        </Box>
-
-        <SimpleModal
-          open={openModal}
-          onClose={handleCloseModal}
-          showFooter={false}
-          modalTitle={t('LEARNERS.NEW_LEARNER')}
+    <Container maxWidth="xl" sx={{ py: 3 }}>
+      {/* Header Section */}
+      <Box sx={{ mb: 4 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            mb: 3,
+          }}
         >
-          <AddUserForm
-            userType="learner"
-            onSuccess={() => {
-              setPrefilledFormData({});
-              searchData({}, 0);
-              setOpenModal(false);
-            }}
-            onCancel={() => {
-              setOpenModal(false);
-            }}
-          />
-        </SimpleModal>
-
-        {response && response?.result?.getUserDetails ? (
-          <Box sx={{ mt: 1 }}>
-            <PaginatedTable
-              count={response?.result?.totalCount}
-              data={response?.result?.getUserDetails}
-              columns={columns}
-              actions={actions}
-              onPageChange={handlePageChange}
-              onRowsPerPageChange={handleRowsPerPageChange}
-              defaultPage={currentPage}
-              defaultRowsPerPage={pageLimit}
-            />
-          </Box>
-        ) : (
-          <Box
-            display="flex"
-            justifyContent="center"
-            alignItems="center"
-            height="20vh"
-          >
-            <Typography marginTop="10px" textAlign={'center'}>
-              {t('LEARNERS.NO_LEARNERS_FOUND')}
+          <Box>
+            <Typography variant="h4" component="h1" fontWeight={600}>
+              {t('LEARNERS.LEARNERS') || 'Learners'}
+            </Typography>
+            <Typography variant="body2" color="textSecondary">
+              Manage all learners and their information
             </Typography>
           </Box>
-        )}
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={handleRefresh}
+              disabled={loading}
+            >
+              Refresh
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleOpenModal}
+              sx={{
+                bgcolor: '#1976d2',
+                '&:hover': { bgcolor: '#1565c0' },
+              }}
+            >
+              {t('COMMON.ADD_NEW')} Learner
+            </Button>
+          </Box>
+        </Box>
+
+        {/* Stats Cards */}
+        <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+          <Card
+            sx={{
+              flex: 1,
+              minWidth: 200,
+              borderLeft: '4px solid #1976d2',
+            }}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <PersonIcon sx={{ fontSize: 40, color: '#1976d2' }} />
+                <Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    {totalCount}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Total Learners
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+          <Card
+            sx={{
+              flex: 1,
+              minWidth: 200,
+              borderLeft: '4px solid #4caf50',
+            }}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <GroupIcon sx={{ fontSize: 40, color: '#4caf50' }} />
+                <Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    {activeCount}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Active Learners
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+          <Card
+            sx={{
+              flex: 1,
+              minWidth: 200,
+              borderLeft: '4px solid #ff9800',
+            }}
+          >
+            <CardContent>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <GroupIcon sx={{ fontSize: 40, color: '#ff9800' }} />
+                <Box>
+                  <Typography variant="h6" fontWeight={600}>
+                    {archivedCount}
+                  </Typography>
+                  <Typography variant="body2" color="textSecondary">
+                    Archived Learners
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
+
+        {/* Filter Section */}
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 2,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <Box sx={{ flexGrow: 1, maxWidth: 300 }}>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Search learners by name, username..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Box>
+          </Box>
+        </Paper>
+
+        {/* Learners Table */}
+        <Paper sx={{ position: 'relative', minHeight: 400 }}>
+          {loading ? (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: 400,
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          ) : learners.length === 0 ? (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: 400,
+                flexDirection: 'column',
+                gap: 2,
+              }}
+            >
+              <Typography variant="h6" color="textSecondary">
+                {t('LEARNERS.NO_LEARNERS_FOUND') || 'No Learners Found'}
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                No learners available. Try adding a new learner.
+              </Typography>
+            </Box>
+          ) : (
+            <>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Learner Name</TableCell>
+                      <TableCell>Username</TableCell>
+                      <TableCell>Contact</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {learners.map((learner: any) => (
+                      <TableRow key={learner.userId} hover>
+                        <TableCell>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 2,
+                            }}
+                          >
+                            <Avatar
+                              sx={{
+                                bgcolor:
+                                  learner.status === 'archived'
+                                    ? '#757575'
+                                    : '#1976d2',
+                              }}
+                            >
+                              {getInitials(learner)}
+                            </Avatar>
+                            <Box>
+                              <Typography
+                                variant="body2"
+                                fontWeight="medium"
+                              >
+                                {getFullName(learner)}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="textSecondary"
+                              >
+                                ID: {learner.userId?.substring(0, 8)}...
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                            }}
+                          >
+                            <BadgeIcon fontSize="small" color="action" />
+                            <Typography variant="body2">
+                              {learner.username || 'N/A'}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                            }}
+                          >
+                            {learner.mobile ? (
+                              <>
+                                <PhoneIcon
+                                  fontSize="small"
+                                  color="action"
+                                />
+                                <Typography variant="body2">
+                                  {learner.mobile}
+                                </Typography>
+                              </>
+                            ) : (
+                              <Typography
+                                variant="body2"
+                                color="textSecondary"
+                              >
+                                N/A
+                              </Typography>
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={getStatusText(learner.status)}
+                            size="small"
+                            color={getStatusColor(learner.status) as any}
+                            variant={
+                              learner.status === 'archived'
+                                ? 'outlined'
+                                : 'filled'
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip
+                            title={
+                              learner.status === 'active'
+                                ? 'Archive Learner'
+                                : 'Activate Learner'
+                            }
+                          >
+                            <IconButton
+                              size="small"
+                              onClick={() => handleArchive(learner)}
+                              color={
+                                learner.status === 'active'
+                                  ? 'error'
+                                  : 'success'
+                              }
+                              sx={{
+                                ...(learner.status === 'active' && {
+                                  '&:hover': {
+                                    backgroundColor: '#ffebee',
+                                  },
+                                }),
+                                ...(learner.status === 'archived' && {
+                                  '&:hover': {
+                                    backgroundColor: '#e8f5e8',
+                                  },
+                                }),
+                              }}
+                            >
+                              <Archive
+                                size={20}
+                                color={
+                                  learner.status === 'active'
+                                    ? '#f44336'
+                                    : '#4caf50'
+                                }
+                                strokeWidth={2}
+                              />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              {/* Pagination */}
+              {totalCount > pageLimit && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    p: 2,
+                    borderTop: '1px solid',
+                    borderColor: 'divider',
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Typography variant="body2" color="textSecondary">
+                      Rows per page:
+                    </Typography>
+                    <Select
+                      size="small"
+                      value={pageLimit.toString()}
+                      onChange={handleRowsPerPageChange}
+                      sx={{ minWidth: 80 }}
+                    >
+                      <MenuItem value={10}>10</MenuItem>
+                      <MenuItem value={25}>25</MenuItem>
+                      <MenuItem value={50}>50</MenuItem>
+                      <MenuItem value={100}>100</MenuItem>
+                    </Select>
+                    <Typography variant="body2" color="textSecondary">
+                      {currentPage * pageLimit + 1}-
+                      {Math.min(
+                        (currentPage + 1) * pageLimit,
+                        totalCount
+                      )}{' '}
+                      of {totalCount}
+                    </Typography>
+                  </Box>
+
+                  <Pagination
+                    count={Math.ceil(totalCount / pageLimit)}
+                    page={currentPage + 1}
+                    onChange={handlePageChange}
+                    color="primary"
+                    showFirstButton
+                    showLastButton
+                  />
+                </Box>
+              )}
+            </>
+          )}
+        </Paper>
       </Box>
-    </>
+
+      <SimpleModal
+        open={openModal}
+        onClose={handleCloseModal}
+        showFooter={false}
+        modalTitle={t('LEARNERS.NEW_LEARNER')}
+      >
+        <AddUserForm
+          userType="learner"
+          onSuccess={() => {
+            setSearchTerm('');
+            searchData({}, 0);
+            setOpenModal(false);
+          }}
+          onCancel={() => {
+            setOpenModal(false);
+          }}
+        />
+      </SimpleModal>
+    </Container>
   );
 };
 export async function getStaticProps({ locale }: any) {

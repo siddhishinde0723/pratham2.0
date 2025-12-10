@@ -280,7 +280,7 @@ const Header: React.FC<HeaderProps> = ({ toggleDrawer, openDrawer }) => {
                 <LogoutOutlinedIcon
                   sx={{ color: theme.palette.warning['300'] }}
                 />
-                {t('COMMON.LOGOUT')}
+              Logout
               </MenuItem>
             </StyledMenu>
           </Stack>

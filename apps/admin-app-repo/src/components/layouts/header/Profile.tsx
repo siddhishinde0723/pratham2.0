@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import { TelemetryEventType } from '@/utils/app.constant';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { useTranslation } from 'next-i18next';
@@ -97,7 +98,7 @@ const Profile = () => {
                 whiteSpace: 'nowrap',
               }}
             >
-              {t('COMMON.HI', { name: firstLetterInUpperCase(userName ?? '') })}
+              {t('Hi',)} {localStorage.getItem('name')}
             </Typography>
             {/* 
             <FeatherIcon icon="chevron-down" size="20" /> */}
@@ -139,7 +140,7 @@ const Profile = () => {
             }}
             endIcon={<LogoutIcon />}
           >
-            {t('COMMON.LOGOUT')}
+           Logout
           </Button>
         </Box>
       </Menu>

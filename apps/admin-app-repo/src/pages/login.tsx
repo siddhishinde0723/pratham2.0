@@ -20,6 +20,7 @@ import Loader from '../components/Loader';
 import MenuItem from '@mui/material/MenuItem';
 import config from '../../config.json';
 import { getUserId, login, getTenant } from '../services/LoginService';
+import { getTenantConfig, getTenantContentFilter, Tenant, TenantContentFilter } from '../services/DomainTenantService';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import { useRouter } from 'next/router';
 import { useTheme } from '@mui/material/styles';
@@ -53,6 +54,9 @@ const LoginPage = () => {
   const [lang, setLang] = useState('');
   const [selectedLanguage, setSelectedLanguage] = useState(lang);
   const [language, setLanguage] = useState(selectedLanguage);
+  const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [tenantContentFilter, setTenantContentFilter] = useState<TenantContentFilter | null>(null);
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
   const setIsActiveYearSelected = useStore(
     (state: { setIsActiveYearSelected: any }) => state.setIsActiveYearSelected
   );
@@ -71,11 +75,94 @@ const LoginPage = () => {
   const passwordRef = useRef<HTMLInputElement>(null);
   const loginButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Fetch tenant configuration based on domain
+  useEffect(() => {
+    const fetchDomainTenantConfig = async () => {
+      try {
+        console.log('🔍 Fetching tenant configuration from domain...');
+        
+        // Fetch tenant config first to get the actual domain being used
+        const tenantData = await getTenantConfig();
+        
+        if (tenantData) {
+          console.log('✅ Tenant config loaded:', tenantData);
+          
+          // Check if tenant domain or name contains 'swadhaar'
+          const tenantDomain = tenantData.domain?.toLowerCase() || '';
+          const tenantName = tenantData.name?.toLowerCase() || '';
+          const currentDomain = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+          
+          const isSwadhaarDomain = 
+            tenantDomain.includes('swadhaar') || 
+            tenantName.includes('swadhaar') ||
+            currentDomain.includes('swadhaar');
+          
+          console.log('🌐 Current domain:', currentDomain);
+          console.log('🏢 Tenant domain:', tenantDomain);
+          console.log('🏷️ Tenant name:', tenantName);
+          console.log(`${isSwadhaarDomain ? '🟢' : '🔵'} Is Swadhaar domain: ${isSwadhaarDomain}`);
+          
+          // Only apply tenant config if it's Swadhaar domain
+          if (isSwadhaarDomain) {
+            setTenant(tenantData);
+            
+            const contentFilter = getTenantContentFilter(tenantData);
+            if (contentFilter) {
+              console.log('📋 Swadhaar Content filter:', contentFilter);
+              console.log('🎨 Swadhaar Theme:', contentFilter.theme);
+              console.log('🌐 Swadhaar Available Languages in config:', contentFilter.languages);
+              
+              setTenantContentFilter(contentFilter);
+              
+              // Set available languages - Force English only for Swadhaar
+              setAvailableLanguages(['en']);
+              console.log('🔒 Swadhaar: Language restricted to English only');
+              
+              // Set language to English
+              const preferredLang = 'en';
+              setLanguage(preferredLang);
+              setLang(preferredLang);
+              localStorage.setItem('preferredLanguage', preferredLang);
+              
+              // Store tenant theme config
+              if (contentFilter.theme) {
+                localStorage.setItem('tenantTheme', JSON.stringify(contentFilter.theme));
+                console.log('💾 Swadhaar theme saved to localStorage');
+              }
+              
+              // Store tenant logo
+              if (contentFilter.icon) {
+                localStorage.setItem('tenantLogo', contentFilter.icon);
+                console.log('💾 Swadhaar logo saved to localStorage');
+              }
+            }
+          } else {
+            console.log('ℹ️ Non-Swadhaar domain detected - using default configuration');
+            console.log('📌 Using standard branding and all configured languages from config.json');
+            // For non-Swadhaar domains, don't apply custom config
+            // Keep default logos, themes, and language options from config.json
+          }
+        } else {
+          console.log('ℹ️ No tenant config found - using default configuration');
+          console.log('📌 Using standard branding and all configured languages from config.json');
+        }
+      } catch (error) {
+        console.error('❌ Error fetching tenant config:', error);
+        // Fallback to default config for errors
+      }
+    };
+    
+    fetchDomainTenantConfig();
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
-      const preferredLang = localStorage.getItem('preferredLanguage') || 'en';
-      setLanguage(preferredLang);
-      setLang(preferredLang);
+      // If no tenant config applied (non-Swadhaar), use default language handling
+      if (availableLanguages.length === 0) {
+        const preferredLang = localStorage.getItem('preferredLanguage') || 'en';
+        setLanguage(preferredLang);
+        setLang(preferredLang);
+      }
       const storedUserData = localStorage.getItem('adminInfo');
 
       const token = localStorage.getItem('token');
@@ -189,9 +276,17 @@ const LoginPage = () => {
             const roleName = userInfo.tenantData?.[0]?.roleName || '';
             const program = userInfo.tenantData?.[0]?.tenantName || '';
 
+            // Set roleName and program FIRST before any redirect
             localStorage.setItem('roleId', roleId);
             localStorage.setItem('roleName', roleName);
             localStorage.setItem('program', program);
+            
+            // Force synchronous write to ensure values are persisted
+            // This ensures MenuWrapper can read these values immediately
+            if (typeof window !== 'undefined') {
+              // Trigger a small delay to ensure localStorage is fully written
+              await new Promise(resolve => setTimeout(resolve, 50));
+            }
           }
           const selectedStateName = transformLabel(
             userInfo?.customFields.find(
@@ -220,26 +315,45 @@ const LoginPage = () => {
         //   });
         // } else {
         // setAdminInformation(userInfo);
+        
+        // Verify roleName and program are set before redirecting
+        const verifyRoleName = localStorage.getItem('roleName');
+        const verifyProgram = localStorage.getItem('program');
+        console.log('🔍 Verifying before redirect - roleName:', verifyRoleName, 'program:', verifyProgram);
+        console.log('🔍 Current pathname:', router.pathname, 'User role:', userInfo?.role);
+        
+        // Always redirect based on role, ignoring current URL
+        // Use replace() to avoid back button issues and ensure clean navigation
         if (userInfo?.role === Role.ADMIN) {
+          console.log('✅ Redirecting ADMIN to /learners');
           const { locale } = router;
-          if (locale) {
-            router.push('/learners', undefined, {
-              locale: locale,
-            });
+          // Use window.location for hard redirect to ensure URL changes completely
+          if (typeof window !== 'undefined') {
+            const targetPath = locale ? `/${locale}/learners` : '/learners';
+            window.location.href = targetPath;
           } else {
-            router.push('/learners');
+            if (locale) {
+              router.replace('/learners', undefined, { locale: locale });
+            } else {
+              router.replace('/learners');
+            }
           }
         } else if (
           userInfo?.role === Role.SCTA ||
           userInfo?.role === Role.CCTA || userInfo?.role === Role.TEACHER
         ) {
+          console.log('✅ Redirecting SCTA/CCTA/TEACHER to /workspace');
           const { locale } = router;
-          if (locale) {
-            router.push('/workspace', undefined, {
-              locale: locale,
-            });
+          // Use window.location for hard redirect to ensure URL changes completely
+          if (typeof window !== 'undefined') {
+            const targetPath = locale ? `/${locale}/workspace` : '/workspace';
+            window.location.href = targetPath;
           } else {
-            router.push('/workspace');
+            if (locale) {
+              router.replace('/workspace', undefined, { locale: locale });
+            } else {
+              router.replace('/workspace');
+            }
           }
         }
         const getAcademicYearList = async () => {
@@ -274,25 +388,35 @@ const LoginPage = () => {
               setIsActiveYearSelected(true);
               // router.push("/centers");
               if (userInfo?.role === Role.ADMIN) {
+                console.log('✅ Redirecting ADMIN to /learners (from academic year)');
                 const { locale } = router;
-                if (locale) {
-                  router.push('/learners', undefined, {
-                    locale: locale,
-                  });
+                // Use window.location for hard redirect
+                if (typeof window !== 'undefined') {
+                  const targetPath = locale ? `/${locale}/learners` : '/learners';
+                  window.location.href = targetPath;
                 } else {
-                  router.push('/learners');
+                  if (locale) {
+                    router.replace('/learners', undefined, { locale: locale });
+                  } else {
+                    router.replace('/learners');
+                  }
                 }
               } else if (
                 userInfo?.role === Role.SCTA ||
                 userInfo?.role === Role.CCTA || userInfo?.role === Role.TEACHER
               ) {
+                console.log('✅ Redirecting SCTA/CCTA/TEACHER to /workspace (from academic year)');
                 const { locale } = router;
-                if (locale) {
-                  router.push('/workspace', undefined, {
-                    locale: locale,
-                  });
+                // Use window.location for hard redirect
+                if (typeof window !== 'undefined') {
+                  const targetPath = locale ? `/${locale}/workspace` : '/workspace';
+                  window.location.href = targetPath;
                 } else {
-                  router.push('/workspace');
+                  if (locale) {
+                    router.replace('/workspace', undefined, { locale: locale });
+                  } else {
+                    router.replace('/workspace');
+                  }
                 }
               } else {
                 const { locale } = router;
@@ -456,6 +580,28 @@ const LoginPage = () => {
     });
   };
 
+  // Get dynamic styles from tenant config
+  const getDynamicStyles = () => {
+    if (!tenantContentFilter?.theme) {
+      return {
+        primaryColor: theme.palette.primary.main,
+        secondaryColor: theme.palette.secondary.main,
+        backgroundColor: theme.palette.background.default,
+        buttonTextColor: '#FFFFFF',
+      };
+    }
+    
+    return {
+      primaryColor: tenantContentFilter.theme.primaryColor || theme.palette.primary.main,
+      secondaryColor: tenantContentFilter.theme.secondaryColor || theme.palette.secondary.main,
+      backgroundColor: tenantContentFilter.theme.backgroundColor || theme.palette.background.default,
+      buttonTextColor: tenantContentFilter.theme.buttonTextColor || '#FFFFFF',
+    };
+  };
+
+  const dynamicStyles = getDynamicStyles();
+  const logoSrc = tenantContentFilter?.icon || '/images/appLogo.png';
+
   return (
     <>
       <Box
@@ -483,13 +629,21 @@ const LoginPage = () => {
           <Box
             sx={{ width: '55%', '@media (max-width: 400px)': { width: '95%' } }}
           >
-                  <Image
-                    src="/images/appLogo.png"
-                    alt="Logo"
-                    width={200}
-                    height={80}
-                    style={{ width: '100%', height: 'auto' }}
-                  />
+                  {tenantContentFilter?.icon ? (
+                    <img
+                      src={logoSrc}
+                      alt="Logo"
+                      style={{ width: '100%', height: 'auto', maxHeight: '80px', objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <Image
+                      src="/images/appLogo.png"
+                      alt="Logo"
+                      width={200}
+                      height={80}
+                      style={{ width: '100%', height: 'auto' }}
+                    />
+                  )}
           </Box>
         </Box>
       </Box>
@@ -571,13 +725,21 @@ const LoginPage = () => {
                     '@media (max-width: 700px)': { width: '95%' },
                   }}
                 >
-                  <Image
-                    src="/images/appLogo.png"
-                    alt="Logo"
-                    width={200}
-                    height={80}
-                    style={{ width: '100%', height: 'auto' }}
-                  />
+                  {tenantContentFilter?.icon ? (
+                    <img
+                      src={logoSrc}
+                      alt="Logo"
+                      style={{ width: '100%', height: 'auto', maxHeight: '80px', objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <Image
+                      src="/images/appLogo.png"
+                      alt="Logo"
+                      width={200}
+                      height={80}
+                      style={{ width: '100%', height: 'auto' }}
+                    />
+                  )}
                 </Box>
               </Box>
             </Box>
@@ -605,11 +767,17 @@ const LoginPage = () => {
                     fontSize: '14px',
                   }}
                 >
-                  {config.languages.map((lang) => (
-                    <MenuItem value={lang.code} key={lang.code}>
-                      {lang.label}
-                    </MenuItem>
-                  ))}
+                  {/* For Swadhaar: Show only English. For others: Show all configured languages */}
+                  {config.languages
+                    .filter((lang) => 
+                      availableLanguages.length === 0 || 
+                      availableLanguages.includes(lang.code)
+                    )
+                    .map((lang) => (
+                      <MenuItem value={lang.code} key={lang.code}>
+                        {lang.label}
+                      </MenuItem>
+                    ))}
                 </Select>
               </FormControl>
               <TextField
@@ -709,6 +877,13 @@ const LoginPage = () => {
                   fullWidth
                   disabled={isButtonDisabled}
                   ref={loginButtonRef}
+                  sx={{
+                    backgroundColor: dynamicStyles.primaryColor,
+                    color: dynamicStyles.buttonTextColor,
+                    '&:hover': {
+                      backgroundColor: dynamicStyles.secondaryColor,
+                    },
+                  }}
                 >
                   {t('LOGIN_PAGE.LOGIN')}
                 </Button>

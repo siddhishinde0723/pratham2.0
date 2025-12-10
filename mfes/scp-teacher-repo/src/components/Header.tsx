@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 'use client';
 
 import { UpdateDeviceNotification } from '@/services/NotificationService';
@@ -280,7 +281,7 @@ const Header: React.FC<HeaderProps> = ({ toggleDrawer, openDrawer }) => {
                 <LogoutOutlinedIcon
                   sx={{ color: theme.palette.warning['300'] }}
                 />
-                {t('COMMON.LOGOUT')}
+               Logout
               </MenuItem>
             </StyledMenu>
           </Stack>
