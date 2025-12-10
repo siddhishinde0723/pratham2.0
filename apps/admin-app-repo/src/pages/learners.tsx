@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @nx/enforce-module-boundaries */
 // @ts-nocheck
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -330,7 +331,7 @@ const Learner = () => {
         >
           <Box>
             <Typography variant="h4" component="h1" fontWeight={600}>
-              {t('LEARNERS.LEARNERS') || 'Learners'}
+          Learners
             </Typography>
             <Typography variant="body2" color="textSecondary">
               Manage all learners and their information
