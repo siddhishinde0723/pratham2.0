@@ -61,6 +61,7 @@ import {
 } from '../services/CohortService/cohortService';
 import { addStudentsToClass } from '../services/CohortService/cohortService'; // Add this import
 import { showToastMessage } from '@/components/Toastify';
+import { userList } from '@/services/UserList';
 
 // Define types based on your API response
 interface CohortCenter {
@@ -508,9 +509,15 @@ const Centers = () => {
     setDialogCluster('');
     setDialogSchool('');
     setDialogClass('');
+    setDialogSchools([]);
+    setDialogClasses([]);
     setStudents([]);
     setSelectedStudents([]);
     setStudentSearchTerm('');
+
+    // Fetch students from the global list (not passing a source class ID)
+    // Pass the target class ID specifically to ensure we know who to exclude
+    fetchStudents(undefined, center.cohortId);
   };
 
   const handleCloseAddStudents = () => {
@@ -591,37 +598,178 @@ const Centers = () => {
   }, []);
 
   // Fetch students based on selected class in dialog
-  const fetchStudents = useCallback(async (classId: string) => {
-    setLoadingStudents(true);
-    try {
-      const studentRequestData: any = {
-        limit: 0,
-        offset: 0,
-        filters: {
-          role: 'Learner',
-          cohortId: classId,
-          status: ['active'],
-        },
-      };
+  const fetchStudents = useCallback(
+    async (sourceClassId?: string, explicitTargetClassId?: string) => {
+      setLoadingStudents(true);
+      setStudents([]); // Clear previous students
 
-      const response: any = await getCohortMemberList(studentRequestData);
+      try {
+        // If explicitTargetClassId is provided, use it; otherwise use selectedClass state
+        const targetClassId = explicitTargetClassId || selectedClass?.cohortId;
 
-      if (response && response.userDetails) {
-        setStudents(response.userDetails);
-      } else if (Array.isArray(response)) {
-        setStudents(response);
-      } else {
+        if (!targetClassId) {
+          console.error('No target class ID provided');
+          setStudents([]);
+          return;
+        }
+
+        // Step 1: Fetch students already in this class (to exclude them)
+        let existingStudentIds = new Set<string>();
+
+        try {
+          const cohortRequestData: any = {
+            limit: 0,
+            offset: 0,
+            filters: {
+              cohortId: targetClassId,
+              status: ['active'],
+            },
+          };
+
+          const cohortResponse: any = await getCohortMemberList(
+            cohortRequestData
+          );
+
+          if (
+            cohortResponse?.userDetails &&
+            Array.isArray(cohortResponse.userDetails)
+          ) {
+            cohortResponse.userDetails.forEach((student: any) => {
+              if (student.userId) {
+                existingStudentIds.add(student.userId);
+              }
+            });
+            console.log(
+              `Found ${existingStudentIds.size} students already in target class ${targetClassId}`
+            );
+          }
+        } catch (cohortErr) {
+          console.error('Error fetching cohort members:', cohortErr);
+        }
+
+        // Step 2: Determine which students to fetch
+        let allStudents: any[] = [];
+
+        // MODE 1: Filter Mode (User selected a source class)
+        if (sourceClassId) {
+          console.log('Filter mode: Fetching students from source class:', sourceClassId);
+           try {
+            const cohortRequestData: any = {
+              limit: 0,
+              offset: 0,
+              filters: {
+                cohortId: sourceClassId,
+                status: ['active'],
+              },
+            };
+
+            const cohortResponse: any = await getCohortMemberList(
+              cohortRequestData
+            );
+
+            if (
+              cohortResponse?.userDetails &&
+              Array.isArray(cohortResponse.userDetails)
+            ) {
+               allStudents = cohortResponse.userDetails;
+            } else {
+               // Fallback if structure is different
+               // This depends on getCohortMemberList implementation, assuming standard response
+               if(Array.isArray(cohortResponse)) {
+                   allStudents = cohortResponse;
+               }
+            }
+          } catch (err) {
+            console.error('Error fetching source class students:', err);
+             showToastMessage('Failed to fetch students from selected class', 'error');
+          }
+        }
+        // MODE 2: Global Mode (No source class selected)
+        else {
+          console.log(
+            'Global mode: Fetching all available students'
+          );
+
+          try {
+            const userListRequestData: any = {
+              limit: 0, // Fetch all (or reasonable limit)
+              offset: 0,
+              filters: {
+                role: 'Student',
+                status: ['active'],
+              },
+            };
+
+            const userListResponse: any = await userList(userListRequestData);
+
+            if (
+              userListResponse?.getUserDetails &&
+              Array.isArray(userListResponse.getUserDetails)
+            ) {
+              allStudents = userListResponse.getUserDetails;
+            } else if (Array.isArray(userListResponse)) {
+              allStudents = userListResponse;
+            }
+             console.log(
+                `Fetched ${allStudents.length} total students from global list`
+              );
+          } catch (userListErr) {
+            console.error('Error fetching user list:', userListErr);
+            showToastMessage('Failed to fetch student list', 'error');
+          }
+        }
+
+        // Step 3: Filter out students who are already in the target class
+        const availableStudents: Student[] = allStudents
+          .filter((student: any) => {
+            const hasUserId = student.userId && typeof student.userId === 'string';
+            const isAlreadyInTarget = hasUserId && existingStudentIds.has(student.userId);
+            return hasUserId && !isAlreadyInTarget;
+          })
+          .map((student: any) => {
+            return {
+              userId: student.userId,
+              enrollmentId: student.enrollmentId || null,
+              username: student.username || '',
+              firstName: student.firstName || '',
+              middleName: student.middleName || null,
+              lastName: student.lastName || '',
+              role: student.role || 'Student',
+              mobile: student.mobile || null,
+              deviceId: student.deviceId || null,
+              status: student.status || 'active',
+              statusReason: student.statusReason || null,
+              cohortMembershipId: '',
+              createdAt: student.createdAt || new Date().toISOString(),
+              updatedAt: student.updatedAt || new Date().toISOString(),
+              createdBy: student.createdBy || '',
+              updatedBy: student.updatedBy || null,
+              customField: student.customFields || student.customField || [],
+              email: student.email || null,
+              name:
+                student.name ||
+                `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+            };
+          });
+
+        setStudents(availableStudents);
+
+        console.log(
+            `Showing ${availableStudents.length} available students (excluding existing members)`
+        );
+
+      } catch (err: any) {
+        console.error('Error in fetchStudents:', err);
+        const errorMessage =
+          err.message || 'Failed to load students. Please try again.';
+        showToastMessage(errorMessage, 'error');
         setStudents([]);
+      } finally {
+        setLoadingStudents(false);
       }
-    } catch (err) {
-      console.error('Error fetching students:', err);
-      setStudents([]);
-      showToastMessage('Failed to fetch students', 'error');
-    } finally {
-      setLoadingStudents(false);
-    }
-  }, []);
-
+    },
+    [selectedClass]
+  );
   // Handle cluster change in dialog
   const handleDialogClusterChange = (event: SelectChangeEvent) => {
     const clusterId = event.target.value;
@@ -659,6 +807,7 @@ const Centers = () => {
     setStudents([]);
     setSelectedStudents([]);
 
+    // Fetch students for the filtered class
     if (classId) {
       fetchStudents(classId);
     }
@@ -686,15 +835,17 @@ const Centers = () => {
 
   // Handle apply (add selected students to class) - UPDATED WITH API INTEGRATION
   const handleApplyStudents = async () => {
+    if (!selectedClass) {
+      showToastMessage('No target class selected', 'error');
+      return;
+    }
+
     if (selectedStudents.length === 0) {
       showToastMessage('Please select at least one student', 'warning');
       return;
     }
 
-    if (!selectedClass) {
-      showToastMessage('No class selected', 'error');
-      return;
-    }
+    const targetClassId = selectedClass.cohortId;
 
     try {
       setAddingStudents(true);
@@ -702,12 +853,12 @@ const Centers = () => {
         'Adding students:',
         selectedStudents,
         'to class:',
-        selectedClass.cohortId
+        targetClassId
       );
 
       // Prepare data for API call
       const requestData = {
-        cohortId: [selectedClass.cohortId], // Array with the target class ID
+        cohortId: [targetClassId], // Array with the target class ID
         userId: selectedStudents, // Array of selected student IDs
         // cohortAcademicYearId: cohortAcademicYearId, // Academic year ID
       };
@@ -720,6 +871,15 @@ const Centers = () => {
       console.log('API Response:', response);
 
       if (response?.responseCode === 201) {
+        let className = selectedClass?.name;
+        if (dialogClass && dialogClasses.length > 0) {
+          const filteredClass = dialogClasses.find(
+            (c) => c.cohortId === dialogClass
+          );
+          if (filteredClass) {
+            className = filteredClass.name;
+          }
+        }
         showToastMessage(
           `Successfully added ${selectedStudents.length} student(s) to ${selectedClass.name}`,
           'success'
@@ -762,9 +922,13 @@ const Centers = () => {
     setDialogClass('');
     setDialogSchools([]);
     setDialogClasses([]);
-    setStudents([]);
     setSelectedStudents([]);
     setStudentSearchTerm('');
+
+    // When resetting, fetch students from the global list (Source=undefined)
+    if (selectedClass) {
+      fetchStudents(undefined, selectedClass.cohortId);
+    }
   };
 
   // Handle form submission
@@ -1399,14 +1563,14 @@ const Centers = () => {
                                     <PersonAddIcon fontSize="small" />
                                   </IconButton>
                                 </Tooltip>
-                                {/* <Tooltip title="Edit Class">
+                                <Tooltip title="Edit Class">
                                   <IconButton
                                     size="small"
                                     onClick={() => handleEditCenter(center)}
                                   >
                                     <EditIcon fontSize="small" />
                                   </IconButton>
-                                </Tooltip> */}
+                                </Tooltip>
                                 <Tooltip title={archiveProps.tooltip}>
                                   <IconButton
                                     size="small"
@@ -1657,8 +1821,8 @@ const Centers = () => {
               </FormControl>
             </Box>
 
-            {dialogClass && (
-              <>
+            {/* Student List - Always show, either global (filtered by target) or from selected source class */}
+            <Box>
                 <Box
                   sx={{
                     display: 'flex',
@@ -1682,6 +1846,7 @@ const Centers = () => {
                     }}
                   />
                   <Box sx={{ display: 'flex', gap: 1 }}>
+
                     <Button
                       size="small"
                       variant="outlined"
@@ -1711,10 +1876,21 @@ const Centers = () => {
                   ) : filteredStudents.length === 0 ? (
                     <Box sx={{ textAlign: 'center', p: 3 }}>
                       <Typography variant="body2" color="textSecondary">
-                        {students.length === 0
-                          ? 'No students found in this class'
-                          : 'No students match your search'}
-                      </Typography>
+                          {dialogClass && students.length === 0
+                            ? 'No students found in the selected source class'
+                            : students.length === 0
+                            ? 'No available students found'
+                            : 'No students match your search'}
+                        </Typography>
+                        {!dialogClass && (
+                          <Typography
+                            variant="caption"
+                            color="textSecondary"
+                            sx={{ mt: 1, display: 'block' }}
+                          >
+                            Showing all active students who are not already in {selectedClass?.name}
+                          </Typography>
+                        )}
                     </Box>
                   ) : (
                     <Paper variant="outlined">
@@ -1797,11 +1973,15 @@ const Centers = () => {
 
                 {selectedStudents.length > 0 && (
                   <Alert severity="info">
-                    {selectedStudents.length} student(s) selected
+                    {selectedStudents.length} student(s) selected for{' '}
+                    {dialogClass
+                      ? dialogClasses.find((c) => c.cohortId === dialogClass)
+                          ?.name || 'filtered class'
+                      : selectedClass?.name}
                   </Alert>
                 )}
-              </>
-            )}
+
+            </Box>
           </Box>
         </DialogContent>
         <DialogActions>

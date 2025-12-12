@@ -15,6 +15,7 @@ export interface userListParam {
     tenantId?: string; // Added tenantId back to filters
     firstName?: string; // Added firstName for search functionality
     username?: string; // Added username for search functionality
+    
   };
   customFields?: CustomField[]; // Location filters as customFields
   fields?: any;
@@ -39,7 +40,7 @@ export const userList = async ({
 
     // Build request data with customFields for location filters
     const requestData: any = {
-      limit: limit || 10,
+      limit: limit ,
       filters: {
         role: filters?.role,
         status: filters?.status,
