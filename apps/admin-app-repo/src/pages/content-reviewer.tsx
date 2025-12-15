@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @nx/enforce-module-boundaries */
 // @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
@@ -41,6 +42,9 @@ import {
   Group as GroupIcon,
   Badge as BadgeIcon,
   Phone as PhoneIcon,
+      CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Pending as PendingIcon,
 } from '@mui/icons-material';
 import SimpleModal from '@/components/SimpleModal';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
@@ -279,7 +283,18 @@ const ContentReviewer = () => {
         return 'default';
     }
   };
-
+  const getStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return <CheckCircleIcon fontSize="small" />;
+      case 'inactive':
+        return <CancelIcon fontSize="small" />;
+      case 'pending':
+        return <PendingIcon fontSize="small" />;
+      default:
+        return null;
+    }
+  };
   // Get status text
   const getStatusText = (status: string) => {
     if (!status) return 'Unknown';
@@ -604,16 +619,15 @@ const ContentReviewer = () => {
                           </>
                         )}
                         <TableCell>
-                          <Chip
-                            label={getStatusText(reviewer.status)}
-                            size="small"
-                            color={getStatusColor(reviewer.status) as any}
-                            variant={
-                              reviewer.status === 'archived'
-                                ? 'outlined'
-                                : 'filled'
-                            }
-                          />
+                            <Chip
+                                label={getStatusText(reviewer.status)}
+                                size="small"
+                                color={getStatusColor(reviewer.status) as any}
+                                icon={
+                                  getStatusIcon(reviewer.status) || undefined
+                                }
+                                variant="outlined"
+                              />
                         </TableCell>
                         <TableCell>
                           <Tooltip

@@ -42,6 +42,9 @@ import {
   Group as GroupIcon,
   Badge as BadgeIcon,
   Phone as PhoneIcon,
+      CheckCircle as CheckCircleIcon,
+    Cancel as CancelIcon,
+    Pending as PendingIcon,
 } from '@mui/icons-material';
 import SimpleModal from '@/components/SimpleModal';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
@@ -281,7 +284,18 @@ const ContentCreator = () => {
         return 'default';
     }
   };
-
+  const getStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return <CheckCircleIcon fontSize="small" />;
+      case 'inactive':
+        return <CancelIcon fontSize="small" />;
+      case 'pending':
+        return <PendingIcon fontSize="small" />;
+      default:
+        return null;
+    }
+  };
   // Get status text
   const getStatusText = (status: string) => {
     if (!status) return 'Unknown';
@@ -606,16 +620,15 @@ const ContentCreator = () => {
                           </>
                         )}
                         <TableCell>
-                          <Chip
-                            label={getStatusText(creator.status)}
-                            size="small"
-                            color={getStatusColor(creator.status) as any}
-                            variant={
-                              creator.status === 'archived'
-                                ? 'outlined'
-                                : 'filled'
-                            }
-                          />
+                           <Chip
+                                label={getStatusText(creator.status)}
+                                size="small"
+                                color={getStatusColor(creator.status) as any}
+                                icon={
+                                  getStatusIcon(creator.status) || undefined
+                                }
+                                variant="outlined"
+                              />
                         </TableCell>
                         <TableCell>
                           <Tooltip

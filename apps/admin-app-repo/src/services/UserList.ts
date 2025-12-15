@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-inferrable-types */
+/* eslint-disable @nx/enforce-module-boundaries */
 import { API_ENDPOINTS } from '@/utils/API/APIEndpoints';
 import { post, get } from './RestClient';
 
@@ -15,6 +17,10 @@ export interface userListParam {
     tenantId?: string; // Added tenantId back to filters
     firstName?: string; // Added firstName for search functionality
     username?: string; // Added username for search functionality
+    state?: string[];
+    district?: string[];
+    block?: string[];
+    village?: string[];
   };
   customFields?: CustomField[]; // Location filters as customFields
   fields?: any;
@@ -39,13 +45,17 @@ export const userList = async ({
 
     // Build request data with customFields for location filters
     const requestData: any = {
-      limit: limit || 10,
+      limit: limit,
       filters: {
         role: filters?.role,
         status: filters?.status,
         tenantId: filters?.tenantId || tenantId, // Include tenantId in request body
         firstName: filters?.firstName, // Include firstName for search functionality
         username: filters?.username, // Include username for search functionality
+        ...(filters?.state ? { state: filters.state } : {}),
+        ...(filters?.district ? { district: filters.district } : {}),
+        ...(filters?.block ? { block: filters.block } : {}),
+        ...(filters?.village ? { village: filters.village } : {}),
       },
       sort: sort || ['firstName', 'asc'],
       offset: offset || 0,

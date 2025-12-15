@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Container,
@@ -65,6 +66,9 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   School as SchoolIcon,
+    CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Pending as PendingIcon,
 } from '@mui/icons-material';
 import {
   getCohortMemberList,
@@ -846,7 +850,18 @@ const TeacherList = () => {
         return 'default';
     }
   };
-
+  const getStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return <CheckCircleIcon fontSize="small" />;
+      case 'inactive':
+        return <CancelIcon fontSize="small" />;
+      case 'pending':
+        return <PendingIcon fontSize="small" />;
+      default:
+        return null;
+    }
+  };
   // Get status text
   const getStatusText = (status: string) => {
     if (!status) return 'Unknown';
@@ -1237,7 +1252,7 @@ const TeacherList = () => {
                           </TableSortLabel>
                         </TableCell>
                       )}
-                      {columnVisibility.role && <TableCell>Role</TableCell>}
+                      
                       {columnVisibility.mobile && (
                         <TableCell>Contact</TableCell>
                       )}
@@ -1254,19 +1269,7 @@ const TeacherList = () => {
                           </TableSortLabel>
                         </TableCell>
                       )}
-                      {columnVisibility.createdAt && (
-                        <TableCell>
-                          <TableSortLabel
-                            active={sortBy === 'createdAt'}
-                            direction={
-                              sortBy === 'createdAt' ? sortDirection : 'asc'
-                            }
-                            onClick={() => handleSort('createdAt')}
-                          >
-                            Joined Date
-                          </TableSortLabel>
-                        </TableCell>
-                      )}
+                 
                       {columnVisibility.actions && (
                         <TableCell>Actions</TableCell>
                       )}
@@ -1329,16 +1332,7 @@ const TeacherList = () => {
                               </Box>
                             </TableCell>
                           )}
-                          {columnVisibility.role && (
-                            <TableCell>
-                              <Chip
-                                label={teacher.role}
-                                size="small"
-                                color="primary"
-                                variant="outlined"
-                              />
-                            </TableCell>
-                          )}
+                     
                           {columnVisibility.mobile && (
                             <TableCell>
                               <Box
@@ -1371,37 +1365,18 @@ const TeacherList = () => {
                           )}
                           {columnVisibility.status && (
                             <TableCell>
-                              <Chip
+                                <Chip
                                 label={getStatusText(teacher.status)}
                                 size="small"
                                 color={getStatusColor(teacher.status) as any}
-                                variant={
-                                  teacher.status === 'archived'
-                                    ? 'outlined'
-                                    : 'filled'
+                                icon={
+                                  getStatusIcon(teacher.status) || undefined
                                 }
+                                variant="outlined"
                               />
                             </TableCell>
                           )}
-                          {columnVisibility.createdAt && (
-                            <TableCell>
-                              <Box
-                                sx={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 1,
-                                }}
-                              >
-                                <CalendarIcon fontSize="small" color="action" />
-                                <Typography
-                                  variant="body2"
-                                  color="textSecondary"
-                                >
-                                  {formatDate(teacher.createdAt)}
-                                </Typography>
-                              </Box>
-                            </TableCell>
-                          )}
+                    
                           {columnVisibility.actions && (
                             <TableCell>
                               <Box sx={{ display: 'flex', gap: 0.5 }}>

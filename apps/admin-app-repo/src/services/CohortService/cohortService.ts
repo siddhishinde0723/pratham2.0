@@ -361,7 +361,7 @@ export const DEFAULT_PASSWORD = 'Password@123';
 
 export const assignClassToTeacher = async (data: {
   cohortId: string[];
-  userId: string;
+  userId: string[];
 }) => {
   const apiUrl: string = API_ENDPOINTS.cohortMemberBulkCreate;
   try {

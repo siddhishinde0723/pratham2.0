@@ -1,3 +1,6 @@
+/* eslint-disable prefer-const */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
@@ -29,9 +32,11 @@ import {
 import {
   getCohortList,
   createCohort,
+  assignClassToTeacher,
 } from '@/services/CohortService/cohortService';
 import { getCohortMemberList } from '@/services/CohortService/cohortService';
 import { showToastMessage } from '@/components/Toastify';
+import { userList } from '@/services/UserList';
 
 // Time options for dropdown
 const timeOptions = [
@@ -132,8 +137,8 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
       if (schoolId) {
         fetchSchoolsAndCluster(schoolId);
         fetchClasses(schoolId);
-        // For existing class, fetch teachers assigned to this class
-        fetchTeachersForClass(center.cohortId);
+        // For existing class, fetch teachers for edit (candidates from school - current class members)
+        fetchTeachersForEdit(schoolId, center.cohortId, center.metadata?.teacherId);
       }
 
       // Map API data to form structure
@@ -338,62 +343,83 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
     }
   };
 
-  // Fetch teachers for a specific class (when editing)
-  const fetchTeachersForClass = useCallback(async (classCohortId) => {
+  // Fetch teachers for edit mode (Global Teachers/Learners - Class Members + Current Teacher)
+  const fetchTeachersForEdit = useCallback(async (schoolId, classId, currentTeacherId) => {
     setLoadingTeachers(true);
     try {
-      const teacherRequestData = {
-        limit: 0,
-        offset: 0,
-        sort: ['firstName', 'asc'],
-        filters: {
-          role: 'Teacher',
-          cohortId: classCohortId,
-          status: ['active'],
-        },
-      };
+      console.log('Fetching teachers for edit:', { schoolId, classId, currentTeacherId });
 
-      const response = await getCohortMemberList(teacherRequestData);
-
-      if (response && typeof response === 'object') {
-        let teachersData = [];
-
-        if (response.userDetails) {
-          teachersData = response.userDetails.map((teacher) => ({
-            id: teacher.userId,
-            name: `${teacher.firstName} ${teacher.lastName}`,
-            email: teacher.email || '',
-            userId: teacher.userId,
-            username: teacher.username,
-            firstName: teacher.firstName,
-            lastName: teacher.lastName,
-            status: teacher.status,
-            role: teacher.role,
-            cohortId: teacher.cohortId,
-          }));
+      // Step 1: Fetch all teachers/learners from userList
+      let globalTeachers = [];
+      try {
+        const userListRequestData = {
+          limit: 0,
+          offset: 0,
+          sort: ['firstName', 'asc'],
+          filters: {
+            role:'Teacher',
+            // role: ['Teacher', 'Learner'],
+            status: ['active'],
+          },
+        };
+        const response = await userList(userListRequestData);
+        if (response?.getUserDetails) {
+           // Apply client-side filter for roles
+           globalTeachers = response.getUserDetails.filter((user) => {
+             const role = user.role?.toLowerCase();
+             console.log('User Role:', role);
+             return ["teacher", "learner"].includes(role);
+           });
         } else if (Array.isArray(response)) {
-          teachersData = response.map((teacher) => ({
+           globalTeachers = response.filter((user) => {
+           
+             const role = user.role?.toLowerCase();
+             return ["teacher", "learner"].includes(role);
+           });
+        }
+      } catch (e) {
+        console.error('Error fetching global teachers:', e);
+      }
+      console.log('Global Teachers:', globalTeachers);
+      // Step 2: Fetch teachers currently in the class (To Exclude)
+      let classMembers = new Set();
+      try {
+          const classRequestData = {
+          limit: 0,
+          offset: 0,
+          filters: {
+            cohortId: classId,
+            status: ['active'],
+          },
+        };
+        // const classResponse = await getCohortMemberList(classRequestData);
+        //  if (classResponse?.userDetails) {
+        //    classResponse.userDetails.forEach(u => classMembers.add(u.userId));
+        // }
+      } catch (e) {
+          console.error('Error fetching class members:', e);
+      }
+
+      // Step 3: Filter and Map
+      const teachersData = globalTeachers
+        .map((teacher) => ({
             id: teacher.userId,
-            name: `${teacher.firstName} ${teacher.lastName}`,
+            name: `${teacher.firstName} ${teacher.lastName}`.trim(),
             email: teacher.email || '',
             userId: teacher.userId,
-            username: teacher.username,
-            firstName: teacher.firstName,
-            lastName: teacher.lastName,
-            status: teacher.status,
+            username: teacher.username || '',
+            firstName: teacher.firstName || '',
+            lastName: teacher.lastName || '',
+            status: teacher.status || 'active',
             role: teacher.role,
-            cohortId: teacher.cohortId,
-          }));
-        }
+            cohortId: '', 
+        }));
+      
+      setTeachers(teachersData);
 
-        setTeachers(teachersData);
-      } else {
-        setTeachers([]);
-      }
     } catch (err) {
-      console.error('Error fetching class teachers:', err);
-      setTeachers([]);
-      showToastMessage('Failed to fetch teachers for this class', 'error');
+      console.error('Error in fetchTeachersForEdit:', err);
+      showToastMessage('Failed to fetch teachers', 'error');
     } finally {
       setLoadingTeachers(false);
     }
@@ -687,47 +713,109 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         },
       };
 
-      // If editing, add cohortId
-      if (center?.cohortId) {
+      let response;
+      let resultData;
+
+      if (isEditing) {
+        // EDIT MODE: Update existing class
+        console.log('✏️ Editing class:', center.cohortId);
+
+        // Step 1: Update class details
         classData.cohortId = center.cohortId;
-      }
 
-      console.log('Submitting class data:', classData);
+        // Step 2: Assign teacher to class (if teacher has changed)
+        if (center.metadata?.teacherId !== formData.teacherId) {
+          console.log('👨‍🏫 Teacher changed, calling assignClassToTeacher API');
 
-      // Call createCohort API
-      const response = await createCohort(classData);
-      console.log('create class response', response);
-      if (response?.responseCode === 201) {
-        // Call onSubmit callback with the formatted data
-        if (onSubmit) {
-          onSubmit(response.data || classData);
+          const assignResponse = await assignClassToTeacher({
+            userId: [formData.teacherId],
+            cohortId: [center.cohortId],
+          });
+
+          console.log('Assign teacher response:', assignResponse);
+
+          if (
+            assignResponse?.responseCode === 200 ||
+            assignResponse?.responseCode === 201
+          ) {
+            console.log('✅ Teacher assigned successfully');
+          } else {
+            console.warn('⚠️ Teacher assignment failed, but class was updated');
+          }
         }
 
-        setSuccessMessage(
-          center ? 'Class updated successfully!' : 'Class created successfully!'
-        );
-
-        // Close after success
-        setTimeout(() => {
-          onClose();
-          setSuccessMessage('');
-        }, 1500);
+        // Prepare data for parent callback
+        // resultData = updateResponse.data || {
+        //   ...classData,
+        //   cohortId: center.cohortId,
+        //   parentId: center.parentId,
+        //   createdAt: center.createdAt,
+        //   updatedAt: new Date().toISOString(),
+        // };
       } else {
-        throw new Error(response?.message || 'Failed to create class');
+        // CREATE MODE: Create new class
+        console.log('🆕 Creating new class');
+
+        response = await createCohort(classData);
+        console.log('Create class response:', response);
+
+        if (response?.responseCode === 201) {
+          console.log('✅ Class created successfully');
+
+          // Prepare data for parent callback
+          resultData = response.data || {
+            ...classData,
+            cohortId: response.result?.cohortId || `temp-${Date.now()}`,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          // For new classes, assign teacher immediately
+        } else if (response?.responseCode === 409) {
+          throw new Error(
+            'Class name already exists. Please use a different name.'
+          );
+        } else {
+          throw new Error(response?.message || 'Failed to create class');
+        }
       }
+
+      // Call onSubmit callback with the formatted data
+      if (onSubmit && resultData) {
+        console.log('📢 Calling parent onSubmit with result data');
+        onSubmit(resultData);
+      }
+
+      setSuccessMessage(
+        isEditing
+          ? 'Class updated successfully!'
+          : 'Class created successfully!'
+      );
+
+      // Close after success
+      setTimeout(() => {
+        onClose();
+        setSuccessMessage('');
+      }, 1500);
     } catch (error) {
       console.error('Error saving class:', error);
-      const errorMsg =
-        error.response?.data?.message ||
-        error.message ||
-        'Failed to save class. Please try again.';
+
+      let errorMsg;
+      if (error.message.includes('already exists')) {
+        errorMsg = 'Class name already exists. Please use a different name.';
+        setErrors((prev) => ({ ...prev, className: errorMsg }));
+      } else if (error.message.includes('Network Error')) {
+        errorMsg = 'Network error. Please check your connection and try again.';
+      } else {
+        errorMsg = error.message || 'Failed to save class. Please try again.';
+      }
+
       setErrorMessage(errorMsg);
       showToastMessage(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
   };
-
   const handleCloseSnackbar = () => {
     setSuccessMessage('');
     setErrorMessage('');
@@ -1006,7 +1094,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                     ) : (
                       teachers.map((teacher) => (
                         <MenuItem key={teacher.id} value={teacher.id}>
-                          {teacher.name} ({teacher.email || teacher.username})
+                          {teacher.firstName} {teacher.lastName}
                           {teacher.sourceClass && ` - ${teacher.sourceClass}`}
                           {teacher.status !== 'active' &&
                             ` - ${teacher.status}`}

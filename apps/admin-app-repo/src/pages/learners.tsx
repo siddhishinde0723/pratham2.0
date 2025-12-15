@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @nx/enforce-module-boundaries */
 // @ts-nocheck
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -41,6 +42,9 @@ import {
   CalendarToday as CalendarIcon,
   Badge as BadgeIcon,
   Phone as PhoneIcon,
+      CheckCircle as CheckCircleIcon,
+    Cancel as CancelIcon,
+    Pending as PendingIcon,
 } from '@mui/icons-material';
 import { Numbers } from '@mui/icons-material';
 import EditIcon from '@mui/icons-material/Edit';
@@ -280,6 +284,18 @@ const Learner = () => {
     }
   };
 
+    const getStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return <CheckCircleIcon fontSize="small" />;
+      case 'inactive':
+        return <CancelIcon fontSize="small" />;
+      case 'pending':
+        return <PendingIcon fontSize="small" />;
+      default:
+        return null;
+    }
+  };
   // Get status text
   const getStatusText = (status: string) => {
     if (!status) return 'Unknown';
@@ -330,7 +346,7 @@ const Learner = () => {
         >
           <Box>
             <Typography variant="h4" component="h1" fontWeight={600}>
-              {t('LEARNERS.LEARNERS') || 'Learners'}
+          Learners
             </Typography>
             <Typography variant="body2" color="textSecondary">
               Manage all learners and their information
@@ -579,16 +595,15 @@ const Learner = () => {
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Chip
-                            label={getStatusText(learner.status)}
-                            size="small"
-                            color={getStatusColor(learner.status) as any}
-                            variant={
-                              learner.status === 'archived'
-                                ? 'outlined'
-                                : 'filled'
-                            }
-                          />
+                       <Chip
+                                label={getStatusText(learner.status)}
+                                size="small"
+                                color={getStatusColor(learner.status) as any}
+                                icon={
+                                  getStatusIcon(learner.status) || undefined
+                                }
+                                variant="outlined"
+                              />
                         </TableCell>
                         <TableCell>
                           <Tooltip

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-expressions */
 /* eslint-disable @nx/enforce-module-boundaries */
 import {
   Box,
@@ -9,6 +10,9 @@ import {
   Grid,
   Typography,
   useMediaQuery, // Import useMediaQuery hook
+  Card,
+  alpha,
+  CircularProgress,
 } from '@mui/material';
 import React, { useEffect, useRef, useState } from 'react';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
@@ -168,40 +172,41 @@ const LoginPage = () => {
       const token = localStorage.getItem('token');
       if (token) {
         const { locale } = router;
-        if (locale) {
-          let role;
-          if (storedUserData) {
+        let role = null;
+
+        // Parse storedUserData safely
+        if (storedUserData) {
+          try {
             role = JSON.parse(storedUserData);
-            if (role?.role === Role.ADMIN) {
-              // Redirect ADMIN users to /learners (first Manage Users option)
-              router.push('/learners', undefined, { locale: locale });
-            } else if (role?.role === Role.SCTA || role?.role === Role.CCTA || role?.role === Role.TEACHER) {
-              // Redirect SCTA and CCTA users to workspace
-              router.push('/workspace', undefined, { locale: locale });
-            } else if (
-              role?.role === Role.CENTRAL_ADMIN &&
-              role?.tenantData[0]?.tenantName ==
-                TenantName.SECOND_CHANCE_PROGRAM
-            ) {
-              router.push('/programs', undefined, { locale: locale });
-            }
-            
+          } catch (error) {
+            console.error("Error parsing stored user data:", error);
+            // If parsing fails, clear invalid data
+            localStorage.removeItem('adminInfo');
           }
-        } else {
-          let role;
-          if (storedUserData) {
-            role = JSON.parse(storedUserData);
-            if (role?.role === Role.ADMIN) {
-              // Redirect ADMIN users to /learners (first Manage Users option)
+        }
+
+        if (role) {
+          if (role?.role === Role.ADMIN) {
+            // Redirect ADMIN users to /learners (first Manage Users option)
+            if (locale) {
+              router.push('/learners', undefined, { locale: locale });
+            } else {
               router.push('/learners');
-            } else if (role?.role === Role.SCTA || role?.role === Role.CCTA || role?.role === Role.TEACHER) {
-              // Redirect SCTA and CCTA users to workspace
+            }
+          } else if (role?.role === Role.SCTA || role?.role === Role.CCTA || role?.role === Role.TEACHER) {
+            // Redirect SCTA and CCTA users to workspace
+            if (locale) {
+              router.push('/workspace', undefined, { locale: locale });
+            } else {
               router.push('/workspace');
-            } else if (
-              role?.role === Role.CENTRAL_ADMIN &&
-              role?.tenantData[0]?.tenantName ==
-                TenantName.SECOND_CHANCE_PROGRAM
-            ) {
+            }
+          } else if (
+            role?.role === Role.CENTRAL_ADMIN &&
+            role?.tenantData?.[0]?.tenantName === TenantName.SECOND_CHANCE_PROGRAM
+          ) {
+            if (locale) {
+              router.push('/programs', undefined, { locale: locale });
+            } else {
               router.push('/programs');
             }
           }
@@ -602,200 +607,271 @@ const LoginPage = () => {
   const dynamicStyles = getDynamicStyles();
   const logoSrc = tenantContentFilter?.icon || '/images/appLogo.png';
 
+  // Concentric Rings Background Component
+  const ConcentricRingsBackground = () => {
+    const left = {
+      width: '82%',
+      height: '140%',
+      top: '4%',
+      left: '-38%',
+      ringAlpha: 0.06,
+      ringThickness: 1.4,
+      ringGap: 26,
+      blur: 1.2,
+      center: '36% 52%',
+    };
+    const right = {
+      width: '56%',
+      height: '116%',
+      top: '2%',
+      right: '-8%',
+      ringAlpha: 0.115,
+      ringThickness: 2,
+      ringGap: 12,
+      blur: 0.6,
+      center: '78% 58%',
+    };
+    const bgColor = dynamicStyles.backgroundColor || '#ffffff';
+
+    return (
+      <Box sx={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+        <Box
+          sx={{
+            position: 'absolute',
+            width: left.width,
+            height: left.height,
+            top: left.top,
+            left: left.left,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            backgroundImage: `
+              repeating-radial-gradient(circle at ${left.center},
+                ${alpha(dynamicStyles.primaryColor, left.ringAlpha)} 0px,
+                ${alpha(dynamicStyles.primaryColor, left.ringAlpha)} ${left.ringThickness}px,
+                transparent ${left.ringThickness + 0.6}px,
+                transparent ${left.ringGap}px
+              ),
+              radial-gradient(circle at ${left.center}, ${alpha(dynamicStyles.primaryColor, 0.03)} 0%, transparent 36%),
+              radial-gradient(circle at ${left.center}, ${bgColor} 0%, ${bgColor} 14%, transparent 15%)
+            `,
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: '100% 100%',
+            filter: `blur(${left.blur}px)`,
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            width: right.width,
+            height: right.height,
+            top: right.top,
+            right: right.right,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            backgroundImage: `
+              repeating-radial-gradient(circle at ${right.center},
+                ${alpha(dynamicStyles.secondaryColor, right.ringAlpha)} 0px,
+                ${alpha(dynamicStyles.secondaryColor, right.ringAlpha)} ${right.ringThickness}px,
+                transparent ${right.ringThickness + 0.4}px,
+                transparent ${right.ringGap}px
+              ),
+              radial-gradient(circle at ${right.center}, ${alpha(dynamicStyles.secondaryColor, 0.05)} 0%, transparent 42%),
+              radial-gradient(circle at ${right.center}, ${bgColor} 0%, ${bgColor} 10%, transparent 11%)
+            `,
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: '100% 100%',
+            filter: `blur(${right.blur}px)`,
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            left: '28%',
+            top: '16%',
+            width: '46%',
+            height: '58%',
+            borderRadius: '50%',
+            pointerEvents: 'none',
+            zIndex: 0,
+            background: `radial-gradient(circle at 50% 40%, ${alpha(bgColor, 0.98)} 0%, ${alpha(bgColor, 0.86)} 8%, transparent 48%)`,
+            filter: 'blur(18px)',
+            opacity: 0.98,
+          }}
+        />
+      </Box>
+    );
+  };
+
+  // Floating Icons Overlay Component
+  const FloatingIconsOverlay = () => (
+    <Box sx={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 10 }}>
+      <Box sx={{ position: 'absolute', top: '12%', left: '46%', opacity: 0.16 }}>
+        ✨
+      </Box>
+      <Box sx={{ position: 'absolute', bottom: '14%', right: '18%', opacity: 0.16 }}>
+        📖
+      </Box>
+    </Box>
+  );
+
   return (
-    <>
+    <Box sx={{ position: 'relative', height: '100vh', overflow: 'hidden', backgroundColor: dynamicStyles.backgroundColor || '#F5F5F5' }}>
+      {loading && (
+        <Loader showBackdrop={true} loadingText={t('COMMON.LOADING')} />
+      )}
+      <FloatingIconsOverlay />
+      <ConcentricRingsBackground />
+      
       <Box
-        display="flex"
-        flexDirection="column"
-        bgcolor={theme.palette.warning.A200}
-        borderRadius={'10px'}
         sx={{
-          '@media (min-width: 900px)': {
-            display: 'none',
-          },
+          display: 'flex',
+          flexDirection: { xs: 'column', lg: 'row' },
+          height: '100vh',
+          overflow: 'hidden',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
-        {loading && (
-          <Loader showBackdrop={true} loadingText={t('COMMON.LOADING')} />
-        )}
-        <Box
-          display={'flex'}
-          overflow="auto"
-          alignItems={'center'}
-          justifyContent={'center'}
-          zIndex={99}
-          sx={{ margin: '5px 10px 25px' }}
-        >
+        {/* Left Column - Hidden on mobile, shown on desktop */}
+        {!(isMobile || isMedium) && (
           <Box
-            sx={{ width: '55%', '@media (max-width: 400px)': { width: '95%' } }}
-          >
-                  {tenantContentFilter?.icon ? (
-                    <img
-                      src={logoSrc}
-                      alt="Logo"
-                      style={{ width: '100%', height: 'auto', maxHeight: '80px', objectFit: 'contain' }}
-                    />
-                  ) : (
-                    <Image
-                      src="/images/appLogo.png"
-                      alt="Logo"
-                      width={200}
-                      height={80}
-                      style={{ width: '100%', height: 'auto' }}
-                    />
-                  )}
-          </Box>
-        </Box>
-      </Box>
-      <Grid
-        container
-        spacing={2}
-        justifyContent={'center'}
-        px={'30px'}
-        alignItems={'center'}
-        width={'100% !important'}
-      >
-        {!(isMobile || isMedium) && ( // Render only on desktop view
-          <Grid
             sx={{
-              '@media (max-width: 900px)': {
-                display: 'none',
-              },
+              flex: { xs: 'none', lg: 1 },
+              display: { xs: 'none', lg: 'flex' },
+              alignItems: 'center',
+              justifyContent: 'center',
+              px: { xs: 3, sm: 6, md: 10, lg: 16 },
+              py: { xs: 4, md: 4 },
+              minHeight: '100vh',
+              zIndex: 2,
             }}
-            item
-            xs={12}
-            sm={12}
-            md={6}
           >
             <Image
               className="login-img"
               src={loginImg}
               alt="Login Image"
               layout="responsive"
+              style={{ maxWidth: '100%', height: 'auto' }}
             />
-          </Grid>
+          </Box>
         )}
-        <Grid item xs={12} md={6} display="flex" alignItems="center">
-          <Box
-            flexGrow={1}
-            // display={'flex'}
-            bgcolor={theme.palette.warning['A400']}
-            height="auto"
-            zIndex={99}
-            justifyContent={'center'}
-            p={'2rem'}
-            borderRadius={'2rem 2rem 0 0'}
+
+        {/* Right Column - Login Form */}
+        <Box
+          sx={{
+            flex: { xs: 'none', lg: 1 },
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            px: { xs: 2, sm: 4, md: 6, lg: 8 },
+            minHeight: '100vh',
+            zIndex: 3,
+          }}
+        >
+          <Card
             sx={{
-              '@media (min-width: 900px)': {
-                width: '100%',
-                borderRadius: '16px',
-                boxShadow: 'rgba(99, 99, 99, 0.2) 0px 2px 8px 0px',
-                marginTop: '50px',
-              },
-              '@media (max-width: 900px)': {
-                marginTop: '-25px',
-              },
+              width: '100%',
+              maxWidth: '520px',
+              mx: 'auto',
+              borderRadius: '26px',
+              background: '#ffffff',
+              boxShadow: '0 14px 38px rgba(0,0,0,0.14)',
+              p: { xs: 3, sm: 4 },
+              minHeight: { xs: 'auto', sm: 730 },
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              textAlign: 'center',
             }}
           >
-            <Box
-              display="flex"
-              flexDirection="column"
-              bgcolor={theme.palette.warning.A200}
-              borderRadius={'10px'}
+            {/* Logo */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+              {tenantContentFilter?.icon ? (
+                <img
+                  src={logoSrc}
+                  alt="Logo"
+                  style={{ width: '70px', height: '70px', objectFit: 'contain' }}
+                />
+              ) : (
+                <Image
+                  src="/images/appLogo.png"
+                  alt="Logo"
+                  width={70}
+                  height={70}
+                  style={{ objectFit: 'contain' }}
+                />
+              )}
+            </Box>
+
+            <Typography
               sx={{
-                '@media (max-width: 900px)': {
-                  display: 'none',
-                },
+                fontWeight: 700,
+                fontSize: { xs: '1.8rem', sm: '2rem' },
+                color: '#E6873C',
+                mb: 1,
+                mt: 2,
+                textAlign: 'center',
               }}
             >
-              {loading && (
-                <Loader showBackdrop={true} loadingText={t('COMMON.LOADING')} />
-              )}
-              <Box
-                display={'flex'}
-                overflow="auto"
-                alignItems={'center'}
-                justifyContent={'center'}
-                zIndex={99}
-                // sx={{ margin: '5px 10px 25px', }}
-              >
-                <Box
-                  sx={{
-                    width: '60%',
-                    '@media (max-width: 700px)': { width: '95%' },
-                  }}
-                >
-                  {tenantContentFilter?.icon ? (
-                    <img
-                      src={logoSrc}
-                      alt="Logo"
-                      style={{ width: '100%', height: 'auto', maxHeight: '80px', objectFit: 'contain' }}
-                    />
-                  ) : (
-                    <Image
-                      src="/images/appLogo.png"
-                      alt="Logo"
-                      width={200}
-                      height={80}
-                      style={{ width: '100%', height: 'auto' }}
-                    />
-                  )}
-                </Box>
-              </Box>
-            </Box>
-            <form onSubmit={handleFormSubmit}>
-              {/* <Typography
-              variant="h4"
-              gutterBottom
-              textAlign="center"
-              sx={{ mt: 2 }}
+              Welcome Back
+            </Typography>
+
+            <Typography
+              sx={{
+                color: 'rgba(0,0,0,0.65)',
+                mb: 4,
+                textAlign: 'center',
+              }}
             >
-              {t("LOGIN_PAGE.LOGIN")}
-            </Typography> */}
-              <FormControl fullWidth margin="normal">
-                <Select
-                  className="SelectLanguages"
-                  value={language}
-                  onChange={handleChange}
-                  displayEmpty
-                  sx={{
-                    borderRadius: '0.5rem',
-                    color: theme.palette.warning.A200,
-                    width: '117px',
-                    height: '32px',
-                    marginBottom: '0rem',
-                    fontSize: '14px',
-                  }}
-                >
-                  {/* For Swadhaar: Show only English. For others: Show all configured languages */}
-                  {config.languages
-                    .filter((lang) => 
-                      availableLanguages.length === 0 || 
-                      availableLanguages.includes(lang.code)
-                    )
-                    .map((lang) => (
-                      <MenuItem value={lang.code} key={lang.code}>
-                        {lang.label}
-                      </MenuItem>
-                    ))}
-                </Select>
-              </FormControl>
+              Log in to your Account
+            </Typography>
+
+            <form onSubmit={handleFormSubmit} style={{ width: '100%' }}>
+        
+
+              {/* Username Field */}
               <TextField
                 fullWidth
                 id="username"
-                InputLabelProps={{ shrink: true }}
                 label={t('LOGIN_PAGE.USERNAME')}
                 placeholder={t('LOGIN_PAGE.USERNAME_PLACEHOLDER')}
                 value={username}
                 onChange={handleUsernameChange}
                 error={usernameError}
+                variant="outlined"
                 margin="normal"
+                sx={{
+                  mb: 2,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '10px',
+                    backgroundColor: dynamicStyles.backgroundColor || '#F5F5F5',
+                    '& fieldset': {
+                      borderColor: dynamicStyles.secondaryColor,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: dynamicStyles.secondaryColor,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: dynamicStyles.primaryColor,
+                    },
+                  },
+                }}
               />
+
+              {/* Password Field */}
               <TextField
                 fullWidth
                 type={showPassword ? 'text' : 'password'}
                 id="password"
-                InputLabelProps={{ shrink: true }}
+                label={t('LOGIN_PAGE.PASSWORD')}
+                placeholder={t('LOGIN_PAGE.PASSWORD_PLACEHOLDER')}
+                value={password}
+                onChange={handlePasswordChange}
+                error={passwordError}
+                variant="outlined"
+                margin="normal"
+                inputRef={passwordRef}
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
@@ -804,95 +880,72 @@ const LoginPage = () => {
                         onClick={handleClickShowPassword}
                         onMouseDown={handleMouseDownPassword}
                         edge="end"
+                        sx={{ color: dynamicStyles.secondaryColor }}
                       >
                         {showPassword ? <VisibilityOff /> : <Visibility />}
                       </IconButton>
                     </InputAdornment>
                   ),
                 }}
-                label={t('LOGIN_PAGE.PASSWORD')}
-                placeholder={t('LOGIN_PAGE.PASSWORD_PLACEHOLDER')}
-                value={password}
-                onChange={handlePasswordChange}
-                error={passwordError}
-                margin="normal"
-                inputRef={passwordRef}
+                sx={{
+                  mb: 3,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '10px',
+                    backgroundColor: dynamicStyles.backgroundColor || '#F5F5F5',
+                    '& fieldset': {
+                      borderColor: dynamicStyles.secondaryColor,
+                    },
+                    '&:hover fieldset': {
+                      borderColor: dynamicStyles.primaryColor,
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: dynamicStyles.primaryColor,
+                    },
+                  },
+                }}
               />
 
-              {/* <Box
+              {/* Login Button */}
+              <Button
+                variant="contained"
+                type="submit"
+                fullWidth
+                ref={loginButtonRef}
                 sx={{
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  color: theme.palette.secondary.main,
-                  mt: 1,
-                  cursor: 'pointer',
-                }}
-                onClick={() => {
-                  window.open(
-                    `${process.env.NEXT_PUBLIC_RESET_PASSWORD_URL}?redirectUrl=${window.location.origin}/login`,
-                    '_self'
-                  );
+                  py: 1.6,
+                  backgroundColor: '#E6873C',
+                  color: `${dynamicStyles.buttonTextColor} !important`,
+                  borderRadius: '10px',
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  boxShadow: `0 4px 14px ${alpha(dynamicStyles.primaryColor, 0.35)}`,
+                  mb: 2,
+                  textTransform: 'none',
+                  '&:hover': {
+                    backgroundColor: '#E6873C',
+                    opacity: 0.9,
+                  },
+                  '&:disabled': {
+                    backgroundColor: dynamicStyles.backgroundColor || '#F5F5F5',
+                    color: dynamicStyles.secondaryColor,
+                    opacity: 0.5,
+                  },
                 }}
               >
-                {t('LOGIN_PAGE.FORGOT_PASSWORD')}
-              </Box> */}
-              {/* {
-                <Box
-                  display="flex"
-                  alignItems="center"
-                  marginTop="1.2rem"
-                  className="remember-me-checkbox"
-                >
-                  <Checkbox
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    checked={rememberMe}
-                  />
-                  <Typography
-                    variant="body2"
-                    onClick={() => {
-                      setRememberMe(!rememberMe);
-                      logEvent({
-                        action: 'remember-me-button-clicked',
-                        category: 'Login Page',
-                        label: `Remember Me ${
-                          rememberMe ? 'Checked' : 'Unchecked'
-                        }`,
-                      });
-                    }}
-                    sx={{
-                      cursor: 'pointer',
-                      marginTop: '15px',
-                      color: theme.palette.warning[300],
-                    }}
-                  >
-                    {t('LOGIN_PAGE.REMEMBER_ME')}
-                  </Typography>
-                </Box>
-              } */}
-
-              <Box marginTop="2rem" textAlign="center">
-                <Button
-                  variant="contained"
-                  type="submit"
-                  fullWidth
-                  disabled={isButtonDisabled}
-                  ref={loginButtonRef}
-                  sx={{
-                    backgroundColor: dynamicStyles.primaryColor,
-                    color: dynamicStyles.buttonTextColor,
-                    '&:hover': {
-                      backgroundColor: dynamicStyles.secondaryColor,
-                    },
-                  }}
-                >
-                  {t('LOGIN_PAGE.LOGIN')}
-                </Button>
-              </Box>
+                {loading ? (
+                  <Box display="flex" alignItems="center" gap={1} justifyContent="center">
+                    <CircularProgress size={20} sx={{ color: dynamicStyles.buttonTextColor }} />
+                    <span>{t('COMMON.LOADING')}</span>
+                  </Box>
+                ) : (
+                  t('LOGIN_PAGE.LOGIN')
+                )}
+              </Button>
             </form>
-          </Box>
-        </Grid>
-      </Grid>
-    </>
+          </Card>
+        </Box>
+      </Box>
+    </Box>
   );
 };
 
