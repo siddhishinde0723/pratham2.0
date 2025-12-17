@@ -26,7 +26,12 @@ import {
   TableHead,
   TableRow,
 } from '@mui/material';
-import { Add as AddIcon, Search as SearchIcon } from '@mui/icons-material';
+import { Add as AddIcon, Search as SearchIcon,  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Pending as PendingIcon,
+  
+  
+  } from '@mui/icons-material';
 import { Phone as PhoneIcon, Badge as BadgeIcon } from '@mui/icons-material';
 import { userList } from '@/services/UserList';
 import { debounce } from 'lodash';
@@ -508,6 +513,23 @@ const AddUsersToGroups: React.FC = () => {
       setLoading(false);
     }
   };
+      const getStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return <CheckCircleIcon fontSize="small" />;
+      case 'inactive':
+        return <CancelIcon fontSize="small" />;
+      case 'pending':
+        return <PendingIcon fontSize="small" />;
+      default:
+        return null;
+    }
+  };
+  
+    const getStatusText = (status: string) => {
+    if (!status) return 'Unknown';
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  };
 
   const selectedUserNames = response?.result?.getUserDetails
     ?.filter((user: User) => selectedUsers.includes(user.userId))
@@ -739,12 +761,15 @@ const AddUsersToGroups: React.FC = () => {
                                 </Box>
                               </TableCell>
                               <TableCell>
-                                <Chip
-                                  label={user.status || 'Active'}
-                                  size="small"
-                                  color={getStatusColor(user.status) as 'success' | 'default'}
-                                  variant={(user.status || '').toLowerCase() === 'archived' ? 'outlined' : 'filled'}
-                                />
+                                  <Chip
+                                label={getStatusText(user.status)}
+                                size="small"
+                                color={getStatusColor(user.status) as any}
+                                icon={
+                                  getStatusIcon(user.status) || undefined
+                                }
+                                variant="outlined"
+                              />
                               </TableCell>
                             </TableRow>
                           ))}

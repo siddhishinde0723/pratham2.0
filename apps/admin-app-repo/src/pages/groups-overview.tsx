@@ -28,6 +28,9 @@ import {
   Person as PersonIcon,
   Description as ContentIcon,
   Search as SearchIcon,
+      CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Pending as PendingIcon,
 } from '@mui/icons-material';
 import { getGroups, GroupDetails, getGroupUsers, GroupUser, archiveUserFromGroup, getGroupContent, GroupContent, archiveContentFromGroup, activateContentInGroup } from '../services/GroupService';
 import LocationService from '../services/LocationService';
@@ -371,7 +374,38 @@ const GroupsOverview: React.FC = () => {
       });
     }
   };
+    const getStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return <CheckCircleIcon fontSize="small" />;
+      case 'inactive':
+        return <CancelIcon fontSize="small" />;
+      case 'pending':
+        return <PendingIcon fontSize="small" />;
+      default:
+        return null;
+    }
+  };
+  
+    const getStatusText = (status: string) => {
+    if (!status) return 'Unknown';
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  };
 
+   const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return 'success';
+      case 'inactive':
+        return 'error';
+      case 'pending':
+        return 'warning';
+      case 'archived':
+        return 'default';
+      default:
+        return 'default';
+    }
+  };
   const fetchGroupUsers = async (groupId: string) => {
     console.log('fetchGroupUsers called with groupId:', groupId);
     setLoadingUsers(prev => ({ ...prev, [groupId]: true }));
@@ -823,11 +857,15 @@ const GroupsOverview: React.FC = () => {
                     </Typography>
                   </Box>
                   <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                    <Chip
-                      label={group.status}
-                      color={group.status === 'Active' ? 'success' : 'default'}
-                      size="small"
-                    />
+                         <Chip
+                                label={getStatusText(group.status)}
+                                size="small"
+                                color={getStatusColor(group.status) as any}
+                                icon={
+                                  getStatusIcon(group.status) || undefined
+                                }
+                                variant="outlined"
+                              />
                     <Typography variant="body2" sx={{ opacity: 0.7 }}>
                       {loadingUserCounts ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -883,10 +921,14 @@ const GroupsOverview: React.FC = () => {
                            
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Chip
-                                label={user.status}
-                                color={user.status === 'Active' ? 'success' : 'default'}
+                                     <Chip
+                                label={getStatusText(user.status)}
                                 size="small"
+                                color={getStatusColor(user.status) as any}
+                                icon={
+                                  getStatusIcon(user.status) || undefined
+                                }
+                                variant="outlined"
                               />
                               {user.status === 'Active' && (
                                 <Button
@@ -952,9 +994,12 @@ const GroupsOverview: React.FC = () => {
                             </Box>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                               <Chip
-                                label={content.status === 'active' ? 'Active' : 'Archived'}
-                                color={content.status === 'active' ? 'success' : 'default'}
+                                label={getStatusText(content.status)}
                                 size="small"
+                                color={getStatusColor(content.status) as any}
+                                icon={
+                                  getStatusIcon(content.status) || undefined
+                                }
                                 variant="outlined"
                               />
                               {content.status === 'active' ? (

@@ -64,6 +64,11 @@ const ContentCreator = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [openModal, setOpenModal] = React.useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [summaryCounts, setSummaryCounts] = useState({
+    total: 0,
+    active: 0,
+    archived: 0,
+  });
 
   const { t, i18n } = useTranslation();
 
@@ -78,6 +83,50 @@ const ContentCreator = () => {
   useEffect(() => {
     // Initial load
     searchData({}, 0);
+  }, []);
+
+  // Fetch overall counts for content creators (all pages, by status)
+  useEffect(() => {
+    const fetchSummaryCounts = async () => {
+      try {
+        const tenantIdLocal = localStorage.getItem('tenantId');
+        if (!tenantIdLocal) return;
+
+        const baseParams = {
+          limit: 1,
+          offset: 0,
+          sort: ['createdAt', 'asc'] as any,
+        };
+
+        // Total creators for this tenant & role
+        const totalResp = await userList({
+          ...baseParams,
+          filters: { role: RoleName.CONTENT_CREATOR, tenantId: tenantIdLocal },
+        });
+
+        // Active creators
+        const activeResp = await userList({
+          ...baseParams,
+          filters: { role: RoleName.CONTENT_CREATOR, tenantId: tenantIdLocal, status: 'active' },
+        });
+
+        // Archived creators
+        const archivedResp = await userList({
+          ...baseParams,
+          filters: { role: RoleName.CONTENT_CREATOR, tenantId: tenantIdLocal, status: 'archived' },
+        });
+
+        setSummaryCounts({
+          total: totalResp?.totalCount || 0,
+          active: activeResp?.totalCount || 0,
+          archived: archivedResp?.totalCount || 0,
+        });
+      } catch (e) {
+        console.error('Error fetching creator summary counts:', e);
+      }
+    };
+
+    fetchSummaryCounts();
   }, []);
 
   // Handle search input change - trigger search with debounce
@@ -252,8 +301,7 @@ const ContentCreator = () => {
   // Calculate stats
   const creators = response?.result?.getUserDetails || [];
   const totalCount = response?.result?.totalCount || 0;
-  const activeCount = creators.filter((c: any) => c.status === 'active').length;
-  const archivedCount = creators.filter((c: any) => c.status === 'archived').length;
+  const { total: totalSummary, active: activeCount, archived: archivedCount } = summaryCounts;
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -392,7 +440,7 @@ const ContentCreator = () => {
                 <PersonIcon sx={{ fontSize: 40, color: '#1976d2' }} />
                 <Box>
                   <Typography variant="h6" fontWeight={600}>
-                    {totalCount}
+                    {totalSummary}
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
                     Total Creators

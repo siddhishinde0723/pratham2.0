@@ -873,7 +873,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Phone Number"
+                label="Mobile"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 onFocus={() => handleFieldFocus('phone')}

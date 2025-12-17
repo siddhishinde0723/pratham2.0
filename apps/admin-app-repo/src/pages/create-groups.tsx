@@ -29,7 +29,11 @@ import {
   DialogContentText,
   DialogActions,
 } from '@mui/material';
-import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon 
+  ,    CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Pending as PendingIcon,
+} from '@mui/icons-material';
 import LocationService from '../services/LocationService';
 import { createGroup, searchGroups, updateGroup } from '../services/GroupService';
 import TenantService from '../services/TenantService';
@@ -527,6 +531,38 @@ const CreateGroups: React.FC = () => {
       academicYear: '',
     });
   };
+        const getStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return <CheckCircleIcon fontSize="small" />;
+      case 'inactive':
+        return <CancelIcon fontSize="small" />;
+      case 'pending':
+        return <PendingIcon fontSize="small" />;
+      default:
+        return null;
+    }
+  };
+  
+    const getStatusText = (status: string) => {
+    if (!status) return 'Unknown';
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  };
+
+   const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return 'success';
+      case 'inactive':
+        return 'error';
+      case 'pending':
+        return 'warning';
+      case 'archived':
+        return 'default';
+      default:
+        return 'default';
+    }
+  };
 
   return (
     <Box sx={{ p: 3 }}>
@@ -750,10 +786,14 @@ const CreateGroups: React.FC = () => {
                           <TableRow key={group.id}>
                             <TableCell>{group.name}</TableCell>
                             <TableCell>
-                              <Chip 
-                                label={group.status} 
-                                color={group.status === 'Active' ? 'success' : 'default'}
+                                 <Chip
+                                label={getStatusText(group.status)}
                                 size="small"
+                                color={getStatusColor(group.status) as any}
+                                icon={
+                                  getStatusIcon(group.status) || undefined
+                                }
+                                variant="outlined"
                               />
                             </TableCell>
                             <TableCell>{group.createdAt}</TableCell>
