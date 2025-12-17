@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useState, useEffect } from 'react';
 import {
   Box,
@@ -24,6 +25,7 @@ import {
 } from '@/services/TenantApiService';
 import LocationService from '@/services/LocationService';
 import { isSwadhaarChannel } from '@/services/DomainTenantService';
+import { getFieldIdsByName } from '@/services/FieldsService';
 
 interface AddUserFormProps {
   onSuccess: () => void;
@@ -81,8 +83,16 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
     blocks: false,
     villages: false,
   });
+  
+  // Store field IDs for location fields
+  const [fieldIds, setFieldIds] = useState<Record<string, string>>({
+    State: '',
+    District: '',
+    Block: '',
+    Village: '',
+  });
 
-  // Load tenant data on component mount
+  // Load tenant data and field IDs on component mount
   useEffect(() => {
     const loadTenantData = async () => {
       try {
@@ -94,7 +104,26 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
       }
     };
 
+    const loadFieldIds = async () => {
+      try {
+        // Only load field IDs for new form (Swadhaar learners)
+        if (useNewForm) {
+          const tenantId = localStorage.getItem('tenantId');
+          const fieldMap = await getFieldIdsByName(
+            ['State', 'District', 'Block', 'Village'],
+            tenantId || undefined
+          );
+          setFieldIds(fieldMap);
+          console.log('Loaded field IDs:', fieldMap);
+        }
+      } catch (error) {
+        console.error('Error loading field IDs:', error);
+        // Don't set error state here, just log it - form can still work with fallback
+      }
+    };
+
     loadTenantData();
+    loadFieldIds();
     
     // Load states only if using new form (Swadhaar learners)
     if (useNewForm) {
@@ -544,6 +573,64 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
         }
       }
 
+      // Build customFields array for location fields (only for new form)
+      let customFieldsArray: Array<{ fieldId: string; value: string[] }> = [];
+      
+      if (useNewForm) {
+        console.log('Field IDs loaded:', fieldIds);
+        console.log('Location IDs:', locationIds);
+        
+        // Build customFields array with proper checks
+        const fieldsToAdd: Array<{ fieldId: string; value: string[] }> = [];
+        
+        // State field
+        if (locationIds.stateId && fieldIds.State) {
+          fieldsToAdd.push({
+            fieldId: fieldIds.State,
+            value: [locationIds.stateId]
+          });
+          console.log('Adding State field:', { fieldId: fieldIds.State, value: locationIds.stateId });
+        } else {
+          console.warn('State field missing - fieldId:', fieldIds.State, 'locationId:', locationIds.stateId);
+        }
+        
+        // District field
+        if (locationIds.districtId && fieldIds.District) {
+          fieldsToAdd.push({
+            fieldId: fieldIds.District,
+            value: [locationIds.districtId]
+          });
+          console.log('Adding District field:', { fieldId: fieldIds.District, value: locationIds.districtId });
+        } else {
+          console.warn('District field missing - fieldId:', fieldIds.District, 'locationId:', locationIds.districtId);
+        }
+        
+        // Block field
+        if (locationIds.blockId && fieldIds.Block) {
+          fieldsToAdd.push({
+            fieldId: fieldIds.Block,
+            value: [locationIds.blockId]
+          });
+          console.log('Adding Block field:', { fieldId: fieldIds.Block, value: locationIds.blockId });
+        } else {
+          console.warn('Block field missing - fieldId:', fieldIds.Block, 'locationId:', locationIds.blockId);
+        }
+        
+        // Village field
+        if (locationIds.villageId && fieldIds.Village) {
+          fieldsToAdd.push({
+            fieldId: fieldIds.Village,
+            value: [locationIds.villageId]
+          });
+          console.log('Adding Village field:', { fieldId: fieldIds.Village, value: locationIds.villageId });
+        } else {
+          console.warn('Village field missing - fieldId:', fieldIds.Village, 'locationId:', locationIds.villageId);
+        }
+        
+        customFieldsArray = fieldsToAdd;
+        console.log('Final customFields array:', customFieldsArray);
+      }
+
       // Prepare account creation data
       const accountData: CreateAccountRequest = {
         name: `${formData.firstName} ${formData.lastName}`.trim(),
@@ -560,36 +647,15 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
             roleId: roleId,
           },
         ],
-        // Add location fields via customFields only for new form (Swadhaar learners)
-        customFields: useNewForm ? [
-          // State field ID - same as used in create-groups.tsx
-          ...(locationIds.stateId ? [{
-            fieldId: "800265b1-9058-482a-94f4-726197e1dfe4",
-            value: [locationIds.stateId]
-          }] : []),
-          // District field ID
-          ...(locationIds.districtId ? [{
-            fieldId: "62340eaa-40fb-48b9-ba90-dcaa78be778e",
-            value: [locationIds.districtId]
-          }] : []),
-          // Block field ID
-          ...(locationIds.blockId ? [{
-            fieldId: "1e3e76e2-7f77-4fd7-a79f-abe5c33d4d08",
-            value: [locationIds.blockId]
-          }] : []),
-          // Village field ID
-          ...(locationIds.villageId ? [{
-            fieldId: "2f7e6930-0bc2-4e69-8bd4-dde205fa5471",
-            value: [locationIds.villageId]
-          }] : []),
-        ] : [],
+        // Only include customFields if array has items
+        ...(customFieldsArray.length > 0 ? { customFields: customFieldsArray } : {}),
       };
 
-      console.log('Creating account with data:', accountData);
+      console.log('Creating account with data:', JSON.stringify(accountData, null, 2));
 
       // Make API call to create account
       const result = await createAccount(accountData);
-      console.log('Account created successfully:', result);
+       console.log('Account created successfully:', result);
 
       // Reset form
       setFormData({
@@ -622,32 +688,58 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
       setValidationErrors({});
 
       onSuccess();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating user:', error);
 
       // Extract specific error message from API response
       let errorMessage = 'Failed to create user. Please try again.';
 
-      // Try multiple possible error response formats
-      // Priority: errmsg > err > error > message
-      if (error?.response?.data?.params?.errmsg) {
-        // Format: { params: { errmsg: "gender must be a valid enum value" } }
-        errorMessage = error.response.data.params.errmsg;
-      } else if (error?.response?.data?.params?.err) {
-        // Format: { params: { err: "User already exist." } }
-        errorMessage = error.response.data.params.err;
-      } else if (error?.response?.data?.params?.error) {
-        // Another alternative format
-        errorMessage = error.response.data.params.error;
-      } else if (error?.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error?.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error?.response?.data?.result?.error) {
-        errorMessage = error.response.data.result.error;
-      } else if (error?.response?.data?.result?.message) {
-        errorMessage = error.response.data.result.message;
-      } else if (error?.message) {
+      // Type guard to check if error has axios response structure
+      const isAxiosError = (err: unknown): err is {
+        response?: {
+          data?: {
+            params?: {
+              errmsg?: string;
+              err?: string;
+              error?: string;
+            };
+            message?: string;
+            error?: string;
+            result?: {
+              error?: string;
+              message?: string;
+            };
+          };
+        };
+        message?: string;
+      } => {
+        return typeof err === 'object' && err !== null;
+      };
+
+      if (isAxiosError(error)) {
+        // Try multiple possible error response formats
+        // Priority: errmsg > err > error > message
+        if (error.response?.data?.params?.errmsg) {
+          // Format: { params: { errmsg: "gender must be a valid enum value" } }
+          errorMessage = error.response.data.params.errmsg;
+        } else if (error.response?.data?.params?.err) {
+          // Format: { params: { err: "User already exist." } }
+          errorMessage = error.response.data.params.err;
+        } else if (error.response?.data?.params?.error) {
+          // Another alternative format
+          errorMessage = error.response.data.params.error;
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response?.data?.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response?.data?.result?.error) {
+          errorMessage = error.response.data.result.error;
+        } else if (error.response?.data?.result?.message) {
+          errorMessage = error.response.data.result.message;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+      } else if (error instanceof Error) {
         errorMessage = error.message;
       }
 
@@ -664,7 +756,6 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
       </Box>
     );
   }
-  console.log('channel id', localStorage.getItem('channelId'));
 
   return (
     <Box sx={{ p: 4, maxWidth: 900, mx: 'auto' }}>
@@ -782,7 +873,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
-                label="Phone Number"
+                label="Mobile"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 onFocus={() => handleFieldFocus('phone')}

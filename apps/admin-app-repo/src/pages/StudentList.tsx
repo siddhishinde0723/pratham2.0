@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Container,
@@ -1196,19 +1197,7 @@ const StudentList = () => {
                           </TableSortLabel>
                         </TableCell>
                       )}
-                      {columnVisibility.createdAt && (
-                        <TableCell>
-                          <TableSortLabel
-                            active={sortBy === 'createdAt'}
-                            direction={
-                              sortBy === 'createdAt' ? sortDirection : 'asc'
-                            }
-                            onClick={() => handleSort('createdAt')}
-                          >
-                            Enrolled Date
-                          </TableSortLabel>
-                        </TableCell>
-                      )}
+                
                       {columnVisibility.actions && (
                         <TableCell>Actions</TableCell>
                       )}
@@ -1298,25 +1287,7 @@ const StudentList = () => {
                               />
                             </TableCell>
                           )}
-                          {columnVisibility.createdAt && (
-                            <TableCell>
-                              <Box
-                                sx={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 1,
-                                }}
-                              >
-                                <CalendarIcon fontSize="small" color="action" />
-                                <Typography
-                                  variant="body2"
-                                  color="textSecondary"
-                                >
-                                  {formatDate(student.createdAt)}
-                                </Typography>
-                              </Box>
-                            </TableCell>
-                          )}
+                        
                           {columnVisibility.actions && (
                             <TableCell>
                               <Box sx={{ display: 'flex', gap: 0.5 }}>

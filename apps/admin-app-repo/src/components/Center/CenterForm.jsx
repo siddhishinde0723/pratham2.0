@@ -1,3 +1,6 @@
+/* eslint-disable prefer-const */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,

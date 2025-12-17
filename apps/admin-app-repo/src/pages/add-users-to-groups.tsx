@@ -15,17 +15,25 @@ import {
   Select,
   MenuItem,
   Chip,
-  List,
-  ListItem,
-  ListItemText,
-  Checkbox,
-  ListItemIcon,
   TextField,
   InputAdornment,
+  Checkbox,
+  Pagination,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
 } from '@mui/material';
-import { Add as AddIcon, Search as SearchIcon } from '@mui/icons-material';
-import { userList, userHierarchicalSearch } from '@/services/UserList';
-import { searchListData } from '@/components/DynamicForm/DynamicFormCallback';
+import { Add as AddIcon, Search as SearchIcon,  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Pending as PendingIcon,
+  
+  
+  } from '@mui/icons-material';
+import { Phone as PhoneIcon, Badge as BadgeIcon } from '@mui/icons-material';
+import { userList } from '@/services/UserList';
 import { debounce } from 'lodash';
 import { searchGroups, addUserToGroup } from '../services/GroupService';
 import LocationService from '../services/LocationService';
@@ -44,8 +52,9 @@ interface User {
   lastName: string;
   email: string;
   username?: string;
+   mobile?: string;
   status: string;
-  customFields?: Record<string, any>[];
+  customFields?: Record<string, unknown>[];
 }
 
 const AddUsersToGroups: React.FC = () => {
@@ -59,9 +68,9 @@ const AddUsersToGroups: React.FC = () => {
   
   // API-related states
   const [searchTerm, setSearchTerm] = useState('');
-  const [pageLimit] = useState<number>(100);
-  const [pageOffset, setPageOffset] = useState<number>(0);
+  const [pageLimit, setPageLimit] = useState<number>(10);
   const [currentPage, setCurrentPage] = useState(0);
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [response, setResponse] = useState<{ result?: { getUserDetails?: User[] } }>({});
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   
@@ -72,14 +81,6 @@ const AddUsersToGroups: React.FC = () => {
     block: '',
     village: '',
   });
-  
-  // Location field IDs for customFields
-  const LOCATION_FIELD_IDS = {
-    state: '800265b1-9058-482a-94f4-726197e1dfe4',
-    district: '62340eaa-40fb-48b9-ba90-dcaa78be778e',
-    block: '1e3e76e2-7f77-4fd7-a79f-abe5c33d4d08',
-    village: '2f7e6930-0bc2-4e69-8bd4-dde205fa5471',
-  };
   
   // Location data states
   const [states, setStates] = useState<Array<{id: string, name: string}>>([]);
@@ -93,6 +94,9 @@ const AddUsersToGroups: React.FC = () => {
     villages: false
   });
 
+  const buildSearchData = (value: string): Record<string, string> =>
+    value.trim() ? { firstName: value.trim() } : {};
+
   useEffect(() => {
     loadGroups();
     loadStates();
@@ -100,8 +104,8 @@ const AddUsersToGroups: React.FC = () => {
   
   // Load users when filters change
   useEffect(() => {
-    loadUsers();
-  }, [filters, searchTerm]);
+    loadUsers({}, 0);
+  }, [filters, searchTerm, pageLimit]);
 
   // Load groups
   const loadGroups = async () => {
@@ -208,11 +212,6 @@ const AddUsersToGroups: React.FC = () => {
     }
   };
 
-  // Check if any location filters are active
-  const hasLocationFilters = (): boolean => {
-    return !!(filters.state || filters.district || filters.block || filters.village);
-  };
-
   // Build location filters for hierarchical search
   const buildLocationFilters = () => {
     const locationFilters: {
@@ -239,140 +238,98 @@ const AddUsersToGroups: React.FC = () => {
   };
 
   // Load users with location filters and sequential search
-  const loadUsers = async (searchDataParam: Record<string, any> = {}) => {
+  const loadUsers = async (searchDataParam: Record<string, string> = {}, newPage = 0) => {
     setIsLoadingUsers(true);
     try {
-      const tenantId = localStorage.getItem('tenantId');
-      const staticSort = ['firstName', 'asc'];
+      const tenantId = localStorage.getItem('tenantId') || undefined;
+      // Align with desired payload: sort by createdAt asc
+      const staticSort = ['createdAt', 'asc'];
+      const offsetValue = newPage * pageLimit;
 
       // Get search term from searchDataParam or searchTerm state
       const searchTermValue = searchDataParam.firstName || searchDataParam.username || searchTerm || '';
 
-      // Check if location filters are present
-      const hasLocation = hasLocationFilters();
+      // Always use regular search API with location filters passed as arrays of IDs
+      const locationFilters = buildLocationFilters(); // { state: ['id'], district: ['id'], ... }
 
-      if (hasLocation) {
-        // Use hierarchical search API for location-based filtering
-        const locationFilters = buildLocationFilters();
-        
-        const hierarchicalData = {
+      const staticFilter = {
+        role: 'Learner',
+        tenantId: tenantId,
+        ...locationFilters,
+      };
+
+      if (searchTermValue) {
+        // Sequential search: First by firstName, then by username if no results
+        // First, try searching by firstName
+        const filtersFirstName = {
+          ...staticFilter,
+          firstName: searchTermValue,
+        };
+
+        const dataFirstName = {
           limit: pageLimit,
-          offset: 0,
-          filters: locationFilters,
-          role: ['Learner'],
-          customfields: ['state', 'district', 'block', 'village', 'dob'],
-          sort: ['name', 'asc'],
+          offset: offsetValue,
+          sort: staticSort,
+          filters: filtersFirstName,
         };
 
-        console.log('Add Users to Groups: Using hierarchical search with location filters:', hierarchicalData);
+        console.log('Add Users to Groups: Searching by firstName with filters:', filtersFirstName);
 
-        const resp = await userHierarchicalSearch(hierarchicalData);
-        
-        // If search term is provided, filter results client-side
-        let filteredUsers = resp?.getUserDetails || [];
-        if (searchTermValue) {
-          filteredUsers = filteredUsers.filter((user: User) => {
-            const firstNameMatch = user.firstName?.toLowerCase().includes(searchTermValue.toLowerCase());
-            const usernameMatch = user.username?.toLowerCase().includes(searchTermValue.toLowerCase());
-            return firstNameMatch || usernameMatch;
-          });
-        }
+        const respFirstName = await userList(dataFirstName);
+        const totalCountFirstName = respFirstName?.totalCount || 0;
+        const userDetailsFirstName = respFirstName?.getUserDetails || [];
 
-        const filteredResult = {
-          ...resp,
-          getUserDetails: filteredUsers,
-          totalCount: filteredUsers.length,
-        };
-
-        console.log('Add Users to Groups: Hierarchical search results:', {
-          totalCount: filteredResult.totalCount,
-          usersFound: filteredUsers.length,
+        console.log('Add Users to Groups: firstName search results:', {
+          totalCount: totalCountFirstName,
+          usersFound: userDetailsFirstName.length,
         });
 
-        setPageOffset(0);
-        setCurrentPage(0);
-        setResponse({ result: filteredResult });
-      } else {
-        // No location filters - use regular search API with sequential firstName/username search
-        const staticFilter = {
-          role: 'Learner',
-          tenantId: tenantId,
+          // If results found with firstName, use those results
+        if (totalCountFirstName > 0 && userDetailsFirstName.length > 0) {
+            setCurrentPage(newPage);
+            setTotalCount(totalCountFirstName);
+          setResponse({ result: respFirstName });
+          return;
+        }
+
+        // If no results with firstName, try searching by username
+        console.log('Add Users to Groups: No results with firstName, searching by username');
+        const filtersUsername = {
+          ...staticFilter,
+          username: searchTermValue,
         };
 
-        if (searchTermValue) {
-          // Sequential search: First by firstName, then by username if no results
-          // First, try searching by firstName
-          const filtersFirstName = {
-            ...staticFilter,
-            firstName: searchTermValue,
-          };
+        const dataUsername = {
+          limit: pageLimit,
+          offset: offsetValue,
+          sort: staticSort,
+          filters: filtersUsername,
+        };
 
-          const dataFirstName = {
-            limit: pageLimit,
-            offset: 0,
-            sort: staticSort,
-            filters: filtersFirstName,
-          };
+        const respUsername = await userList(dataUsername);
+        console.log('Add Users to Groups: username search results:', {
+          totalCount: respUsername?.totalCount || 0,
+          usersFound: (respUsername?.getUserDetails || []).length,
+        });
 
-          console.log('Add Users to Groups: Searching by firstName:', filtersFirstName);
+        setCurrentPage(newPage);
+        setTotalCount(respUsername?.totalCount || 0);
+        setResponse({ result: respUsername });
+      } else {
+        // No search term, load all learners with location filters (if any)
+        const data = {
+          limit: pageLimit,
+          offset: offsetValue,
+          sort: staticSort,
+          filters: staticFilter,
+        };
 
-          const respFirstName = await userList(dataFirstName);
-          const totalCountFirstName = respFirstName?.totalCount || 0;
-          const userDetailsFirstName = respFirstName?.getUserDetails || [];
+        console.log('Add Users to Groups: Loading users with filters:', data);
 
-          console.log('Add Users to Groups: firstName search results:', {
-            totalCount: totalCountFirstName,
-            usersFound: userDetailsFirstName.length,
-          });
-
-          // If results found with firstName, use those results
-          if (totalCountFirstName > 0 && userDetailsFirstName.length > 0) {
-            setPageOffset(0);
-            setCurrentPage(0);
-            setResponse({ result: respFirstName });
-            setIsLoadingUsers(false);
-            return;
-          }
-
-          // If no results with firstName, try searching by username
-          console.log('Add Users to Groups: No results with firstName, searching by username');
-          const filtersUsername = {
-            ...staticFilter,
-            username: searchTermValue,
-          };
-
-          const dataUsername = {
-            limit: pageLimit,
-            offset: 0,
-            sort: staticSort,
-            filters: filtersUsername,
-          };
-
-          const respUsername = await userList(dataUsername);
-          console.log('Add Users to Groups: username search results:', {
-            totalCount: respUsername?.totalCount || 0,
-            usersFound: (respUsername?.getUserDetails || []).length,
-          });
-
-          setPageOffset(0);
-          setCurrentPage(0);
-          setResponse({ result: respUsername });
-        } else {
-          // No search term, load all learners
-          const data = {
-            limit: pageLimit,
-            offset: 0,
-            sort: staticSort,
-            filters: staticFilter,
-          };
-
-          console.log('Add Users to Groups: Loading all users:', data);
-
-          const resp = await userList(data);
-          setPageOffset(0);
-          setCurrentPage(0);
-          setResponse({ result: resp });
-        }
+        const resp = await userList(data);
+        setCurrentPage(newPage);
+        setTotalCount(resp?.totalCount || 0);
+        setResponse({ result: resp });
       }
     } catch (error) {
       console.error('Error loading users:', error);
@@ -384,11 +341,11 @@ const AddUsersToGroups: React.FC = () => {
 
   // Debounced search
   const debouncedSearch = debounce((searchTermValue: string) => {
-    const searchData = searchTermValue ? { firstName: searchTermValue } : {};
-    loadUsers(searchData);
+    const searchData = buildSearchData(searchTermValue);
+    loadUsers(searchData, 0);
   }, 500);
 
-  const handleGroupChange = (event: any) => {
+  const handleGroupChange = (event: SelectChangeEvent<string>) => {
     setSelectedGroup(event.target.value as string);
   };
 
@@ -403,7 +360,31 @@ const AddUsersToGroups: React.FC = () => {
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
     setSearchTerm(value);
-    debouncedSearch(value);
+    if (value.trim() === '') {
+      // Immediate reload when clearing search
+      loadUsers({}, 0);
+    } else {
+      debouncedSearch(value);
+    }
+  };
+
+  const handleRowsPerPageChange = (event: SelectChangeEvent<string>) => {
+    const newLimit = parseInt(event.target.value, 10);
+    setPageLimit(newLimit);
+    setCurrentPage(0);
+    const searchData = buildSearchData(searchTerm);
+    loadUsers(searchData, 0);
+  };
+
+  const getFullName = (user: User) =>
+    `${user.firstName || ''} ${user.middleName || ''} ${user.lastName || ''}`.trim() || 'Unknown';
+
+  const getStatusColor = (status?: string) => {
+    if (!status) return 'default';
+    const normalized = status.toLowerCase();
+    if (normalized === 'active') return 'success';
+    if (normalized === 'archived' || normalized === 'inactive') return 'default';
+    return 'default';
   };
 
   const handleSelectAll = () => {
@@ -531,6 +512,23 @@ const AddUsersToGroups: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+      const getStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return <CheckCircleIcon fontSize="small" />;
+      case 'inactive':
+        return <CancelIcon fontSize="small" />;
+      case 'pending':
+        return <PendingIcon fontSize="small" />;
+      default:
+        return null;
+    }
+  };
+  
+    const getStatusText = (status: string) => {
+    if (!status) return 'Unknown';
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
   };
 
   const selectedUserNames = response?.result?.getUserDetails
@@ -687,28 +685,97 @@ const AddUsersToGroups: React.FC = () => {
                   </Button>
                 </Box>
 
-                <Paper variant="outlined" sx={{ maxHeight: 500, overflow: 'auto' }}>
+                <Paper variant="outlined" sx={{ maxHeight: 520, overflow: 'auto' }}>
                   {isLoadingUsers ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
                       <CircularProgress size={24} />
                     </Box>
                   ) : response?.result?.getUserDetails && response.result.getUserDetails.length > 0 ? (
-                    <List>
-                      {response.result.getUserDetails.map((user: User) => (
-                        <ListItem key={user.userId} sx={{ py: 1 }}>
-                          <ListItemIcon>
-                            <Checkbox
-                              checked={selectedUsers.includes(user.userId)}
-                              onChange={() => handleUserToggle(user.userId)}
-                            />
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={`${user.firstName} ${user.middleName || ''} ${user.lastName}`.trim()}
-                            secondary={user.email}
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell padding="checkbox">
+                              <Checkbox
+                                indeterminate={
+                                  selectedUsers.length > 0 &&
+                                  selectedUsers.length < response.result.getUserDetails.length
+                                }
+                                checked={
+                                  response.result.getUserDetails.length > 0 &&
+                                  selectedUsers.length === response.result.getUserDetails.length
+                                }
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    handleSelectAll();
+                                  } else {
+                                    handleDeselectAll();
+                                  }
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>Learner Name</TableCell>
+                            <TableCell>Username</TableCell>
+                            <TableCell>Contact</TableCell>
+                            <TableCell>Status</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {response.result.getUserDetails.map((user: User) => (
+                            <TableRow key={user.userId} hover>
+                              <TableCell padding="checkbox">
+                                <Checkbox
+                                  checked={selectedUsers.includes(user.userId)}
+                                  onChange={() => handleUserToggle(user.userId)}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            
+                                  <Box>
+                                    <Typography variant="body2" fontWeight={600}>
+                                      {getFullName(user)}
+                                    </Typography>
+                                   
+                                  </Box>
+                                </Box>
+                              </TableCell>
+                              <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <BadgeIcon fontSize="small" color="action" />
+                                  <Typography variant="body2">{user.username || 'N/A'}</Typography>
+                                </Box>
+                              </TableCell>
+                              <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  {user.mobile ? (
+                                    <>
+                                      <PhoneIcon fontSize="small" color="action" />
+                                      <Typography variant="body2">{user.mobile}</Typography>
+                                    </>
+                                  ) : (
+                                    <Typography variant="body2" color="text.secondary">
+                                      N/A
+                                    </Typography>
+                                  )}
+                                </Box>
+                              </TableCell>
+                              <TableCell>
+                                  <Chip
+                                label={getStatusText(user.status)}
+                                size="small"
+                                color={getStatusColor(user.status) as any}
+                                icon={
+                                  getStatusIcon(user.status) || undefined
+                                }
+                                variant="outlined"
+                              />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
                   ) : (
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
                       <Typography color="text.secondary">
@@ -717,6 +784,53 @@ const AddUsersToGroups: React.FC = () => {
                     </Box>
                   )}
                 </Paper>
+
+                {/* Pagination */}
+                {totalCount > pageLimit && (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      p: 2,
+                      borderTop: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Typography variant="body2" color="textSecondary">
+                        Rows per page:
+                      </Typography>
+                      <Select
+                        size="small"
+                        value={pageLimit.toString()}
+                        onChange={handleRowsPerPageChange}
+                        sx={{ minWidth: 80 }}
+                      >
+                        <MenuItem value={10}>10</MenuItem>
+                        <MenuItem value={25}>25</MenuItem>
+                        <MenuItem value={50}>50</MenuItem>
+                        <MenuItem value={100}>100</MenuItem>
+                      </Select>
+                      <Typography variant="body2" color="textSecondary">
+                        {currentPage * pageLimit + 1}-
+                        {Math.min((currentPage + 1) * pageLimit, totalCount)} of {totalCount}
+                      </Typography>
+                    </Box>
+
+                    <Pagination
+                      count={Math.max(1, Math.ceil((totalCount || 0) / pageLimit))}
+                      page={currentPage + 1}
+                      onChange={(_, page) => {
+                        const searchData = buildSearchData(searchTerm);
+                        loadUsers(searchData, page - 1);
+                      }}
+                      color="primary"
+                      showFirstButton
+                      showLastButton
+                    />
+                  </Box>
+                )}
               </Grid>
               
               {selectedUsers.length > 0 && (

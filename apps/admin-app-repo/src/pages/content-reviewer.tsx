@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @nx/enforce-module-boundaries */
 // @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
@@ -41,6 +42,9 @@ import {
   Group as GroupIcon,
   Badge as BadgeIcon,
   Phone as PhoneIcon,
+      CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Pending as PendingIcon,
 } from '@mui/icons-material';
 import SimpleModal from '@/components/SimpleModal';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
@@ -60,6 +64,11 @@ const ContentReviewer = () => {
   const [currentPage, setCurrentPage] = useState(0);
   const [openModal, setOpenModal] = React.useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [summaryCounts, setSummaryCounts] = useState({
+    total: 0,
+    active: 0,
+    archived: 0,
+  });
 
   const { t, i18n } = useTranslation();
   const storedUserData = JSON.parse(localStorage.getItem('adminInfo') || '{}');
@@ -73,6 +82,50 @@ const ContentReviewer = () => {
   useEffect(() => {
     // Initial load
     searchData({}, 0);
+  }, []);
+
+  // Fetch overall counts for content reviewers (all pages, by status)
+  useEffect(() => {
+    const fetchSummaryCounts = async () => {
+      try {
+        const tenantIdLocal = localStorage.getItem('tenantId');
+        if (!tenantIdLocal) return;
+
+        const baseParams = {
+          limit: 1,
+          offset: 0,
+          sort: ['createdAt', 'asc'] as any,
+        };
+
+        // Total reviewers for this tenant & role
+        const totalResp = await userList({
+          ...baseParams,
+          filters: { role: RoleName.CONTENT_REVIEWER, tenantId: tenantIdLocal },
+        });
+
+        // Active reviewers
+        const activeResp = await userList({
+          ...baseParams,
+          filters: { role: RoleName.CONTENT_REVIEWER, tenantId: tenantIdLocal, status: 'active' },
+        });
+
+        // Archived reviewers
+        const archivedResp = await userList({
+          ...baseParams,
+          filters: { role: RoleName.CONTENT_REVIEWER, tenantId: tenantIdLocal, status: 'archived' },
+        });
+
+        setSummaryCounts({
+          total: totalResp?.totalCount || 0,
+          active: activeResp?.totalCount || 0,
+          archived: archivedResp?.totalCount || 0,
+        });
+      } catch (e) {
+        console.error('Error fetching reviewer summary counts:', e);
+      }
+    };
+
+    fetchSummaryCounts();
   }, []);
 
   // Handle search input change - trigger search with debounce
@@ -247,8 +300,7 @@ const ContentReviewer = () => {
   // Calculate stats
   const reviewers = response?.result?.getUserDetails || [];
   const totalCount = response?.result?.totalCount || 0;
-  const activeCount = reviewers.filter((r: any) => r.status === 'active').length;
-  const archivedCount = reviewers.filter((r: any) => r.status === 'archived').length;
+  const { total: totalSummary, active: activeCount, archived: archivedCount } = summaryCounts;
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -279,7 +331,18 @@ const ContentReviewer = () => {
         return 'default';
     }
   };
-
+  const getStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return <CheckCircleIcon fontSize="small" />;
+      case 'inactive':
+        return <CancelIcon fontSize="small" />;
+      case 'pending':
+        return <PendingIcon fontSize="small" />;
+      default:
+        return null;
+    }
+  };
   // Get status text
   const getStatusText = (status: string) => {
     if (!status) return 'Unknown';
@@ -376,7 +439,7 @@ const ContentReviewer = () => {
                 <PersonIcon sx={{ fontSize: 40, color: '#1976d2' }} />
                 <Box>
                   <Typography variant="h6" fontWeight={600}>
-                    {totalCount}
+                    {totalSummary}
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
                     Total Reviewers
@@ -604,16 +667,15 @@ const ContentReviewer = () => {
                           </>
                         )}
                         <TableCell>
-                          <Chip
-                            label={getStatusText(reviewer.status)}
-                            size="small"
-                            color={getStatusColor(reviewer.status) as any}
-                            variant={
-                              reviewer.status === 'archived'
-                                ? 'outlined'
-                                : 'filled'
-                            }
-                          />
+                            <Chip
+                                label={getStatusText(reviewer.status)}
+                                size="small"
+                                color={getStatusColor(reviewer.status) as any}
+                                icon={
+                                  getStatusIcon(reviewer.status) || undefined
+                                }
+                                variant="outlined"
+                              />
                         </TableCell>
                         <TableCell>
                           <Tooltip

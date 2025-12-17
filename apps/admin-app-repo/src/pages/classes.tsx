@@ -1,3 +1,4 @@
+/* eslint-disable @nx/enforce-module-boundaries */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Container,
@@ -51,6 +52,9 @@ import {
   Sort as SortIcon,
   PersonAdd as PersonAddIcon,
   Close as CloseIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Pending as PendingIcon,
 } from '@mui/icons-material';
 import CenterForm from '../components/Center/CenterForm';
 import {
@@ -138,6 +142,11 @@ const Centers = () => {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [addingStudents, setAddingStudents] = useState(false);
+  
+  // Lazy Loading States
+  const [studentOffset, setStudentOffset] = useState(0);
+  const [customLoading, setCustomLoading] = useState(false);
+  const [hasMoreStudents, setHasMoreStudents] = useState(true);
 
   // Archive/Unarchive Dialog State
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
@@ -517,7 +526,7 @@ const Centers = () => {
 
     // Fetch students from the global list (not passing a source class ID)
     // Pass the target class ID specifically to ensure we know who to exclude
-    fetchStudents(undefined, center.cohortId);
+    fetchStudents(undefined, center.cohortId, '');
   };
 
   const handleCloseAddStudents = () => {
@@ -597,11 +606,40 @@ const Centers = () => {
     }
   }, []);
 
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (selectedClass) {
+  
+        if (dialogClass) {
+           fetchStudents(dialogClass, selectedClass.cohortId, studentSearchTerm);
+        } else {
+           fetchStudents(undefined, selectedClass.cohortId, studentSearchTerm);
+        }
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [studentSearchTerm, selectedClass, dialogClass]);
+
   // Fetch students based on selected class in dialog
   const fetchStudents = useCallback(
-    async (sourceClassId?: string, explicitTargetClassId?: string) => {
-      setLoadingStudents(true);
-      setStudents([]); // Clear previous students
+    async (
+      sourceClassId?: string,
+      explicitTargetClassId?: string,
+      searchTerm?: string,
+      offset: number = 0,
+      isLoadMore: boolean = false
+    ) => {
+      if (isLoadMore) {
+        setCustomLoading(true);
+      } else {
+        setLoadingStudents(true);
+      }
+      // Only clear if not searching and not loading more
+      if (!searchTerm && !isLoadMore) {
+          setStudents([]); 
+      }
 
       try {
         // If explicitTargetClassId is provided, use it; otherwise use selectedClass state
@@ -639,9 +677,9 @@ const Centers = () => {
                 existingStudentIds.add(student.userId);
               }
             });
-            console.log(
+           /* console.log(
               `Found ${existingStudentIds.size} students already in target class ${targetClassId}`
-            );
+            );*/
           }
         } catch (cohortErr) {
           console.error('Error fetching cohort members:', cohortErr);
@@ -655,7 +693,7 @@ const Centers = () => {
           console.log('Filter mode: Fetching students from source class:', sourceClassId);
            try {
             const cohortRequestData: any = {
-              limit: 0,
+              limit: 0, // Using 0 here is generally safer for a single class roster than global list
               offset: 0,
               filters: {
                 cohortId: sourceClassId,
@@ -673,12 +711,21 @@ const Centers = () => {
             ) {
                allStudents = cohortResponse.userDetails;
             } else {
-               // Fallback if structure is different
-               // This depends on getCohortMemberList implementation, assuming standard response
                if(Array.isArray(cohortResponse)) {
                    allStudents = cohortResponse;
                }
             }
+            
+            // Client-side filtering for search term if in Mode 1 (since we fetched the whole class)
+            if (searchTerm) {
+                const term = searchTerm.toLowerCase();
+                allStudents = allStudents.filter(student => 
+                    (student.firstName && student.firstName.toLowerCase().includes(term)) ||
+                    (student.lastName && student.lastName.toLowerCase().includes(term)) ||
+                    (student.username && student.username.toLowerCase().includes(term))
+                );
+            }
+
           } catch (err) {
             console.error('Error fetching source class students:', err);
              showToastMessage('Failed to fetch students from selected class', 'error');
@@ -687,18 +734,24 @@ const Centers = () => {
         // MODE 2: Global Mode (No source class selected)
         else {
           console.log(
-            'Global mode: Fetching all available students'
+            'Global mode: Fetching students from global list with search:', searchTerm, 'offset:', offset
           );
 
           try {
             const userListRequestData: any = {
-              limit: 0, // Fetch all (or reasonable limit)
-              offset: 0,
+              limit: 100, // PERFORMANCE FIX: Limit to 100
+              offset: offset, // Use offset for pagination
               filters: {
                 role: 'Student',
                 status: ['active'],
+                // Add search filters
+                ...(searchTerm && { firstName: searchTerm }),
               },
             };
+             // Also add username if search term exists (if backend supports searching both)
+             if (searchTerm) {
+                 userListRequestData.filters.username = searchTerm;
+             }
 
             const userListResponse: any = await userList(userListRequestData);
 
@@ -711,8 +764,16 @@ const Centers = () => {
               allStudents = userListResponse;
             }
              console.log(
-                `Fetched ${allStudents.length} total students from global list`
+                `Fetched ${allStudents.length} students from global list`
               );
+              
+             // Check if we have more students
+             if (allStudents.length < 100) {
+                 setHasMoreStudents(false);
+             } else {
+                 setHasMoreStudents(true);
+             }
+             
           } catch (userListErr) {
             console.error('Error fetching user list:', userListErr);
             showToastMessage('Failed to fetch student list', 'error');
@@ -751,24 +812,27 @@ const Centers = () => {
                 `${student.firstName || ''} ${student.lastName || ''}`.trim(),
             };
           });
-
-        setStudents(availableStudents);
-
-        console.log(
-            `Showing ${availableStudents.length} available students (excluding existing members)`
-        );
+        
+        if (isLoadMore) {
+            setStudents(prev => [...prev, ...availableStudents]);
+        } else {
+            setStudents(availableStudents);
+        }
 
       } catch (err: any) {
         console.error('Error in fetchStudents:', err);
         const errorMessage =
           err.message || 'Failed to load students. Please try again.';
         showToastMessage(errorMessage, 'error');
-        setStudents([]);
+        if (!isLoadMore) {
+            setStudents([]);
+        }
       } finally {
         setLoadingStudents(false);
+        setCustomLoading(false);
       }
     },
-    [selectedClass]
+    [selectedClass, dialogClass] // Added dialogClass as dependency
   );
   // Handle cluster change in dialog
   const handleDialogClusterChange = (event: SelectChangeEvent) => {
@@ -807,10 +871,10 @@ const Centers = () => {
     setStudents([]);
     setSelectedStudents([]);
 
-    // Fetch students for the filtered class
-    if (classId) {
-      fetchStudents(classId);
-    }
+    // Fetch students for the filtered class - Handle by useEffect now
+    // if (classId) {
+    //   fetchStudents(classId);
+    // }
   };
 
   // Handle student selection
@@ -926,9 +990,10 @@ const Centers = () => {
     setStudentSearchTerm('');
 
     // When resetting, fetch students from the global list (Source=undefined)
-    if (selectedClass) {
-      fetchStudents(undefined, selectedClass.cohortId);
-    }
+    // Handled by useEffect dependency on dialogClass/studentSearchTerm changes
+    // if (selectedClass) {
+    //   fetchStudents(undefined, selectedClass.cohortId);
+    // }
   };
 
   // Handle form submission
@@ -993,17 +1058,18 @@ const Centers = () => {
   }, [centers, searchTerm]);
 
   // Filter students based on search in dialog
+  // optimization: Search is now handled server-side or in fetchStudents, so this just passes through
   const filteredStudents = useMemo(() => {
     let filtered = [...students];
 
+    // Apply local search filter
     if (studentSearchTerm) {
       const term = studentSearchTerm.toLowerCase();
       filtered = filtered.filter(
         (student) =>
-          student.firstName.toLowerCase().includes(term) ||
-          student.lastName.toLowerCase().includes(term) ||
-          student.username.toLowerCase().includes(term) ||
-          (student.mobile && student.mobile.toLowerCase().includes(term))
+          (student.firstName && student.firstName.toLowerCase().includes(term)) ||
+          (student.lastName && student.lastName.toLowerCase().includes(term)) ||
+          (student.username && student.username.toLowerCase().includes(term))
       );
     }
 
@@ -1065,6 +1131,18 @@ const Centers = () => {
         return 'info';
       default:
         return 'default';
+    }
+  };
+  const getStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return <CheckCircleIcon fontSize="small" />;
+      case 'inactive':
+        return <CancelIcon fontSize="small" />;
+      case 'pending':
+        return <PendingIcon fontSize="small" />;
+      default:
+        return null;
     }
   };
 
@@ -1423,7 +1501,7 @@ const Centers = () => {
                       {columnVisibility.parentId && (
                         <TableCell>Parent School</TableCell>
                       )}
-                      {columnVisibility.type && <TableCell>Type</TableCell>}
+                   
                       {columnVisibility.status && (
                         <TableCell>
                           <TableSortLabel
@@ -1477,14 +1555,7 @@ const Centers = () => {
                                     width: 8,
                                     height: 8,
                                     borderRadius: '50%',
-                                    bgcolor:
-                                      getStatusColor(center.status) ===
-                                      'success'
-                                        ? '#4caf50'
-                                        : getStatusColor(center.status) ===
-                                          'warning'
-                                        ? '#ff9800'
-                                        : '#f44336',
+                                    
                                   }}
                                 />
                                 <Typography variant="body2" fontWeight="medium">
@@ -1516,23 +1587,20 @@ const Centers = () => {
                               </Typography>
                             </TableCell>
                           )}
-                          {columnVisibility.type && (
-                            <TableCell>
-                              <Chip
-                                label={getTypeText(center.type)}
-                                size="small"
-                                variant="outlined"
-                                color="primary"
-                              />
-                            </TableCell>
-                          )}
+                         
                           {columnVisibility.status && (
                             <TableCell>
-                              <Chip
+                        
+   <Chip
                                 label={getStatusText(center.status)}
                                 size="small"
                                 color={getStatusColor(center.status) as any}
+                                icon={
+                                  getStatusIcon(center.status) || undefined
+                                }
+                                variant="outlined"
                               />
+                              
                             </TableCell>
                           )}
                           {columnVisibility.createdAt && (
@@ -1893,8 +1961,25 @@ const Centers = () => {
                         )}
                     </Box>
                   ) : (
-                    <Paper variant="outlined">
-                      <Table size="small">
+                    <Paper
+                      sx={{ width: '100%', mb: 2, maxHeight: 400, overflow: 'auto' }}
+                      onScroll={(e) => {
+                          const target = e.currentTarget;
+                          if (
+                              target.scrollHeight - target.scrollTop <= target.clientHeight + 20 &&
+                              !customLoading && 
+                              !loadingStudents &&
+                              hasMoreStudents && 
+                              !dialogClass // Infinite scroll mainly for Global mode (when no source class specific)
+                          ) {
+                              const nextOffset = studentOffset + 100;
+                              setStudentOffset(nextOffset);
+                              console.log("Loading more students... Offset:", nextOffset);
+                              fetchStudents(undefined, selectedClass?.cohortId, studentSearchTerm, nextOffset, true);
+                          }
+                      }}
+                    >
+                      <Table stickyHeader size="small">
                         <TableHead>
                           <TableRow>
                             <TableCell padding="checkbox">
@@ -1926,10 +2011,6 @@ const Centers = () => {
                             <TableRow
                               key={student.userId}
                               hover
-                              onClick={() =>
-                                handleStudentToggle(student.userId)
-                              }
-                              sx={{ cursor: 'pointer' }}
                             >
                               <TableCell padding="checkbox">
                                 <Checkbox
@@ -1965,6 +2046,13 @@ const Centers = () => {
                               </TableCell>
                             </TableRow>
                           ))}
+                            {customLoading && (
+                                <TableRow>
+                                    <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                                        <CircularProgress size={24} />
+                                    </TableCell>
+                                </TableRow>
+                            )}
                         </TableBody>
                       </Table>
                     </Paper>

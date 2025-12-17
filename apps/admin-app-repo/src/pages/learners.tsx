@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 /* eslint-disable @nx/enforce-module-boundaries */
 // @ts-nocheck
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -41,6 +42,9 @@ import {
   CalendarToday as CalendarIcon,
   Badge as BadgeIcon,
   Phone as PhoneIcon,
+      CheckCircle as CheckCircleIcon,
+    Cancel as CancelIcon,
+    Pending as PendingIcon,
 } from '@mui/icons-material';
 import { Numbers } from '@mui/icons-material';
 import EditIcon from '@mui/icons-material/Edit';
@@ -65,6 +69,11 @@ const Learner = () => {
   const [roleId, setRoleID] = useState('');
   const [tenantId, setTenantId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [summaryCounts, setSummaryCounts] = useState({
+    total: 0,
+    active: 0,
+    archived: 0,
+  });
 
   const { t, i18n } = useTranslation();
 
@@ -79,6 +88,50 @@ const Learner = () => {
     setTenantId(localStorage.getItem('tenantId'));
     // Initial load
     searchData({}, 0);
+  }, []);
+
+  // Fetch overall counts for learners (all pages, by status)
+  useEffect(() => {
+    const fetchSummaryCounts = async () => {
+      try {
+        const tenantIdLocal = localStorage.getItem('tenantId');
+        if (!tenantIdLocal) return;
+
+        const baseParams = {
+          limit: 1,
+          offset: 0,
+          sort: ['createdAt', 'asc'] as any,
+        };
+
+        // Total learners for this tenant & role
+        const totalResp = await userList({
+          ...baseParams,
+          filters: { role: 'Learner', tenantId: tenantIdLocal },
+        });
+
+        // Active learners
+        const activeResp = await userList({
+          ...baseParams,
+          filters: { role: 'Learner', tenantId: tenantIdLocal, status: 'active' },
+        });
+
+        // Archived learners
+        const archivedResp = await userList({
+          ...baseParams,
+          filters: { role: 'Learner', tenantId: tenantIdLocal, status: 'archived' },
+        });
+
+        setSummaryCounts({
+          total: totalResp?.totalCount || 0,
+          active: activeResp?.totalCount || 0,
+          archived: archivedResp?.totalCount || 0,
+        });
+      } catch (e) {
+        console.error('Error fetching learner summary counts:', e);
+      }
+    };
+
+    fetchSummaryCounts();
   }, []);
 
   // Handle search input change - trigger search with debounce
@@ -247,8 +300,7 @@ const Learner = () => {
   // Calculate stats
   const learners = response?.result?.getUserDetails || [];
   const totalCount = response?.result?.totalCount || 0;
-  const activeCount = learners.filter((l: any) => l.status === 'active').length;
-  const archivedCount = learners.filter((l: any) => l.status === 'archived').length;
+  const { total: totalSummary, active: activeCount, archived: archivedCount } = summaryCounts;
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -280,6 +332,18 @@ const Learner = () => {
     }
   };
 
+    const getStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active':
+        return <CheckCircleIcon fontSize="small" />;
+      case 'inactive':
+        return <CancelIcon fontSize="small" />;
+      case 'pending':
+        return <PendingIcon fontSize="small" />;
+      default:
+        return null;
+    }
+  };
   // Get status text
   const getStatusText = (status: string) => {
     if (!status) return 'Unknown';
@@ -330,7 +394,7 @@ const Learner = () => {
         >
           <Box>
             <Typography variant="h4" component="h1" fontWeight={600}>
-              {t('LEARNERS.LEARNERS') || 'Learners'}
+          Learners
             </Typography>
             <Typography variant="body2" color="textSecondary">
               Manage all learners and their information
@@ -373,7 +437,7 @@ const Learner = () => {
                 <PersonIcon sx={{ fontSize: 40, color: '#1976d2' }} />
                 <Box>
                   <Typography variant="h6" fontWeight={600}>
-                    {totalCount}
+                    {totalSummary}
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
                     Total Learners
@@ -579,16 +643,15 @@ const Learner = () => {
                           </Box>
                         </TableCell>
                         <TableCell>
-                          <Chip
-                            label={getStatusText(learner.status)}
-                            size="small"
-                            color={getStatusColor(learner.status) as any}
-                            variant={
-                              learner.status === 'archived'
-                                ? 'outlined'
-                                : 'filled'
-                            }
-                          />
+                       <Chip
+                                label={getStatusText(learner.status)}
+                                size="small"
+                                color={getStatusColor(learner.status) as any}
+                                icon={
+                                  getStatusIcon(learner.status) || undefined
+                                }
+                                variant="outlined"
+                              />
                         </TableCell>
                         <TableCell>
                           <Tooltip
