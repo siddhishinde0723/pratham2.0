@@ -245,9 +245,8 @@ const ReviewContentSubmissions = () => {
 
   const handleSubmitComment = async (checkedItems: string[], comment: any) => {
     try {
-      const response = await submitComment(identifier as string, comment, {
-        rejectReasons: checkedItems,
-      });
+      const response = await submitComment(identifier as string, comment, checkedItems);
+
       console.log('Comment submitted successfully:', response);
       // Add toaster success message here
       setOpenCommentPopup(false);

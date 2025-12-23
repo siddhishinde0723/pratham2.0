@@ -1,3 +1,5 @@
+/* eslint-disable no-dupe-else-if */
+/* eslint-disable prefer-const */
 import {
   debounce,
   getLatestEntries,
@@ -370,8 +372,12 @@ const UserAttendanceHistory = () => {
       }
 
       if (resp) {
-        const filteredMembers = filterMembersExcludingCurrentUser(resp);
-        const nameUserIdArray = resp
+        // Filter to only include members with role "Student" (case-insensitive) and status "active"
+        const studentMembers = resp.filter((entry: any) => 
+          entry?.role?.toLowerCase() === 'student' && entry?.status?.toLowerCase() === 'active'
+        );
+        const filteredMembers = filterMembersExcludingCurrentUser(studentMembers);
+        const nameUserIdArray = filteredMembers
           ?.map((entry: any) => ({
             userId: entry.userId,
             name:

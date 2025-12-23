@@ -75,6 +75,8 @@ export interface UserAttendanceObj {
   updatedAt?: string | number | Date;
   createdAt?: string;
   userName?: string;
+  scope?: string;
+
 }
 
 export interface user {
@@ -102,6 +104,9 @@ export interface MarkAttendanceParams {
   absentReason: string;
   lateMark: boolean;
   scope: string;
+  comment?: string;
+  workLocation?: string;
+  reason?: string;
 }
 
 export interface UserIdFilter {

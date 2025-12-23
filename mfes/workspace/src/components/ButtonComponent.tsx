@@ -5,22 +5,28 @@ import { useTheme } from '@mui/material/styles';
 interface ButtonFunctionalProps {
   handleClickButton: () => void;
   buttonName: string;
+  disabled?: boolean;
 }
 export default function ButtonFunctional({
   handleClickButton,
   buttonName,
+  disabled,
 }: ButtonFunctionalProps) {
   const theme = useTheme<any>();
   return (
     <Button
       variant="contained"
       className="one-line-text"
+      disabled={disabled}
       style={{
         boxShadow: 'none',
-        background:
-          theme.components.MuiButton.styleOverrides.containedSecondary
-            .backgroundColor,
-        color: theme.components.MuiButton.styleOverrides.root.color,
+        background: disabled
+          ? undefined
+          : theme.components.MuiButton.styleOverrides.containedSecondary
+              .backgroundColor,
+        color: disabled
+          ? undefined
+          : theme.components.MuiButton.styleOverrides.root.color,
         borderRadius: '100px',
         width: '100%',
         height: '40px',

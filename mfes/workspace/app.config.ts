@@ -144,3 +144,30 @@ export const BOTTOM_DRAWER_CONSTANTS = {
   DELETE: "Delete User",
   UNKNOWN_ACTION: "Unknown Action",
 };
+
+export const absentReasonOptions = [
+  { label: 'PAID LEAVE HALF DAY', value: 'paid_leave_half_day' },
+  { label: 'PAID LEAVE FULL DAY', value: 'paid_leave_full_day' },
+  { label: 'UNPAID LEAVE HALF DAY', value: 'unpaid_leave_half_day' },
+  { label: 'UNPAID LEAVE FULL DAY', value: 'unpaid_leave_full_day' },
+  { label: 'MENSTRUAL LEAVE HALF DAY', value: 'menstrual_leave_half_day' },
+  { label: 'MENSTRUAL LEAVE FULL DAY', value: 'menstrual_leave_full_day' },
+];
+
+export const workLocationOptions = [
+  { label: 'WORK FROM HOME', value: 'work_from_home' },
+  { label: 'WORK FROM FIELD', value: 'work_from_field' },
+  { label: 'WORK FROM OFF', value: 'work_from_off' },
+  { label: 'OTHER', value: 'other' },
+];
+
+export const attendanceCommentOptions = [
+  'sup',
+  'tap',
+  // 'fld - Field Work',
+  // 'mtg - Team Meeting',
+  // 'doc - Documentation',
+  // 'rev - Review Session',
+  // 'TRN - Training Session',
+  // 'ADM - Administrative Work',
+];

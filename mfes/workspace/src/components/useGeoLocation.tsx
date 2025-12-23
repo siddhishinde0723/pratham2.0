@@ -1,49 +1,41 @@
 /* eslint-disable @typescript-eslint/no-inferrable-types */
 import { useState, useCallback } from "react";
 
-interface GeoLocation {
+export interface GeoLocationData {
   latitude: number;
   longitude: number;
+  accuracy?: number;
 }
 
 const useGeolocation = () => {
-  const [location, setLocation] = useState<GeoLocation | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
   const getLocation = useCallback(
-    async (returnData: boolean = false): Promise<GeoLocation | null> => {
-      const getPosition = () => {
-        return new Promise<GeolocationPosition>((res, rej) => {
-          navigator.geolocation.getCurrentPosition(res, rej);
-        });
-      };
-
-      try {
-        if (!navigator.geolocation) {
-          throw new Error("Geolocation is not supported by this browser.");
-        }
-
-        const position = await getPosition();
-
-        const data: GeoLocation = {
-          latitude: position?.coords?.latitude ?? 0,
-          longitude: position?.coords?.longitude ?? 0,
-        };
-
-        if (!returnData) {
-          setLocation(data);
-        }
-
-        return data;
-      } catch (err) {
-        setError((err as Error).message);
+    async (enableHighAccuracy = false): Promise<GeoLocationData | null> => {
+      if (typeof navigator === "undefined" || !navigator.geolocation) {
         return null;
       }
+
+      return new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            resolve({
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+              accuracy: position.coords.accuracy,
+            });
+          },
+          () => resolve(null),
+          {
+            enableHighAccuracy,
+            timeout: 10000,
+            maximumAge: 0,
+          }
+        );
+      });
     },
     []
   );
 
-  return { location, error, getLocation };
+  return { getLocation };
 };
 
 export default useGeolocation;

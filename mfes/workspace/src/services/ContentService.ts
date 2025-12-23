@@ -325,7 +325,7 @@ export const sendForReview = async (identifier: string) => {
 export const submitComment = async (
   identifier: string,
   comment: string,
-  rejectReasons?: Record<string, unknown>
+rejectReasons?: string[]
 ) => {
   const requestBody = {
     request: {

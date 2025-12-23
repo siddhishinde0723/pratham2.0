@@ -775,9 +775,14 @@ const StudentList = () => {
 
     return filtered;
   }, [students, searchTerm]);
+const [summaryCounts, setSummaryCounts] = useState({
+  total: 0,
+  active: 0,
+  archived: 0,
+});
 
   // Calculate stats
-  const activeCount = students.filter((s) => s.status === 'active').length;
+const { total, active, archived } = summaryCounts;
   const inactiveCount = students.filter((s) => s.status === 'inactive').length;
   const pendingCount = students.filter((s) => s.status === 'pending').length;
   const archivedCount = students.filter((s) => s.status === 'archived').length;
@@ -825,6 +830,43 @@ const StudentList = () => {
         return null;
     }
   };
+
+  useEffect(() => {
+  const fetchStudentSummaryCounts = async () => {
+    try {
+      const baseParams = {
+        limit: 1,
+        offset: 0,
+        sort: ['createdAt', 'asc'] as any,
+      };
+
+      const totalResp = await userList({
+        ...baseParams,
+        filters: { role: 'Student' },
+      });
+
+      const activeResp = await userList({
+        ...baseParams,
+        filters: { role: 'Student', status: 'active' },
+      });
+
+      const archivedResp = await userList({
+        ...baseParams,
+        filters: { role: 'Student', status: 'archived' },
+      });
+
+      setSummaryCounts({
+        total: totalResp?.totalCount || 0,
+        active: activeResp?.totalCount || 0,
+        archived: archivedResp?.totalCount || 0,
+      });
+    } catch (e) {
+      console.error('Error fetching student summary counts', e);
+    }
+  };
+
+  fetchStudentSummaryCounts();
+}, []);
 
   // Get status text
   const getStatusText = (status: string) => {
@@ -965,7 +1007,7 @@ const StudentList = () => {
             <GroupsIcon sx={{ fontSize: 40, color: '#4caf50' }} />
             <Box>
               <Typography variant="h6" fontWeight={600}>
-                {activeCount}
+                {active}
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Active Students

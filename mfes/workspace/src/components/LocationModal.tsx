@@ -23,7 +23,7 @@ const LocationModal: React.FC<LocationModalProps> = ({
   onClose,
   onConfirm,
 }) => {
-  const { getLocation, error } = useGeolocation();
+  const { getLocation } = useGeolocation();
   const { t } = useTranslation();
   const handleConfirm = async () => {
     const location = await getLocation(true);

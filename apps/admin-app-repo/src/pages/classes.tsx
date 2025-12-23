@@ -1411,9 +1411,9 @@ const Centers = () => {
             </Box>
 
             {/* Column Visibility Menu */}
-            <IconButton onClick={handleMenuOpen}>
+            {/* <IconButton onClick={handleMenuOpen}>
               <MoreVertIcon />
-            </IconButton>
+            </IconButton> */}
             <Menu
               anchorEl={anchorEl}
               open={Boolean(anchorEl)}
@@ -1583,7 +1583,7 @@ const Centers = () => {
                                 {schools.find(
                                   (s) => s.cohortId === center.parentId
                                 )?.name ||
-                                  center.parentId.substring(0, 8) + '...'}
+                                  (center.parentId ? center.parentId.substring(0, 8) + '...' : 'N/A')}
                               </Typography>
                             </TableCell>
                           )}

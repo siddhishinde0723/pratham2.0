@@ -20,8 +20,17 @@ export const cohortList = async ({
   }
 };
 
-export const getCohortDetails = async (cohortId: string): Promise<any> => {
-  const apiUrl: string = API_ENDPOINTS.cohortHierarchy(cohortId)
+export const getCohortDetails = async (
+  cohortId: string,
+  options: { [key: string]: string | boolean } = {}
+): Promise<any> => {
+  let apiUrl: string = API_ENDPOINTS.cohortHierarchy(cohortId);
+  const queryParams = new URLSearchParams(
+    Object.entries(options).map(([key, value]) => [key, String(value)])
+  ).toString();
+  if (queryParams) {
+    apiUrl += `?${queryParams}`;
+  }
   try {
     const response = await get(apiUrl);
     return response?.data?.result;

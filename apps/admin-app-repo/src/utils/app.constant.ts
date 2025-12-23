@@ -50,6 +50,8 @@ export enum Role {
   CONTENT_REVIEWER = 'Content Reviewer',
   SCTA = 'Content creator',
   CCTA = 'Content reviewer',
+  STAFF = 'Staff',
+  SUPERVISOR = 'Supervisor'
 }
 
 export enum TenantName {
