@@ -17,7 +17,7 @@ function IndexPage() {
     return <div>Loading...</div>;
   }
 
-  return <>{userRole === Role.TEACHER ? <AttendancePage /> : <CreatePage />}</>;
+  return <>{userRole === Role.TEACHER || userRole === Role.STAFF ? <AttendancePage /> : <CreatePage />}</>;
 }
 
 export default IndexPage;

@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 /* eslint-disable react/no-unescaped-entities */
 /* eslint-disable @typescript-eslint/no-empty-object-type */
 /* eslint-disable @typescript-eslint/no-empty-interface */
@@ -563,7 +564,11 @@ const AttendanceOverview: React.FC<AttendanceOverviewProps> = () => {
         });
         const resp = response?.result?.userDetails;
         if (resp) {
-          const filteredMembers = filterMembersExcludingCurrentUser(resp);
+          // Filter to only include members with role "Student" (case-insensitive) and status "active"
+          const studentMembers = resp.filter((entry: any) => 
+            entry?.role?.toLowerCase() === 'student' && entry?.status?.toLowerCase() === 'active'
+          );
+          const filteredMembers = filterMembersExcludingCurrentUser(studentMembers);
           const nameUserIdArray = filteredMembers?.map((entry: any) => ({
             userId: entry.userId,
             name:

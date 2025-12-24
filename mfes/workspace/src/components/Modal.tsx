@@ -19,7 +19,8 @@ interface ModalProps {
   handlePrimaryAction: () => void;
   secondaryBtnText?: string;
   handleSecondaryAction?: () => void;
-  selectedDate?: Date; // Ensure selectedDate is always a Date if provided
+  selectedDate?: Date;
+  primaryBtnDisabled?: boolean; // Ensure selectedDate is always a Date if provided
 }
 
 const ModalComponent: React.FC<ModalProps> = ({
@@ -33,8 +34,11 @@ const ModalComponent: React.FC<ModalProps> = ({
   selectedDate,
   secondaryBtnText = "Back",
   handleSecondaryAction = () => {
+
     console.log("Button2");
   },
+  primaryBtnDisabled,
+
 }) => {
   const { t } = useTranslation();
   const theme = useTheme<any>();
@@ -76,6 +80,7 @@ const ModalComponent: React.FC<ModalProps> = ({
           <ButtonFunctional
             handleClickButton={handlePrimaryAction}
             buttonName={btnText ?? t("COMMON.APPLY")}
+            disabled={primaryBtnDisabled}
           />{" "}
         </Box>
       </Box>
@@ -92,6 +97,7 @@ ModalComponent.propTypes = {
   handlePrimaryAction: PropTypes.func.isRequired,
   children: PropTypes.node,
   secondaryBtnText: PropTypes.string,
+  primaryBtnDisabled: PropTypes.bool,
   handleSecondaryAction: PropTypes.func,
 } as any;
 

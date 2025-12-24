@@ -1,5 +1,6 @@
 /* eslint-disable @nx/enforce-module-boundaries */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { debounce } from 'lodash';
 import {
   Container,
   Paper,
@@ -142,6 +143,13 @@ const TeacherList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [summaryCounts, setSummaryCounts] = useState({
+    total: 0,
+    active: 0,
+    archived: 0,
+    inactive: 0,
+    pending: 0,
+  });
   const [statusFilter, setStatusFilter] = useState<
     'all' | 'active' | 'inactive' | 'pending' | 'archived'
   >('all');
@@ -294,21 +302,47 @@ const TeacherList = () => {
     setError(null);
 
     try {
-      const requestData: any = {
+      const tenantId = localStorage.getItem('tenantId') || undefined;
+      const baseFilters: Record<string, any> = {
+        role: 'Teacher',
+        tenantId,
+        ...(selectedClass !== 'All' && { cohortId: selectedClass }),
+        ...(statusFilter !== 'all' && { status: [statusFilter] }),
+      };
+
+      const searchValue = searchTerm.trim();
+      const baseRequest = {
         limit: pagination.limit,
         offset: pagination.page * pagination.limit,
         sort: [sortBy, sortDirection],
-        filters: {
-          role: 'Teacher',
-          ...(selectedClass !== 'All' && { cohortId: selectedClass }),
-          ...(statusFilter !== 'all' && { status: [statusFilter] }),
-        },
       };
 
-      console.log('Fetching teachers with filters:', requestData.filters);
+      let response: any = null;
 
-      // const response: any = await getCohortMemberList(requestData);
-      const response: any = await userList(requestData);
+      if (searchValue) {
+        // First try searching by firstName
+        const firstNameReq = {
+          ...baseRequest,
+          filters: { ...baseFilters, firstName: searchValue },
+        };
+        response = await userList(firstNameReq);
+        const totalFirst = response?.totalCount || 0;
+        const detailsFirst = response?.getUserDetails || [];
+        if (totalFirst === 0 || detailsFirst.length === 0) {
+          // Then try username
+          const usernameReq = {
+            ...baseRequest,
+            filters: { ...baseFilters, username: searchValue },
+          };
+          response = await userList(usernameReq);
+        }
+      } else {
+        // No search term: regular load
+        response = await userList({
+          ...baseRequest,
+          filters: baseFilters,
+        });
+      }
 
       if (response && typeof response === 'object') {
         if (response.getUserDetails) {
@@ -359,6 +393,7 @@ const TeacherList = () => {
     sortDirection,
     statusFilter,
     selectedClass,
+    searchTerm,
   ]);
 
   // Initial fetch
@@ -797,29 +832,22 @@ const TeacherList = () => {
     }));
   };
 
-  // Filter teachers based on search
-  const filteredTeachers = useMemo(() => {
-    let filtered = [...teachers];
+  // Debounced search (server-side, sequential like learners)
+  const debouncedSearch = useMemo(
+    () =>
+      debounce((value: string) => {
+        const trimmed = value.trim();
+        setPagination((prev) => ({ ...prev, page: 0 }));
+        setSearchTerm(trimmed);
+      }, 400),
+    []
+  );
 
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (teacher) =>
-          teacher.firstName.toLowerCase().includes(term) ||
-          teacher.lastName.toLowerCase().includes(term) ||
-          teacher.username.toLowerCase().includes(term) ||
-          (teacher.mobile && teacher.mobile.toLowerCase().includes(term))
-      );
-    }
+  // Filtered list (server-side search already applied)
+  const filteredTeachers = teachers;
 
-    return filtered;
-  }, [teachers, searchTerm]);
-
-  // Calculate stats
-  const activeCount = teachers.filter((t) => t.status === 'active').length;
-  const inactiveCount = teachers.filter((t) => t.status === 'inactive').length;
-  const pendingCount = teachers.filter((t) => t.status === 'pending').length;
-  const archivedCount = teachers.filter((t) => t.status === 'archived').length;
+  // Calculate stats (use summary counts)
+  const { total, active, archived, inactive, pending } = summaryCounts;
 
   // Format date
   const formatDate = (dateString: string) => {
@@ -834,6 +862,48 @@ const TeacherList = () => {
       return dateString || 'N/A';
     }
   };
+useEffect(() => {
+  const fetchTeacherSummaryCounts = async () => {
+    try {
+      const baseParams = {
+        limit: 1, // minimal data
+        offset: 0,
+        sort: ['createdAt', 'asc'] as any,
+      };
+
+      const totalResp = await userList({
+        ...baseParams,
+        filters: { role: 'Teacher' },
+      });
+
+      const activeResp = await userList({
+        ...baseParams,
+        filters: { role: 'Teacher', status: 'active' },
+      });
+
+      const archivedResp = await userList({
+        ...baseParams,
+        filters: { role: 'Teacher', status: 'archived' },
+      });
+
+      const pendingResp = await userList({
+        ...baseParams,
+        filters: { role: 'Teacher', status: 'pending' },
+      });
+
+      setSummaryCounts({
+        total: totalResp?.totalCount || 0,
+        active: activeResp?.totalCount || 0,
+        archived: archivedResp?.totalCount || 0,
+        pending: pendingResp?.totalCount || 0,
+      });
+    } catch (e) {
+      console.error('Error fetching teacher summary counts', e);
+    }
+  };
+
+  fetchTeacherSummaryCounts();
+}, []);
 
   // Get status color
   const getStatusColor = (status: string) => {
@@ -975,7 +1045,7 @@ const TeacherList = () => {
                 <PersonIcon sx={{ fontSize: 40, color: '#1976d2' }} />
                 <Box>
                   <Typography variant="h6" fontWeight={600}>
-                    {pagination.total}
+                    {total}
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
                     Total Teachers
@@ -996,7 +1066,7 @@ const TeacherList = () => {
                 <GroupIcon sx={{ fontSize: 40, color: '#4caf50' }} />
                 <Box>
                   <Typography variant="h6" fontWeight={600}>
-                    {activeCount}
+                    {active}
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
                     Active Teachers
@@ -1017,7 +1087,7 @@ const TeacherList = () => {
                 <GroupIcon sx={{ fontSize: 40, color: '#ff9800' }} />
                 <Box>
                   <Typography variant="h6" fontWeight={600}>
-                    {archivedCount}
+                    {archived}
                   </Typography>
                   <Typography variant="body2" color="textSecondary">
                     Archived Teachers
@@ -1026,7 +1096,7 @@ const TeacherList = () => {
               </Box>
             </CardContent>
           </Card>
-          {pendingCount > 0 && (
+          {pending > 0 && (
             <Card
               sx={{
                 flex: 1,
@@ -1039,7 +1109,7 @@ const TeacherList = () => {
                   <GroupIcon sx={{ fontSize: 40, color: '#ff9800' }} />
                   <Box>
                     <Typography variant="h6" fontWeight={600}>
-                      {pendingCount}
+                      {pending}
                     </Typography>
                     <Typography variant="body2" color="textSecondary">
                       Pending Teachers
@@ -1167,8 +1237,8 @@ const TeacherList = () => {
                 fullWidth
                 size="small"
                 placeholder="Search teachers by name, username..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                defaultValue={searchTerm}
+                onChange={(e) => debouncedSearch(e.target.value)}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">

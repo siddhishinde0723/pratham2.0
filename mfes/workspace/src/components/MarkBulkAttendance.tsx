@@ -154,6 +154,7 @@ const MarkBulkAttendance: React.FC<MarkBulkAttendanceProps> = ({
       return {
         userId: user.userId,
         attendance: user.attendance,
+        scope:"student"
       };
     });
     if (userAttendance) {

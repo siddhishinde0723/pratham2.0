@@ -194,6 +194,9 @@ export const markAttendance = async ({
   absentReason,
   lateMark,
   scope,
+  comment,
+  workLocation,
+  reason,
 }: MarkAttendanceParams): Promise<any> => {
   const apiUrl: string = API_ENDPOINTS.attendanceCreate;
   try {
@@ -209,6 +212,9 @@ export const markAttendance = async ({
       validLocation,
       absentReason,
       lateMark,
+      comment,
+  workLocation,
+  reason,
     });
     return response?.data;
   } catch (error) {
