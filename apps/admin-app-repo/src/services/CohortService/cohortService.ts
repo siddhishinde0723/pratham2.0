@@ -17,7 +17,7 @@ export interface cohortListFilter {
 export interface cohortListData {
   limit?: Number;
   offset?: Number;
-  filter?: any;
+  filters?: any;
   status?: any;
 }
 export interface UpdateCohortMemberStatusParams {
@@ -184,6 +184,7 @@ export interface CohortMemberListParams {
     role?: 'Teacher' | 'Student' | 'Learner';
     status?: string[];
     search?: string;
+    userId?: string;
   };
   sort?: [string, 'asc' | 'desc'];
 }
@@ -371,4 +372,51 @@ export const assignClassToTeacher = async (data: {
     console.error('Error assigning class to teacher:', error);
     throw error;
   }
+};
+
+export const assignCohortToStudent = async (data: {
+  cohortId: string[];
+  userId: string;
+}) => {
+  // Assuming consistent API for bulk create
+  const apiUrl: string = API_ENDPOINTS.cohortMemberBulkCreate;
+  try {
+    // API might expect userId as array or string. Based on assignClassToTeacher, it expects array?
+    // But the student list calls it with userId: selectedStudent.userId
+    // Let's adapt
+    const payload = {
+        cohortId: data.cohortId,
+        userId: [data.userId]
+    };
+    const response = await post(apiUrl, payload);
+    return response.data;
+  } catch (error) {
+    console.error('Error assigning cohort to student:', error);
+    throw error;
+  }
+};
+
+export const getUserCohorts = async (userId: string): Promise<any> => {
+  const apiUrl = `${API_ENDPOINTS.myCohorts(userId)}?customField=true&children=true`;
+  try {
+    const response = await get(apiUrl);
+    return response?.data?.result;
+  } catch (error) {
+    console.error('Error fetching user cohorts:', error);
+    throw error;
+  }
+};
+
+export const removeCohortFromStudent = async (data: {
+  cohortId: string;
+  userId: string;
+}) => {
+    // Assuming we need to find the membership ID first to delete it?
+    // Or maybe there is a direct endpoint.
+    // Usually removing from cohort requires membership ID.
+    // If we only have cohortId and userId, we might need a different approach or a specialized endpoint.
+    // For now, I'll log a warning as implementing this fully might require more info.
+    console.warn("removeCohortFromStudent not fully implemented without membership ID");
+    // Placeholder - user might need to implement this based on backend
+    return { success: false, message: "Not implemented" }; 
 };

@@ -1,5 +1,6 @@
 /* eslint-disable @nx/enforce-module-boundaries */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { debounce } from 'lodash';
 import {
   Container,
   Paper,
@@ -82,6 +83,7 @@ import {
   getCohortList,
   assignCohortToStudent,
   removeCohortFromStudent,
+  getUserCohorts,
 } from '../services/CohortService/cohortService';
 import { showToastMessage } from '@/components/Toastify';
 import AddStudentModal from '@/components/AddStudentModal';
@@ -150,6 +152,7 @@ interface ClassAssignment {
   clusterId: string;
   clusterName: string;
   assigned: boolean;
+  originallyAssigned: boolean;
 }
 
 // Define sortable columns
@@ -202,6 +205,7 @@ const StudentList = () => {
   const [expandedSchools, setExpandedSchools] = useState<Set<string>>(
     new Set()
   );
+  const [selectedAssignmentCenter, setSelectedAssignmentCenter] = useState<string>('');
 
   // Archive/Delete Dialog State
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
@@ -382,25 +386,126 @@ const StudentList = () => {
     fetchStudents();
   }, [fetchStudents]);
 
-  // Fetch all classes for assignment dialog
-  const fetchAllClassesForAssignment = useCallback(async () => {
-    try {
-      const classRequestData = {
-        limit: 0,
-        offset: 0,
-        filters: {
-          type: 'COHORT',
-          status: ['active'],
-        },
-      };
+  // Helper function to fetch all paginated data
+  const fetchAllPaginatedData = useCallback(async (
+    type: string,
+    additionalFilters: Record<string, any> = {}
+  ): Promise<any[]> => {
+    const batchSize = 200; // Fetch in batches of 200
+    let allData: any[] = [];
+    let offset = 0;
+    let hasMore = true;
 
-      const response: any = await getCohortList(classRequestData as any);
-      return response?.results?.cohortDetails || [];
+    while (hasMore) {
+      try {
+        const requestData = {
+          limit: batchSize,
+          offset: offset,
+          filters: {
+            type,
+            status: ['active'],
+            ...additionalFilters,
+          },
+        };
+
+        const response: any = await getCohortList(requestData as any);
+        const data = response?.results?.cohortDetails || [];
+        
+        if (data.length > 0) {
+          allData = [...allData, ...data];
+          offset += batchSize;
+          // If we got less than batchSize, we've reached the end
+          if (data.length < batchSize) {
+            hasMore = false;
+          }
+        } else {
+          hasMore = false;
+        }
+      } catch (err) {
+        console.error(`Error fetching paginated ${type} data:`, err);
+        hasMore = false;
+      }
+    }
+
+    console.log(`Total ${type} items fetched:`, allData.length);
+    return allData;
+  }, []);
+
+  // Fetch all classes and schools for assignment dialog using Promise.all
+  const fetchAllClassesForAssignment = useCallback(async (studentId?: string) => {
+    try {
+      // Fetch classes and schools in parallel using Promise.all
+      const [allClasses, allSchools] = await Promise.all([
+        fetchAllPaginatedData('COHORT'),
+        fetchAllPaginatedData('SCHOOL'),
+      ]);
+
+      console.log('All classes fetched:', allClasses.length);
+      console.log('All schools fetched:', allSchools.length);
+
+      // Create a map for quick school name lookup
+      const schoolMap = new Map<string, string>();
+      allSchools.forEach((school: any) => {
+        if (school.cohortId) {
+          schoolMap.set(school.cohortId, school.name);
+        }
+      });
+
+      // Fetch student's current cohorts if studentId provided
+      let studentCurrentClasses: string[] = [];
+      if (studentId) {
+        try {
+          const studentCohorts = await getUserCohorts(studentId);
+          console.log('Student cohorts response:', studentCohorts);
+
+          // Handle various response formats
+          let cohortsArray: any[] = [];
+          
+          if (Array.isArray(studentCohorts)) {
+            cohortsArray = studentCohorts;
+          } else if (studentCohorts?.cohortData && Array.isArray(studentCohorts.cohortData)) {
+            cohortsArray = studentCohorts.cohortData;
+          } else if (studentCohorts?.result && Array.isArray(studentCohorts.result)) {
+            cohortsArray = studentCohorts.result;
+          }
+          
+          // Extract cohortIds from the array
+          studentCurrentClasses = cohortsArray
+            .filter((cohort: any) => cohort.cohortId || cohort.id)
+            .map((cohort: any) => cohort.cohortId || cohort.id);
+          
+          console.log('Student current classes extracted:', studentCurrentClasses);
+        } catch (err) {
+          console.error('Error fetching student current classes:', err);
+        }
+      }
+
+      // Transform classes to ClassAssignment format
+      const assignments: ClassAssignment[] = allClasses.map((cls: any) => {
+        const schoolName = schoolMap.get(cls.parentId) || 'Unknown School';
+        const isAssigned = studentCurrentClasses.some(
+          (assignedId) => String(assignedId).toLowerCase() === String(cls.cohortId).toLowerCase()
+        );
+
+        return {
+          classId: cls.cohortId,
+          className: cls.name,
+          schoolId: cls.parentId || '',
+          schoolName: schoolName,
+          clusterId: '',
+          clusterName: '',
+          assigned: isAssigned,
+          originallyAssigned: isAssigned,
+        };
+      });
+
+      console.log('Assignments created:', assignments.length);
+      return assignments;
     } catch (err) {
-      console.error('Error fetching all classes:', err);
+      console.error('Error fetching all classes for assignment:', err);
       return [];
     }
-  }, []);
+  }, [fetchAllPaginatedData]);
 
   // Handle search
   const handleSearch = (term: string) => {
@@ -554,59 +659,28 @@ const StudentList = () => {
     setSelectedStudent(student);
     setAssignLoading(true);
     setAssignClassDialogOpen(true);
+    setSelectedAssignmentCenter(''); // Reset center filter
 
     try {
-      // Fetch all classes
-      const allClasses = await fetchAllClassesForAssignment();
-      console.log('All classes fetched:', allClasses);
-
-      // Get student's current classes - fetch from API if available
-      const studentCurrentClasses = student.cohortId ? [student.cohortId] : [];
-
-      // Fetch schools for grouping
-      const allSchools = await getCohortList({
-        limit: 0,
-        offset: 0,
-        filters: { type: 'SCHOOL', status: ['active'] },
-      });
-
-      const schoolsData =
-        allSchools?.results?.cohortDetails || allSchools || [];
-      console.log('Schools fetched:', schoolsData);
-
-      // Create a map for quick school name lookup
-      const schoolMap = new Map();
-      schoolsData.forEach((school: any) => {
-        if (school.cohortId) {
-          schoolMap.set(school.cohortId, school.name);
-        }
-      });
-
-      // Transform classes to ClassAssignment format
-      const assignments: ClassAssignment[] = allClasses.map((cls: any) => {
-        const schoolName = schoolMap.get(cls.parentId) || 'No Name School';
-        return {
-          classId: cls.cohortId,
-          className: cls.name,
-          schoolId: cls.parentId || '',
-          schoolName: schoolName,
-          clusterId: '', // You might need to fetch cluster info
-          clusterName: '',
-          assigned: studentCurrentClasses.includes(cls.cohortId),
-        };
-      });
-
-      console.log('Assignments created:', assignments);
+      console.log('Fetching classes for student:', student.userId);
+      
+      // Fetch all classes with student's current assignments using the updated function
+      const assignments = await fetchAllClassesForAssignment(student.userId);
+      
+      console.log('Assignments loaded:', assignments.length);
       setClassAssignments(assignments);
 
       // Auto-expand schools that have assigned classes
       const schoolsWithAssignments = new Set<string>();
       assignments.forEach((cls) => {
-        if (cls.assigned && cls.schoolId) {
-          schoolsWithAssignments.add(cls.schoolId);
+        if (cls.assigned) {
+          const schoolId = cls.schoolId || 'unknown';
+          schoolsWithAssignments.add(schoolId);
         }
       });
       setExpandedSchools(schoolsWithAssignments);
+      
+      console.log('Expanded schools:', Array.from(schoolsWithAssignments));
     } catch (err) {
       console.error('Error loading classes for assignment:', err);
       setSnackbar({
@@ -630,11 +704,16 @@ const StudentList = () => {
   };
 
   // Handle class checkbox change
+  // Handle class checkbox change
   const handleClassCheckboxChange = (classId: string) => {
     setClassAssignments((prev) =>
-      prev.map((cls) =>
-        cls.classId === classId ? { ...cls, assigned: !cls.assigned } : cls
-      )
+      prev.map((cls) => {
+        if (cls.classId === classId) {
+          if (cls.originallyAssigned) return cls;
+          return { ...cls, assigned: !cls.assigned };
+        }
+        return cls;
+      })
     );
   };
 
@@ -898,6 +977,14 @@ const { total, active, archived } = summaryCounts;
   const groupedClasses = useMemo(() => {
     const groups: Record<string, ClassAssignment[]> = {};
     classAssignments.forEach((cls) => {
+      if (
+        selectedAssignmentCenter &&
+        selectedAssignmentCenter !== '' &&
+        selectedAssignmentCenter !== 'All' &&
+        cls.schoolId !== selectedAssignmentCenter
+      ) {
+        return;
+      }
       const schoolId = cls.schoolId || 'unknown';
       if (!groups[schoolId]) {
         groups[schoolId] = [];
@@ -905,6 +992,20 @@ const { total, active, archived } = summaryCounts;
       groups[schoolId].push(cls);
     });
     return groups;
+  }, [classAssignments, selectedAssignmentCenter]);
+
+  // Derive unique schools for dropdown
+  const uniqueAssignmentSchools = useMemo(() => {
+    const schoolsMap = new Map<string, string>();
+    classAssignments.forEach((cls) => {
+      if (cls.schoolId) {
+        schoolsMap.set(cls.schoolId, cls.schoolName);
+      }
+    });
+    return Array.from(schoolsMap.entries()).map(([id, name]) => ({
+      id,
+      name,
+    }));
   }, [classAssignments]);
 
   // Get archive button props
@@ -1333,40 +1434,56 @@ const { total, active, archived } = summaryCounts;
                           {columnVisibility.actions && (
                             <TableCell>
                               <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                <Tooltip title="Assign Class">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      handleAssignClassClick(student)
-                                    }
-                                    color="primary"
-                                  >
-                                    <AssignmentIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title={archiveProps.tooltip}>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      handleArchiveStudent(student)
-                                    }
-                                    color={archiveProps.color}
-                                    sx={{
-                                      ...(student.status === 'active' && {
-                                        '&:hover': {
-                                          backgroundColor: '#ffebee',
-                                        },
-                                      }),
-                                      ...(student.status === 'archived' && {
+                                {student.status === 'archived' ? (
+                                  // Only show delete icon for archived
+                                  <Tooltip title={archiveProps.tooltip}>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() =>
+                                        handleArchiveStudent(student)
+                                      }
+                                      color={archiveProps.color}
+                                      sx={{
                                         '&:hover': {
                                           backgroundColor: '#f5f5f5',
                                         },
-                                      }),
-                                    }}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
+                                      }}
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                ) : (
+                                  // Show all action buttons for active/non-archived
+                                  <>
+                                    <Tooltip title="Assign Class">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() =>
+                                          handleAssignClassClick(student)
+                                        }
+                                        color="primary"
+                                      >
+                                        <AssignmentIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title={archiveProps.tooltip}>
+                                      <IconButton
+                                        size="small"
+                                        onClick={() =>
+                                          handleArchiveStudent(student)
+                                        }
+                                        color={archiveProps.color}
+                                        sx={{
+                                          '&:hover': {
+                                            backgroundColor: '#ffebee',
+                                          },
+                                        }}
+                                      >
+                                        <DeleteIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </>
+                                )}
                               </Box>
                             </TableCell>
                           )}
@@ -1490,6 +1607,24 @@ const { total, active, archived } = summaryCounts;
               <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                 Select or deselect classes for this student
               </Typography>
+
+              <FormControl size="small" fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Filter by Center</InputLabel>
+                <Select
+                  value={selectedAssignmentCenter}
+                  label="Filter by Center"
+                  onChange={(e) => setSelectedAssignmentCenter(e.target.value)}
+                >
+                  <MenuItem value="">
+                    <em>All Centers</em>
+                  </MenuItem>
+                  {uniqueAssignmentSchools.map((school) => (
+                    <MenuItem key={school.id} value={school.id}>
+                      {school.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               <Divider sx={{ my: 2 }} />
 
@@ -1628,6 +1763,7 @@ const { total, active, archived } = summaryCounts;
                                   <ListItem key={cls.classId} disablePadding>
                                     <ListItemButton
                                       dense
+                                      disabled={cls.originallyAssigned}
                                       onClick={() =>
                                         handleClassCheckboxChange(cls.classId)
                                       }
@@ -1635,6 +1771,9 @@ const { total, active, archived } = summaryCounts;
                                         borderRadius: 1,
                                         '&:hover': {
                                           bgcolor: 'action.selected',
+                                        },
+                                        '&.Mui-disabled': {
+                                          opacity: 0.8,
                                         },
                                       }}
                                     >
@@ -1644,6 +1783,7 @@ const { total, active, archived } = summaryCounts;
                                           checked={cls.assigned}
                                           tabIndex={-1}
                                           disableRipple
+                                          disabled={cls.originallyAssigned}
                                           onChange={() =>
                                             handleClassCheckboxChange(
                                               cls.classId

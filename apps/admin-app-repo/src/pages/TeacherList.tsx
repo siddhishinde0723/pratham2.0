@@ -77,6 +77,7 @@ import {
   assignClassToTeacher,
   updateCohortMemberStatus,
   updateCohortUpdate,
+  getUserCohorts,
 } from '../services/CohortService/cohortService';
 import { showToastMessage } from '@/components/Toastify';
 import AddTeacherModal from '@/components/AddTeacherModal';
@@ -132,6 +133,7 @@ interface ClassAssignment {
   clusterId: string;
   clusterName: string;
   assigned: boolean;
+  originallyAssigned: boolean;
 }
 
 // Define sortable columns
@@ -187,6 +189,8 @@ const TeacherList = () => {
   const [expandedSchools, setExpandedSchools] = useState<Set<string>>(
     new Set()
   );
+  const [selectedAssignmentCenter, setSelectedAssignmentCenter] = useState<string>('');
+
 
   // Archive/Unarchive Dialog State
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
@@ -407,85 +411,117 @@ const TeacherList = () => {
     fetchTeachers();
   }, [fetchTeachers]);
 
-  // Fetch all classes for assignment dialog - FIXED VERSION
-  const fetchAllClassesForAssignment = useCallback(
-    async (teacherId?: string) => {
+  // Helper function to fetch all paginated data
+  const fetchAllPaginatedData = useCallback(async (
+    type: string,
+    additionalFilters: Record<string, any> = {}
+  ): Promise<any[]> => {
+    const batchSize = 200; // Fetch in batches of 200
+    let allData: any[] = [];
+    let offset = 0;
+    let hasMore = true;
+
+    while (hasMore) {
       try {
-        const classRequestData = {
-          limit: 0,
-          offset: 0,
+        const requestData = {
+          limit: batchSize,
+          offset: offset,
           filters: {
-            type: 'COHORT',
+            type,
             status: ['active'],
+            ...additionalFilters,
           },
         };
 
-        const response: any = await getCohortList(classRequestData as any);
-        const allClasses = response?.results?.cohortDetails || [];
+        const response: any = await getCohortList(requestData as any);
+        const data = response?.results?.cohortDetails || [];
+        
+        if (data.length > 0) {
+          allData = [...allData, ...data];
+          offset += batchSize;
+          // If we got less than batchSize, we've reached the end
+          if (data.length < batchSize) {
+            hasMore = false;
+          }
+        } else {
+          hasMore = false;
+        }
+      } catch (err) {
+        console.error(`Error fetching paginated ${type} data:`, err);
+        hasMore = false;
+      }
+    }
+
+    console.log(`Total ${type} items fetched:`, allData.length);
+    return allData;
+  }, []);
+
+  // Fetch all classes and schools for assignment dialog using Promise.all
+  const fetchAllClassesForAssignment = useCallback(
+    async (teacherId?: string) => {
+      try {
+        // Fetch classes and schools in parallel using Promise.all
+        const [allClasses, allSchools] = await Promise.all([
+          fetchAllPaginatedData('COHORT'),
+          fetchAllPaginatedData('SCHOOL'),
+        ]);
 
         console.log('All classes fetched for assignment:', allClasses.length);
+        console.log('All schools fetched:', allSchools.length);
+
+        // Create a map for quick school name lookup
+        const schoolMap = new Map<string, string>();
+        allSchools.forEach((school: any) => {
+          if (school.cohortId) {
+            schoolMap.set(school.cohortId, school.name);
+          }
+        });
 
         // If we have a teacherId, we need to fetch their current classes
         let teacherCurrentClasses: string[] = [];
         if (teacherId) {
           try {
-            // Fetch teacher's current cohort memberships
-            const teacherResponse = await getCohortMemberList({
-              limit: 0,
-              offset: 0,
-              filters: {
-                cohortId: teacherId,
-                role: 'Teacher',
-              },
-            });
+            // Fetch teacher's current cohort memberships using getUserCohorts
+            const teacherCohorts = await getUserCohorts(teacherId);
+            console.log('Teacher cohorts response:', teacherCohorts);
 
-            if (
-              teacherResponse?.userDetails &&
-              Array.isArray(teacherResponse.userDetails)
-            ) {
-              teacherCurrentClasses = teacherResponse.userDetails
-                .filter((teacher: any) => teacher.cohortId)
-                .map((teacher: any) => teacher.cohortId);
+            // Handle various response formats
+            let cohortsArray: any[] = [];
+            
+            if (Array.isArray(teacherCohorts)) {
+              cohortsArray = teacherCohorts;
+            } else if (teacherCohorts?.cohortData && Array.isArray(teacherCohorts.cohortData)) {
+              cohortsArray = teacherCohorts.cohortData;
+            } else if (teacherCohorts?.result && Array.isArray(teacherCohorts.result)) {
+              cohortsArray = teacherCohorts.result;
             }
-            console.log('Teacher current classes:', teacherCurrentClasses);
+            
+            // Extract cohortIds from the array
+            teacherCurrentClasses = cohortsArray
+              .filter((cohort: any) => cohort.cohortId || cohort.id)
+              .map((cohort: any) => cohort.cohortId || cohort.id);
+            
+            console.log('Teacher current classes extracted:', teacherCurrentClasses);
           } catch (err) {
             console.error('Error fetching teacher current classes:', err);
           }
         }
 
-        // Fetch schools for grouping
-        const schoolRequestData = {
-          limit: 0,
-          offset: 0,
-          filters: {
-            type: 'SCHOOL',
-            status: ['active'],
-          },
-        };
-
-        const schoolResponse: any = await getCohortList(
-          schoolRequestData as any
-        );
-        const schoolsData = schoolResponse?.results?.cohortDetails || [];
-        console.log('Schools fetched:', schoolsData.length);
-
-        // Create a map for quick school name lookup
-        const schoolMap = new Map();
-        schoolsData.forEach((school: any) => {
-          schoolMap.set(school.cohortId, school.name);
-        });
-
         // Transform classes to ClassAssignment format
         const assignments: ClassAssignment[] = allClasses.map((cls: any) => {
           const schoolName = schoolMap.get(cls.parentId) || 'Unknown School';
+          const isAssigned = teacherCurrentClasses.some(
+            (assignedId) => String(assignedId).toLowerCase() === String(cls.cohortId).toLowerCase()
+          );
           return {
             classId: cls.cohortId,
             className: cls.name,
             schoolId: cls.parentId || '',
             schoolName: schoolName,
-            clusterId: '', // You might need to fetch cluster info
+            clusterId: '',
             clusterName: '',
-            assigned: teacherCurrentClasses.includes(cls.cohortId),
+            assigned: isAssigned,
+            originallyAssigned: isAssigned,
           };
         });
 
@@ -496,7 +532,7 @@ const TeacherList = () => {
         return [];
       }
     },
-    []
+    [fetchAllPaginatedData]
   );
 
   // Handle search
@@ -683,6 +719,7 @@ const TeacherList = () => {
     setSelectedTeacher(teacher);
     setAssignLoading(true);
     setAssignClassDialogOpen(true);
+    setSelectedAssignmentCenter(''); // Reset center filter
 
     try {
       console.log('Fetching classes for teacher:', teacher.userId);
@@ -694,7 +731,8 @@ const TeacherList = () => {
       const schoolsWithAssignments = new Set<string>();
       assignments.forEach((cls) => {
         if (cls.assigned) {
-          schoolsWithAssignments.add(cls.schoolId);
+          const schoolId = cls.schoolId || 'unknown';
+          schoolsWithAssignments.add(schoolId);
         }
       });
       setExpandedSchools(schoolsWithAssignments);
@@ -722,11 +760,16 @@ const TeacherList = () => {
   };
 
   // Handle class checkbox change
+  // Handle class checkbox change
   const handleClassCheckboxChange = (classId: string) => {
     setClassAssignments((prev) =>
-      prev.map((cls) =>
-        cls.classId === classId ? { ...cls, assigned: !cls.assigned } : cls
-      )
+      prev.map((cls) => {
+        if (cls.classId === classId) {
+          if (cls.originallyAssigned) return cls; // Do not toggle originally assigned classes
+          return { ...cls, assigned: !cls.assigned };
+        }
+        return cls;
+      })
     );
   };
 
@@ -769,13 +812,13 @@ const TeacherList = () => {
       // Call the API to assign classes to teacher
       // FIXED: Make sure the API structure matches what your backend expects
       const response = await assignClassToTeacher({
-        userId: selectedTeacher.userId,
+        userId: [selectedTeacher.userId],
         cohortId: classesToAssign, // Changed from cohortId to cohortIds if needed
       });
 
       console.log('API Response:', response);
 
-      if (response?.success || response?.responseCode === 200) {
+      if (response?.success || response?.responseCode === 201) {
         const message = `${classesToAssign.length} class(es) assigned successfully`;
         showToastMessage(message, 'success');
 
@@ -979,6 +1022,14 @@ useEffect(() => {
   const groupedClasses = useMemo(() => {
     const groups: Record<string, ClassAssignment[]> = {};
     classAssignments.forEach((cls) => {
+      if (
+        selectedAssignmentCenter &&
+        selectedAssignmentCenter !== '' &&
+        selectedAssignmentCenter !== 'All' &&
+        cls.schoolId !== selectedAssignmentCenter
+      ) {
+        return;
+      }
       const schoolId = cls.schoolId || 'unknown';
       if (!groups[schoolId]) {
         groups[schoolId] = [];
@@ -986,6 +1037,20 @@ useEffect(() => {
       groups[schoolId].push(cls);
     });
     return groups;
+  }, [classAssignments, selectedAssignmentCenter]);
+
+  // Derive unique schools for dropdown
+  const uniqueAssignmentSchools = useMemo(() => {
+    const schoolsMap = new Map<string, string>();
+    classAssignments.forEach((cls) => {
+      if (cls.schoolId) {
+        schoolsMap.set(cls.schoolId, cls.schoolName);
+      }
+    });
+    return Array.from(schoolsMap.entries()).map(([id, name]) => ({
+      id,
+      name,
+    }));
   }, [classAssignments]);
 
   return (
@@ -1450,41 +1515,56 @@ useEffect(() => {
                           {columnVisibility.actions && (
                             <TableCell>
                               <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                <Tooltip title="Assign Class">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      handleAssignClassClick(teacher)
-                                    }
-                                    color="primary"
-                                    disabled={teacher.status === 'archived'}
-                                  >
-                                    <AssignmentIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title={archiveProps.tooltip}>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      handleArchiveTeacher(teacher)
-                                    }
-                                    color={archiveProps.color}
-                                    sx={{
-                                      ...(teacher.status === 'active' && {
-                                        '&:hover': {
-                                          backgroundColor: '#ffebee',
-                                        },
-                                      }),
-                                      ...(teacher.status === 'archived' && {
+                                {teacher.status === 'archived' ? (
+                                  // Only show delete icon for archived
+                                  <Tooltip title={archiveProps.tooltip}>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() =>
+                                        handleArchiveTeacher(teacher)
+                                      }
+                                      color={archiveProps.color}
+                                      sx={{
                                         '&:hover': {
                                           backgroundColor: '#e8f5e8',
                                         },
-                                      }),
-                                    }}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
+                                      }}
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                ) : (
+                                  // Show all action buttons for active/non-archived
+                                  <>
+                                    <Tooltip title="Assign Class">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() =>
+                                          handleAssignClassClick(teacher)
+                                        }
+                                        color="primary"
+                                      >
+                                        <AssignmentIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title={archiveProps.tooltip}>
+                                      <IconButton
+                                        size="small"
+                                        onClick={() =>
+                                          handleArchiveTeacher(teacher)
+                                        }
+                                        color={archiveProps.color}
+                                        sx={{
+                                          '&:hover': {
+                                            backgroundColor: '#ffebee',
+                                          },
+                                        }}
+                                      >
+                                        <DeleteIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </>
+                                )}
                               </Box>
                             </TableCell>
                           )}
@@ -1608,6 +1688,24 @@ useEffect(() => {
               <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
                 Select or deselect classes for this teacher
               </Typography>
+
+              <FormControl size="small" fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Filter by Center</InputLabel>
+                <Select
+                  value={selectedAssignmentCenter}
+                  label="Filter by Center"
+                  onChange={(e) => setSelectedAssignmentCenter(e.target.value)}
+                >
+                  <MenuItem value="">
+                    <em>All Centers</em>
+                  </MenuItem>
+                  {uniqueAssignmentSchools.map((school) => (
+                    <MenuItem key={school.id} value={school.id}>
+                      {school.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               <Divider sx={{ my: 2 }} />
 
@@ -1744,6 +1842,7 @@ useEffect(() => {
                                   <ListItem key={cls.classId} disablePadding>
                                     <ListItemButton
                                       dense
+                                      disabled={cls.originallyAssigned}
                                       onClick={() =>
                                         handleClassCheckboxChange(cls.classId)
                                       }
@@ -1751,6 +1850,9 @@ useEffect(() => {
                                         borderRadius: 1,
                                         '&:hover': {
                                           bgcolor: 'action.selected',
+                                        },
+                                        '&.Mui-disabled': {
+                                          opacity: 0.8,
                                         },
                                       }}
                                     >
@@ -1760,6 +1862,7 @@ useEffect(() => {
                                           checked={cls.assigned}
                                           tabIndex={-1}
                                           disableRipple
+                                          disabled={cls.originallyAssigned}
                                         />
                                       </ListItemIcon>
                                       <ListItemText

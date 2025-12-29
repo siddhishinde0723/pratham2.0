@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-empty-function */
+/* eslint-disable @typescript-eslint/no-inferrable-types */
+/* eslint-disable prefer-const */
 /* eslint-disable @nx/enforce-module-boundaries */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
@@ -66,7 +69,7 @@ import {
 import { addStudentsToClass } from '../services/CohortService/cohortService'; // Add this import
 import { showToastMessage } from '@/components/Toastify';
 import { userList } from '@/services/UserList';
-
+import { debounce } from 'lodash';
 // Define types based on your API response
 interface CohortCenter {
   cohortId: string;
@@ -179,6 +182,16 @@ const Centers = () => {
     total: 0,
   });
 
+  // Summary counts state - for all data, not just current page
+  const [summaryCounts, setSummaryCounts] = useState({
+    total: 0,
+    active: 0,
+    inactive: 0,
+    archived: 0,
+    pending: 0,
+  });
+
+ 
   // Sorting state
   const [sortBy, setSortBy] = useState<SortableColumn>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
@@ -249,6 +262,56 @@ const Centers = () => {
     }
   }, []);
 
+  // Fetch summary counts for all classes (by fetching all and counting locally)
+const fetchSummaryCounts = useCallback(async () => {
+    try {
+      let allCohorts: any[] = [];
+      let offset = 0;
+      let limit = 200; // Use a reasonable batch size
+      let hasMore = true;
+      while (hasMore) {
+        // Fetch batches of classes
+        const response = await getCohortList({
+          limit,
+          offset,
+          filters: { type: 'COHORT' },
+        });
+        let batch: any[] = [];
+        if (response?.results?.cohortDetails && Array.isArray(response.results.cohortDetails)) {
+          batch = response.results.cohortDetails;
+        } else if (Array.isArray(response)) {
+          batch = response;
+        }
+        if (batch.length > 0) {
+          allCohorts = [...allCohorts, ...batch];
+          offset += limit;
+           // If we got fewer items than the limit, we've reached the end
+          if (batch.length < limit) {
+             hasMore = false;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+      console.log('Total classes fetched for counting:', allCohorts.length);
+      // Count by status
+      const activeCount = allCohorts.filter((c: any) => c.status === 'active').length;
+      const inactiveCount = allCohorts.filter((c: any) => c.status === 'inactive').length;
+      const archivedCount = allCohorts.filter((c: any) => c.status === 'archived').length;
+      const pendingCount = allCohorts.filter((c: any) => c.status === 'pending').length;
+      const totalCount = allCohorts.length;
+      console.log('Summary counts calculated:', { total: totalCount, active: activeCount, inactive: inactiveCount, archived: archivedCount, pending: pendingCount });
+      setSummaryCounts({
+        total: totalCount,
+        active: activeCount,
+        inactive: inactiveCount,
+        archived: archivedCount,
+        pending: pendingCount,
+      });
+    } catch (err) {
+      console.error('Error fetching summary counts:', err);
+    }
+  }, []);
   // Fetch centers from API
   const fetchCenters = useCallback(async () => {
     setLoading(true);
@@ -259,6 +322,8 @@ const Centers = () => {
       const filters: any = {
         type: 'COHORT',
         ...(statusFilter !== 'all' && { status: [statusFilter] }),
+        ...(searchTerm && { name: searchTerm }),
+
       };
 
       // IMPORTANT FIX: Only add parentId filter when school is selected
@@ -302,9 +367,10 @@ const Centers = () => {
           Array.isArray(response.results.cohortDetails)
         ) {
           const centersData = response.results.cohortDetails;
-          const totalCount = centersData.length;
-
-          console.log(`✅ Successfully loaded ${centersData.length} centers`);
+          // Try to get total count from API response, fallback to current length if not found (which effectively disables pagination)
+          // Adjust this property match your actual API response for total count
+          const totalCount = response.count ?? response.results.count ?? centersData.length;
+          console.log(`✅ Successfully loaded ${centersData.length} centers. Total: ${totalCount}`);
           setCenters(centersData);
           setPagination((prev) => ({
             ...prev,
@@ -345,19 +411,30 @@ const Centers = () => {
     statusFilter,
     selectedCluster,
     selectedSchool,
-    schools, // Added schools as dependency to get updated list
+    schools,
+    searchTerm, // Add searchTerm to dependency array
   ]);
 
   // Initial fetch
   useEffect(() => {
     fetchClusters();
     fetchSchools();
-  }, [fetchClusters, fetchSchools]);
+    fetchSummaryCounts();
+  }, [fetchClusters, fetchSchools, fetchSummaryCounts]);
 
   // Fetch centers whenever filters change
   useEffect(() => {
     fetchCenters();
   }, [fetchCenters]);
+
+  // Debounced Search Effect for Centers
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm]);
 
   // Reset school selection when cluster changes
   useEffect(() => {
@@ -372,9 +449,21 @@ const Centers = () => {
     setSelectedSchool('All');
   }, [selectedCluster, fetchSchools]);
 
-  // Handle search
+  // Handle search with debounce
+  const debouncedSetSearch = useCallback(
+    useMemo(
+      () =>
+        debounce((value: string) => {
+          setSearchTerm(value);
+          setPagination((prev) => ({ ...prev, page: 0 }));
+        }, 500),
+      []
+    ),
+    []
+  );
+
   const handleSearch = (term: string) => {
-    setSearchTerm(term);
+      debouncedSetSearch(term);
   };
 
   // Handle status filter change
@@ -471,6 +560,7 @@ const Centers = () => {
 
       if (response?.success) {
         await fetchCenters();
+        await fetchSummaryCounts(); // Refresh summary counts
         const action = newStatus === 'archived' ? 'archived' : 'activated';
         showToastMessage(`Center ${action} successfully`, 'success');
       }
@@ -493,6 +583,7 @@ const Centers = () => {
   // Handle refresh
   const handleRefresh = () => {
     fetchCenters();
+    fetchSummaryCounts();
   };
 
   // Handle column visibility menu
@@ -661,6 +752,7 @@ const Centers = () => {
             filters: {
               cohortId: targetClassId,
               status: ['active'],
+              role:'Student'
             },
           };
 
@@ -698,6 +790,8 @@ const Centers = () => {
               filters: {
                 cohortId: sourceClassId,
                 status: ['active'],
+                role:'Student'
+
               },
             };
 
@@ -748,10 +842,8 @@ const Centers = () => {
                 ...(searchTerm && { firstName: searchTerm }),
               },
             };
-             // Also add username if search term exists (if backend supports searching both)
-             if (searchTerm) {
-                 userListRequestData.filters.username = searchTerm;
-             }
+            
+              
 
             const userListResponse: any = await userList(userListRequestData);
 
@@ -997,45 +1089,13 @@ const Centers = () => {
   };
 
   // Handle form submission
-  const handleFormSubmit = async (centerData: any) => {
-    setLoading(true);
+const handleFormSubmit = async () => {
     try {
-      if (editingCenter) {
-        const updateData = {
-          ...centerData,
-          type: 'COHORT',
-        };
-
-        const response = await updateCohortUpdate(
-          editingCenter.cohortId,
-          updateData
-        );
-
-        if (response?.success) {
-          await fetchCenters();
-          showToastMessage('Center updated successfully', 'success');
-        }
-      } else {
-        const createData = {
-          ...centerData,
-          type: 'COHORT',
-          status: centerData.status || 'active',
-        };
-
-        const response = await createCohort(createData);
-
-        if (response?.success) {
-          await fetchCenters();
-          showToastMessage('Center created successfully', 'success');
-        }
-      }
-    } catch (err: any) {
-      console.error('Error saving center:', err);
-      const errorMessage =
-        err.response?.data?.message || err.message || 'Failed to save center';
-      showToastMessage(errorMessage, 'error');
+      await fetchCenters();
+      await fetchSummaryCounts();
+    } catch (err) {
+      console.error('Error refreshing data:', err);
     } finally {
-      setLoading(false);
       setOpenForm(false);
     }
   };
@@ -1076,11 +1136,8 @@ const Centers = () => {
     return filtered;
   }, [students, studentSearchTerm]);
 
-  // Calculate stats
-  const activeCount = centers.filter((c) => c.status === 'active').length;
-  const archivedCount = centers.filter((c) => c.status === 'archived').length;
-  const inactiveCount = centers.filter((c) => c.status === 'inactive').length;
-  const pendingCount = centers.filter((c) => c.status === 'pending').length;
+  // Use summary counts from state (for all data, not just current page)
+const { active: activeCount, inactive: inactiveCount, archived: archivedCount, pending: pendingCount } = summaryCounts;
 
   // Get archive/unarchive button color and tooltip
   const getArchiveButtonProps = (center: CohortCenter) => {
@@ -1307,7 +1364,6 @@ const Centers = () => {
               flexWrap: 'wrap',
             }}
           >
-            {/* Active/Archived/All Toggle */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <ToggleButtonGroup
                 value={statusFilter}
@@ -1349,12 +1405,12 @@ const Centers = () => {
             {/* Search Bar */}
             <Box sx={{ flexGrow: 1, maxWidth: 300 }}>
               <TextField
-                fullWidth
-                size="small"
-                placeholder="Search classes by name, ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
+              fullWidth
+              size="small"
+             placeholder="Search classes..."
+              defaultValue={searchTerm}
+              onChange={(e) => handleSearch(e.target.value)}
+              InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
                       <SearchIcon fontSize="small" />
@@ -1620,46 +1676,60 @@ const Centers = () => {
                           {columnVisibility.actions && (
                             <TableCell>
                               <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                <Tooltip title="Add Students">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      handleOpenAddStudents(center)
-                                    }
-                                    color="primary"
-                                  >
-                                    <PersonAddIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Edit Class">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleEditCenter(center)}
-                                  >
-                                    <EditIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title={archiveProps.tooltip}>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleArchiveCenter(center)}
-                                    color={archiveProps.color}
-                                    sx={{
-                                      ...(center.status === 'active' && {
-                                        '&:hover': {
-                                          backgroundColor: '#ffebee',
-                                        },
-                                      }),
-                                      ...(center.status === 'archived' && {
+                                {center.status === 'archived' ? (
+                                  // Only show delete icon for archived
+                                  <Tooltip title={archiveProps.tooltip}>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleArchiveCenter(center)}
+                                      color={archiveProps.color}
+                                      sx={{
                                         '&:hover': {
                                           backgroundColor: '#f5f5f5',
                                         },
-                                      }),
-                                    }}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
+                                      }}
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                ) : (
+                                  // Show all action buttons for active/non-archived
+                                  <>
+                                    <Tooltip title="Add Students">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() =>
+                                          handleOpenAddStudents(center)
+                                        }
+                                        color="primary"
+                                      >
+                                        <PersonAddIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Edit Class">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleEditCenter(center)}
+                                      >
+                                        <EditIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title={archiveProps.tooltip}>
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleArchiveCenter(center)}
+                                        color={archiveProps.color}
+                                        sx={{
+                                          '&:hover': {
+                                            backgroundColor: '#ffebee',
+                                          },
+                                        }}
+                                      >
+                                        <DeleteIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </>
+                                )}
                               </Box>
                             </TableCell>
                           )}

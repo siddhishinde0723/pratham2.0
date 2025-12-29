@@ -79,11 +79,11 @@ const Sidebar = ({
             return;
           }
 
-          // Filter subMenu items for "manageUsers" to hide Teacher and Students
+          // Filter subMenu items for "manageUsers" to hide Teacher, Students, Staff, and Supervisor for non-OBLF
           if (key === 'manageUsers' && item.subMenu) {
             const filteredSubMenu = item.subMenu.filter((sub: any) => {
-              // Hide Teacher and Students from submenu for non-OBLF
-              return !(sub.title === 'Teacher' || sub.title === 'Students');
+              // Hide Teacher, Students, Staff, and Supervisor from submenu for non-OBLF
+              return !(sub.title === 'Teacher' || sub.title === 'Students' || sub.title === 'Staff' || sub.title === 'Supervisor' );
             });
 
             // Only add manageUsers if it has subMenu items after filtering

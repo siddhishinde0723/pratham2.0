@@ -12,7 +12,12 @@ import {
   FormControlLabel,
   FormLabel,
   Grid,
+  IconButton,
+  InputAdornment,
+  Typography,
+  Alert,
 } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -21,11 +26,8 @@ import SimpleModal from './SimpleModal';
 import { showToastMessage } from './Toastify';
 import {
   createUserStudentTeacher,
-  generateUsername,
   validateEmail,
-  validateMobile,
   USER_ROLES,
-  DEFAULT_PASSWORD,
   CUSTOM_FIELDS,
 } from '../services/CohortService/cohortService';
 interface AddTeacherModalProps {
@@ -44,6 +46,8 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({
     lastName: '',
     contactNumber: '',
     email: '',
+    username: '',
+    password: '',
     // teacherId: '',
     gender: '',
     // role: '',
@@ -60,8 +64,91 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  // Phone number validation (same as AddUserForm)
+  const validatePhone = (phone: string): string | null => {
+    if (!phone.trim()) return null; // Optional field, no error if empty
+    
+    // Check if phone contains only digits
+    if (!/^\d+$/.test(phone)) {
+      return 'Phone number must contain only digits (0-9)';
+    }
+    
+    // Check if phone is exactly 10 digits
+    if (phone.length !== 10) {
+      return 'Phone number must be exactly 10 digits';
+    }
+    
+    return null;
+  };
+
+  // Password validation (same as AddUserForm)
+  const validatePassword = (password: string): string | null => {
+    if (!password) return 'Password is required';
+    
+    // Check all requirements and return a single combined message if any fail
+    const hasMinLength = password.length >= 8;
+    const hasLowercase = /(?=.*[a-z])/.test(password);
+    const hasUppercase = /(?=.*[A-Z])/.test(password);
+    const hasNumber = /(?=.*\d)/.test(password);
+    const hasSpecialChar = /(?=.*[@$!%*?&])/.test(password);
+    
+    if (!hasMinLength || !hasLowercase || !hasUppercase || !hasNumber || !hasSpecialChar) {
+      return 'Password must be at least 8 characters long, include numerals, uppercase, lowercase, and special characters.';
+    }
+    
+    return null;
+  };
+
   const handleChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    let finalValue = value;
+    
+    // For contactNumber field, only allow digits and limit to 10 characters (same as AddUserForm)
+    if (field === 'contactNumber') {
+      // Remove any non-digit characters
+      const digitsOnly = String(value).replace(/\D/g, '');
+      // Limit to 10 digits
+      finalValue = digitsOnly.slice(0, 10);
+    }
+    
+    setFormData((prev) => ({ ...prev, [field]: finalValue }));
+    
+    // Validate field in real-time as user types (for contactNumber and password) - same as AddUserForm
+    if (field === 'contactNumber' || field === 'password') {
+      if (field === 'contactNumber') {
+        const phoneError = validatePhone(String(finalValue));
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          if (phoneError) {
+            newErrors.contactNumber = phoneError;
+          } else {
+            delete newErrors.contactNumber;
+          }
+          return newErrors;
+        });
+      } else if (field === 'password') {
+        const passwordError = validatePassword(String(finalValue));
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          if (passwordError) {
+            newErrors.password = passwordError;
+          } else {
+            delete newErrors.password;
+          }
+          return newErrors;
+        });
+      }
+    } else {
+      // Clear error when user starts typing for other fields
+      if (errors[field]) {
+        setErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors[field];
+          return newErrors;
+        });
+      }
+    }
   };
 
   const validateForm = (): boolean => {
@@ -76,16 +163,28 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({
       newErrors.lastName = 'Last name is required';
     }
 
-    if (!formData.gender) {
-      newErrors.gender = 'Gender is required';
+    if (!formData.username.trim()) {
+      newErrors.username = 'Username is required';
     }
 
-    if (formData.contactNumber && !validateMobile(formData.contactNumber)) {
-      newErrors.contactNumber = 'Please enter a valid 10-digit mobile number';
-    }
-
-    if (formData.email && !validateEmail(formData.email)) {
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!validateEmail(formData.email)) {
       newErrors.email = 'Please enter a valid email address';
+    }
+
+    // Validate password (same as AddUserForm)
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) {
+      newErrors.password = passwordError;
+    }
+
+    // Validate contact number (same as AddUserForm - optional but format must be correct if provided)
+    if (formData.contactNumber) {
+      const phoneError = validatePhone(formData.contactNumber);
+      if (phoneError) {
+        newErrors.contactNumber = phoneError;
+      }
     }
 
     setErrors(newErrors);
@@ -98,18 +197,17 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({
     }
     const roleId = USER_ROLES.TEACHER.id;
     const roleType = 'teacher';
-    const username = generateUsername(formData.firstName, formData.lastName);
     const name = `${formData.firstName} ${formData.lastName}`;
 
     const userData = {
       name,
-      username,
-      password: DEFAULT_PASSWORD,
-      gender: formData.gender,
+      username: formData.username,
+      password: formData.password,
       firstName: formData.firstName,
       lastName: formData.lastName,
+      email: formData.email,
       ...(formData.contactNumber && { mobile: formData.contactNumber }),
-      ...(formData.email && { email: formData.email }),
+      ...(formData.gender && { gender: formData.gender }),
       tenantCohortRoleMapping: [
         {
           tenantId,
@@ -126,9 +224,9 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({
   };
 
   const handleSubmit = async () => {
-    // if (!validateForm()) {
-    //   return;
-    // }
+    if (!validateForm()) {
+      return;
+    }
     setLoading(true);
     try {
       const userData = prepareUserData();
@@ -150,24 +248,71 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({
           lastName: '',
           contactNumber: '',
           email: '',
+          username: '',
           gender: '',
+          password: '',
         });
+        setErrors({});
+        setError(null);
       } else {
         throw new Error(response.message || `Failed to create Teacher`);
       }
     } catch (error: any) {
       console.error(`Error creating Teacher:`, error);
 
-      // Extract error message
-      let errorMessage = `Failed to create. Please try again.`;
+      // Extract specific error message from API response (same as AddUserForm)
+      let errorMessage = 'Failed to create user. Please try again.';
 
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
+      // Type guard to check if error has axios response structure
+      const isAxiosError = (err: unknown): err is {
+        response?: {
+          data?: {
+            params?: {
+              errmsg?: string;
+              err?: string;
+              error?: string;
+            };
+            message?: string;
+            error?: string;
+            result?: {
+              error?: string;
+              message?: string;
+            };
+          };
+        };
+        message?: string;
+      } => {
+        return typeof err === 'object' && err !== null;
+      };
+
+      if (isAxiosError(error)) {
+        // Try multiple possible error response formats
+        // Priority: err (user-friendly message) > errmsg (error code) > error > message
+        if (error.response?.data?.params?.err) {
+          // Format: { params: { err: "Mobile number must be 10 digits long" } }
+          errorMessage = error.response.data.params.err;
+        } else if (error.response?.data?.params?.errmsg) {
+          // Format: { params: { errmsg: "BAD_REQUEST" } } - fallback to error code if err not available
+          errorMessage = error.response.data.params.errmsg;
+        } else if (error.response?.data?.params?.error) {
+          // Another alternative format
+          errorMessage = error.response.data.params.error;
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response?.data?.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response?.data?.result?.error) {
+          errorMessage = error.response.data.result.error;
+        } else if (error.response?.data?.result?.message) {
+          errorMessage = error.response.data.result.message;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+      } else if (error instanceof Error) {
         errorMessage = error.message;
       }
 
-      showToastMessage(errorMessage, 'error');
+      setError(errorMessage);
 
       // Show specific field errors if available
       if (error.response?.data?.errors) {
@@ -192,6 +337,8 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({
       lastName: '',
       contactNumber: '',
       email: '',
+      username: '',
+      password: '',
       // teacherId: '',
       gender: '',
       // role: '',
@@ -205,6 +352,8 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({
       // dateOfLeaving: null,
       // reasonForLeaving: '',
     });
+    setErrors({});
+    setError(null);
     onClose();
   };
 
@@ -218,6 +367,18 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({
     >
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <Box sx={{ mt: 2 }}>
+          {error && (
+            <Alert 
+              severity="error" 
+              sx={{ 
+                mb: 2, 
+                borderRadius: 1
+              }}
+            >
+              {error}
+            </Alert>
+          )}
+
           {/* Full Name */}
           <TextField
             fullWidth
@@ -227,6 +388,8 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({
             placeholder="Enter first name"
             value={formData.firstName}
             onChange={(e) => handleChange('firstName', e.target.value)}
+            error={!!errors.firstName}
+            helperText={errors.firstName}
             sx={{ mb: 2 }}
           />
           <TextField
@@ -237,6 +400,8 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({
             placeholder="Enter last name"
             value={formData.lastName}
             onChange={(e) => handleChange('lastName', e.target.value)}
+            error={!!errors.lastName}
+            helperText={errors.lastName}
             sx={{ mb: 2 }}
           />
           {/* Contact Number */}
@@ -247,37 +412,35 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({
             placeholder="Enter contact number"
             value={formData.contactNumber}
             onChange={(e) => handleChange('contactNumber', e.target.value)}
+            error={!!errors.contactNumber}
+            helperText={errors.contactNumber}
+            inputProps={{
+              maxLength: 10,
+              inputMode: 'numeric',
+              pattern: '[0-9]*',
+            }}
             sx={{ mb: 2 }}
           />
 
           {/* Email */}
           <TextField
             fullWidth
+            required
             size="small"
             type="email"
             label="Email"
             placeholder="Enter email"
             value={formData.email}
             onChange={(e) => handleChange('email', e.target.value)}
+            error={!!errors.email}
+            helperText={errors.email}
             sx={{ mb: 2 }}
           />
-
-          {/* Teacher Id */}
-          {/* <TextField
-            fullWidth
-            size="small"
-            label="Teacher Id"
-            placeholder="Enter teacher ID"
-            value={formData.teacherId}
-            onChange={(e) => handleChange('teacherId', e.target.value)}
-            sx={{ mb: 2 }}
-          /> */}
 
           {/* Gender */}
           <FormControl component="fieldset" sx={{ mb: 2, width: '100%' }}>
             <FormLabel
               component="legend"
-              required
               sx={{ fontSize: '0.875rem', mb: 1 }}
             >
               Gender
@@ -297,8 +460,73 @@ const AddTeacherModal: React.FC<AddTeacherModalProps> = ({
                 control={<Radio size="small" />}
                 label="Female"
               />
+              <FormControlLabel
+                value="other"
+                control={<Radio size="small" />}
+                label="Other"
+              />
             </RadioGroup>
+            {errors.gender && (
+              <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                {errors.gender}
+              </Typography>
+            )}
           </FormControl>
+
+          {/* Username */}
+          <TextField
+            fullWidth
+            required
+            size="small"
+            label="Username"
+            placeholder="Enter username"
+            value={formData.username}
+            onChange={(e) => handleChange('username', e.target.value)}
+            error={!!errors.username}
+            helperText={errors.username}
+            sx={{ mb: 2 }}
+          />
+
+          {/* Password */}
+          <TextField
+            fullWidth
+            required
+            size="small"
+            label="Password"
+            type={showPassword ? 'text' : 'password'}
+            placeholder="Enter password"
+            value={formData.password}
+            onChange={(e) => handleChange('password', e.target.value)}
+            error={!!errors.password}
+            helperText={errors.password}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle password visibility"
+                    onClick={() => setShowPassword(!showPassword)}
+                    onMouseDown={(e) => e.preventDefault()}
+                    edge="end"
+                    size="small"
+                  >
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            sx={{ mb: 2 }}
+          />
+
+          {/* Teacher Id */}
+          {/* <TextField
+            fullWidth
+            size="small"
+            label="Teacher Id"
+            placeholder="Enter teacher ID"
+            value={formData.teacherId}
+            onChange={(e) => handleChange('teacherId', e.target.value)}
+            sx={{ mb: 2 }}
+          /> */}
 
           {/* Role */}
           {/* <FormControl fullWidth size="small" sx={{ mb: 2 }}>

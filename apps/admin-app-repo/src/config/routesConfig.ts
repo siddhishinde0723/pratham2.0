@@ -13,10 +13,14 @@ export const PUBLIC_ROUTES = [
 const UNIVERSAL_ROLE_ROUTES = {
   [Role.ADMIN]: ['/edit-password','/TeacherList',
     '/StudentList',
-    '/classes',],
+    '/classes',
+    '/staff',
+    '/supervisor',],
   [Role.CENTRAL_ADMIN]: ['/edit-password','/TeacherList',
     '/StudentList',
-    '/classes',],
+    '/classes',
+    '/staff',
+    '/supervisor',],
   [Role.CCTA]: ['/edit-password', '/subjectDetails', '/importCsv'],
   [Role.SCTA]: ['/edit-password', '/subjectDetails', '/importCsv'],
 };

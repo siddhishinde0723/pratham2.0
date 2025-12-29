@@ -955,8 +955,9 @@ console.log('[SelfAttendance] Time slot', timeSlot);
         // scope: role === 'Teacher' ? 'self' : role === 'Staff'?'staff':'center',
         context: 'cohort',
         lateMark: isLate,
-        reason:isLate?'late':'present',
+        // reason:isLate?'late':'present',
         validLocation: false,
+        metaData: {}
       };
 
       // Add attendance-specific fields based on role
@@ -964,23 +965,26 @@ console.log('[SelfAttendance] Time slot', timeSlot);
         // For absent: only include absentReason
         data.absentReason = absentReason;
         data.workLocation = '';
-        data.comment = '';
+        // data.comment = '';
+        data.metaData.workLocation = '';
+        data.remark = '';
       } else {
         // For present: include fields based on role
         data.absentReason = '';
         
         // Work Location - only for Staff and Supervisor
         if (role === 'Staff' || role === 'Supervisor') {
-          data.workLocation = workLocation || '';
+          data.metaData.workLocation = workLocation || '';
+
         } else {
-          data.workLocation = '';
+          data.metaData.workLocation = '';
         }
         
         // Comment - only for Teacher
         if (role === 'Teacher') {
-          data.comment = attendanceComment || '';
+          data.remark = attendanceComment || '';
         } else {
-          data.comment = '';
+          data.remark = '';
         }
       }
 
