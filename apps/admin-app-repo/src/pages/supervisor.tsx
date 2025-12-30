@@ -108,6 +108,7 @@ const Supervisor = () => {
   const [schoolAssignments, setSchoolAssignments] = useState<any[]>([]);
   const [assignLoading, setAssignLoading] = useState(false);
   const [expandedSchools, setExpandedSchools] = useState<Set<string>>(new Set());
+  const [schoolSearchTerm, setSchoolSearchTerm] = useState('');
 
   const { t, i18n } = useTranslation();
 
@@ -483,6 +484,7 @@ const Supervisor = () => {
     schoolId: string;
     schoolName: string;
     assigned: boolean;
+    originallyAssigned: boolean;
   }
 
   // Fetch all schools for assignment dialog
@@ -618,6 +620,7 @@ const Supervisor = () => {
             schoolId: schoolId,
             schoolName: school.name || school.cohortName || 'Unknown School',
             assigned: isAssigned,
+            originallyAssigned: isAssigned,
           };
         });
 
@@ -672,14 +675,32 @@ const Supervisor = () => {
     setSelectedSupervisor(null);
     setSchoolAssignments([]);
     setExpandedSchools(new Set());
+    setSchoolSearchTerm('');
   };
+
+  // Filter schools based on search term
+  const filteredSchoolAssignments = useMemo(() => {
+    if (!schoolSearchTerm.trim()) {
+      return schoolAssignments;
+    }
+    const searchLower = schoolSearchTerm.toLowerCase().trim();
+    return schoolAssignments.filter((school) =>
+      school.schoolName.toLowerCase().includes(searchLower)
+    );
+  }, [schoolAssignments, schoolSearchTerm]);
 
   // Handle school checkbox change
   const handleSchoolCheckboxChange = (schoolId: string) => {
     setSchoolAssignments((prev) =>
-      prev.map((school) =>
-        school.schoolId === schoolId ? { ...school, assigned: !school.assigned } : school
-      )
+      prev.map((school) => {
+        if (school.schoolId === schoolId) {
+          // Do not toggle originally assigned schools (they should remain checked and disabled)
+          if (school.originallyAssigned) return school;
+          // Toggle unassigned schools
+          return { ...school, assigned: !school.assigned };
+        }
+        return school;
+      })
     );
   };
 
@@ -1271,6 +1292,24 @@ const Supervisor = () => {
                 Select or deselect schools for this supervisor
               </Typography>
 
+              {/* Search Bar */}
+              <Box sx={{ mb: 2 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  placeholder="Search schools by name..."
+                  value={schoolSearchTerm}
+                  onChange={(e) => setSchoolSearchTerm(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Box>
+
               <Divider sx={{ my: 2 }} />
 
               {/* Scrollable content area */}
@@ -1303,15 +1342,35 @@ const Supervisor = () => {
                       Make sure schools are created and active
                     </Typography>
                   </Box>
+                ) : filteredSchoolAssignments.length === 0 ? (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      height: 200,
+                      flexDirection: 'column',
+                      gap: 1,
+                    }}
+                  >
+                    <Typography variant="body2" color="textSecondary">
+                      No schools found matching "{schoolSearchTerm}"
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      Try a different search term
+                    </Typography>
+                  </Box>
                 ) : (
                   <List sx={{ p: 0 }}>
-                    {schoolAssignments.map((school, index) => {
-                      // Debug first 3 schools
-                      if (index < 3) {
+                    {filteredSchoolAssignments.map((school, index) => {
+                      // Debug first 3 schools and a few unassigned ones
+                      if (index < 3 || (!school.assigned && index < 10)) {
                         console.log(`Rendering school ${index}:`, {
                           schoolId: school.schoolId,
                           schoolName: school.schoolName,
                           assigned: school.assigned,
+                          originallyAssigned: school.originallyAssigned,
+                          willBeDisabled: school.originallyAssigned,
                           assignedType: typeof school.assigned
                         });
                       }
@@ -1320,30 +1379,39 @@ const Supervisor = () => {
                         <ListItem disablePadding>
                           <ListItemButton
                             dense
+                            disabled={school.originallyAssigned}
                             onClick={(e) => {
-                              e.stopPropagation();
-                              handleSchoolCheckboxChange(school.schoolId);
+                              // Prevent double-trigger - don't handle if clicking on checkbox
+                              const target = e.target as HTMLElement;
+                              if (target.closest('input[type="checkbox"]')) {
+                                return;
+                              }
+                              if (!school.originallyAssigned) {
+                                handleSchoolCheckboxChange(school.schoolId);
+                              }
                             }}
                             sx={{
                               borderRadius: 1,
                               '&:hover': {
                                 bgcolor: 'action.selected',
                               },
+                              '&.Mui-disabled': {
+                                opacity: 0.8,
+                              },
                             }}
                           >
                             <ListItemIcon sx={{ minWidth: 40 }}>
                               <Checkbox
                                 edge="start"
-                                checked={school.assigned || false}
+                                checked={school.assigned}
                                 tabIndex={-1}
                                 disableRipple
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleSchoolCheckboxChange(school.schoolId);
-                                }}
+                                disabled={school.originallyAssigned}
                                 onChange={(e) => {
                                   e.stopPropagation();
-                                  handleSchoolCheckboxChange(school.schoolId);
+                                  if (!school.originallyAssigned) {
+                                    handleSchoolCheckboxChange(school.schoolId);
+                                  }
                                 }}
                               />
                             </ListItemIcon>
@@ -1394,7 +1462,9 @@ const Supervisor = () => {
                     schools
                   </Typography>
                   <Typography variant="caption" color="textSecondary">
-                    Total: {schoolAssignments.length} schools
+                    {schoolSearchTerm
+                      ? `Showing ${filteredSchoolAssignments.length} of ${schoolAssignments.length} schools`
+                      : `Total: ${schoolAssignments.length} schools`}
                   </Typography>
                 </Box>
               </Box>

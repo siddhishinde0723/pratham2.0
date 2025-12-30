@@ -49,6 +49,7 @@ export const showToastMessage = (message, type = "success") => {
         style: {
           ...commonOptions.style,
           background: "#FFA500",
+          color: "#312f2fff",
         },
       });
       break;

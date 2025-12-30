@@ -76,6 +76,7 @@ import {
   Assignment as AssignmentIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import {
   getCohortMemberList,
@@ -206,6 +207,7 @@ const StudentList = () => {
     new Set()
   );
   const [selectedAssignmentCenter, setSelectedAssignmentCenter] = useState<string>('');
+  const [selectedAssignmentCluster, setSelectedAssignmentCluster] = useState<string>('');
 
   // Archive/Delete Dialog State
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
@@ -315,6 +317,42 @@ const StudentList = () => {
     }
   }, []);
 
+ // Debounced search term
+
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+
+
+
+  // Debounce search term
+
+  useEffect(() => {
+
+    const handler = setTimeout(() => {
+
+      setDebouncedSearchTerm(searchTerm);
+
+    }, 500);
+
+
+
+    return () => {
+
+      clearTimeout(handler);
+
+    };
+
+  }, [searchTerm]);
+
+
+
+  // Reset pagination when search term changes
+
+  useEffect(() => {
+
+    setPagination((prev) => ({ ...prev, page: 0 }));
+
+  }, [debouncedSearchTerm]);
+
   // Fetch students from API
   const fetchStudents = useCallback(async () => {
     setLoading(true);
@@ -329,6 +367,7 @@ const StudentList = () => {
           role: 'Student',
           ...(statusFilter !== 'all' && { status: [statusFilter] }),
           cohortId: selectedClass !== 'All' ? selectedClass : undefined,
+          ...(debouncedSearchTerm && { firstName: debouncedSearchTerm }),
         },
       };
 
@@ -373,7 +412,7 @@ const StudentList = () => {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, statusFilter, selectedClass]);
+  }, [pagination.page, pagination.limit, statusFilter, selectedClass, debouncedSearchTerm, sortBy, sortDirection]);
 
   // Initial fetch
   useEffect(() => {
@@ -660,6 +699,7 @@ const StudentList = () => {
     setAssignLoading(true);
     setAssignClassDialogOpen(true);
     setSelectedAssignmentCenter(''); // Reset center filter
+    setSelectedAssignmentCluster(''); // Reset cluster filter
 
     try {
       console.log('Fetching classes for student:', student.userId);
@@ -701,6 +741,21 @@ const StudentList = () => {
     setSelectedStudent(null);
     setClassAssignments([]);
     setExpandedSchools(new Set());
+    setSelectedAssignmentCenter('');
+    setSelectedAssignmentCluster('');
+  };
+
+  // Handle clear assignment cluster filter
+  const handleClearAssignmentCluster = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedAssignmentCluster('');
+    setSelectedAssignmentCenter('');
+  };
+
+  // Handle clear assignment center filter
+  const handleClearAssignmentCenter = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedAssignmentCenter('');
   };
 
   // Handle class checkbox change
@@ -837,23 +892,24 @@ const StudentList = () => {
   };
 
   // Filter students based on search and filters
-  const filteredStudents = useMemo(() => {
-    let filtered = [...students];
+  // const filteredStudents = useMemo(() => {
+  //   let filtered = [...students];
 
-    // Apply search filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (student) =>
-          student.user.firstName.toLowerCase().includes(term) ||
-          student.user.lastName.toLowerCase().includes(term) ||
-          student.user.email.toLowerCase().includes(term) ||
-          student.user.phone.toLowerCase().includes(term)
-      );
-    }
+  //   // Apply search filter
+  //   if (searchTerm) {
+  //     const term = searchTerm.toLowerCase();
+  //     filtered = filtered.filter(
+  //       (student) =>
+  //         student.user.firstName.toLowerCase().includes(term) ||
+  //         student.user.lastName.toLowerCase().includes(term) ||
+  //         student.user.email.toLowerCase().includes(term) ||
+  //         student.user.phone.toLowerCase().includes(term)
+  //     );
+  //   }
 
-    return filtered;
-  }, [students, searchTerm]);
+  //   return filtered;
+  // }, [students, searchTerm]);
+   const filteredStudents = students;
 const [summaryCounts, setSummaryCounts] = useState({
   total: 0,
   active: 0,
@@ -976,7 +1032,23 @@ const { total, active, archived } = summaryCounts;
   // Group classes by school for the assign class dialog
   const groupedClasses = useMemo(() => {
     const groups: Record<string, ClassAssignment[]> = {};
+    
+    // Get school IDs that belong to the selected cluster
+    const schoolIdsInCluster = selectedAssignmentCluster
+      ? new Set(
+          schools
+            .filter((school) => school.parentId === selectedAssignmentCluster)
+            .map((school) => school.cohortId)
+        )
+      : null;
+    
     classAssignments.forEach((cls) => {
+      // Filter by cluster if selected
+      if (schoolIdsInCluster && !schoolIdsInCluster.has(cls.schoolId)) {
+        return;
+      }
+      
+      // Filter by center if selected
       if (
         selectedAssignmentCenter &&
         selectedAssignmentCenter !== '' &&
@@ -992,21 +1064,41 @@ const { total, active, archived } = summaryCounts;
       groups[schoolId].push(cls);
     });
     return groups;
-  }, [classAssignments, selectedAssignmentCenter]);
+  }, [classAssignments, selectedAssignmentCenter, selectedAssignmentCluster, schools]);
 
-  // Derive unique schools for dropdown
+  // Derive unique clusters for dropdown
+  const uniqueAssignmentClusters = useMemo(() => {
+    const clustersMap = new Map<string, string>();
+    // Get clusters from the existing clusters state
+    clusters.forEach((cluster) => {
+      if (cluster.cohortId && cluster.name) {
+        clustersMap.set(cluster.cohortId, cluster.name);
+      }
+    });
+    return Array.from(clustersMap.entries()).map(([id, name]) => ({
+      id,
+      name,
+    }));
+  }, [clusters]);
+
+  // Derive unique schools for dropdown - filter by selected cluster if any
   const uniqueAssignmentSchools = useMemo(() => {
     const schoolsMap = new Map<string, string>();
-    classAssignments.forEach((cls) => {
-      if (cls.schoolId) {
-        schoolsMap.set(cls.schoolId, cls.schoolName);
+    // Filter schools based on selected cluster
+    const filteredSchools = selectedAssignmentCluster
+      ? schools.filter((school) => school.parentId === selectedAssignmentCluster)
+      : schools;
+    
+    filteredSchools.forEach((school) => {
+      if (school.cohortId && school.name) {
+        schoolsMap.set(school.cohortId, school.name);
       }
     });
     return Array.from(schoolsMap.entries()).map(([id, name]) => ({
       id,
       name,
     }));
-  }, [classAssignments]);
+  }, [schools, selectedAssignmentCluster]);
 
   // Get archive button props
   const getArchiveButtonProps = (student: Student) => {
@@ -1608,23 +1700,92 @@ const { total, active, archived } = summaryCounts;
                 Select or deselect classes for this student
               </Typography>
 
-              <FormControl size="small" fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Filter by Center</InputLabel>
-                <Select
-                  value={selectedAssignmentCenter}
-                  label="Filter by Center"
-                  onChange={(e) => setSelectedAssignmentCenter(e.target.value)}
-                >
-                  <MenuItem value="">
-                    <em>All Centers</em>
-                  </MenuItem>
-                  {uniqueAssignmentSchools.map((school) => (
-                    <MenuItem key={school.id} value={school.id}>
-                      {school.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                {/* Search by Cluster Filter */}
+                <Box sx={{ flex: 1, minWidth: 200, position: 'relative' }}>
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Search by Cluster</InputLabel>
+                    <Select
+                      value={selectedAssignmentCluster}
+                      label="Search by Cluster"
+                      onChange={(e) => {
+                        setSelectedAssignmentCluster(e.target.value);
+                        setSelectedAssignmentCenter(''); // Reset center when cluster changes
+                      }}
+                      sx={{
+                        '& .MuiSelect-select': {
+                          paddingRight: selectedAssignmentCluster ? '50px' : undefined,
+                        },
+                      }}
+                    >
+                      <MenuItem value="">
+                        <em>All Clusters</em>
+                      </MenuItem>
+                      {uniqueAssignmentClusters.map((cluster) => (
+                        <MenuItem key={cluster.id} value={cluster.id}>
+                          {cluster.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  {selectedAssignmentCluster && (
+                    <IconButton
+                      size="small"
+                      onClick={handleClearAssignmentCluster}
+                      sx={{
+                        position: 'absolute',
+                        right: 30,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        zIndex: 1,
+                      }}
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+
+                {/* Search by Center Filter */}
+                <Box sx={{ flex: 1, minWidth: 200, position: 'relative' }}>
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Search by Center</InputLabel>
+                    <Select
+                      value={selectedAssignmentCenter}
+                      label="Search by Center"
+                      onChange={(e) => setSelectedAssignmentCenter(e.target.value)}
+                      sx={{
+                        '& .MuiSelect-select': {
+                          paddingRight: selectedAssignmentCenter ? '50px' : undefined,
+                        },
+                      }}
+                    >
+                      <MenuItem value="">
+                        <em>All Centers</em>
+                      </MenuItem>
+                      {uniqueAssignmentSchools.map((school) => (
+                        <MenuItem key={school.id} value={school.id}>
+                          {school.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  {selectedAssignmentCenter && (
+                    <IconButton
+                      size="small"
+                      onClick={handleClearAssignmentCenter}
+                      sx={{
+                        position: 'absolute',
+                        right: 30,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        zIndex: 1,
+                      }}
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+              </Box>
 
               <Divider sx={{ my: 2 }} />
 
@@ -1684,7 +1845,7 @@ const { total, active, archived } = summaryCounts;
                     </Typography>
                   </Box>
                 ) : (
-                  <List sx={{ p: 0 }}>
+                  <List sx={{ p: 0,pb:4 }}>
                     {Object.entries(groupedClasses).map(
                       ([schoolId, schoolClasses]) => {
                         const schoolName =

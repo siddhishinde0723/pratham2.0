@@ -259,6 +259,16 @@ const Centers = () => {
     } catch (err) {
       console.error('Error fetching schools:', err);
       setSchools([]);
+        if (clusterId && clusterId !== 'All') {
+
+        const cluster = clusters.find((c) => c.cohortId === clusterId);
+
+        const clusterName = cluster ? cluster.name : 'selected cluster';
+
+       
+        showToastMessage(`No center available for the selected cluster ${clusterName}`, 'info');
+
+      }
     }
   }, []);
 
@@ -393,10 +403,13 @@ const fetchSummaryCounts = useCallback(async () => {
         setPagination((prev) => ({ ...prev, total: 0 }));
       }
     } catch (err: any) {
-      console.error('Error fetching centers:', err);
-      const errorMessage = err.message || 'Failed to fetch centers from server';
-      setError(errorMessage);
-      showToastMessage(errorMessage, 'error');
+      // console.error('Error fetching centers:', err);
+        showToastMessage(`No center available for the selected cluster`, 'warning');
+
+
+      // const errorMessage = err.message || 'Failed to fetch centers from server';
+      // setError(errorMessage);
+      // showToastMessage(errorMessage, 'error');
 
       setCenters([]);
       setPagination((prev) => ({ ...prev, total: 0 }));
@@ -418,9 +431,9 @@ const fetchSummaryCounts = useCallback(async () => {
   // Initial fetch
   useEffect(() => {
     fetchClusters();
-    fetchSchools();
+    // fetchSchools(); // Removed: Schools depend on cluster selection
     fetchSummaryCounts();
-  }, [fetchClusters, fetchSchools, fetchSummaryCounts]);
+  }, [fetchClusters, fetchSummaryCounts]);
 
   // Fetch centers whenever filters change
   useEffect(() => {
@@ -442,8 +455,8 @@ const fetchSummaryCounts = useCallback(async () => {
       // Fetch schools for the selected cluster
       fetchSchools(selectedCluster);
     } else {
-      // If cluster is "All", fetch all schools
-      fetchSchools();
+      // If cluster is "All", clear schools list (dependency requirement)
+      setSchools([]);
     }
     // Reset school selection when cluster changes
     setSelectedSchool('All');
@@ -475,6 +488,21 @@ const fetchSummaryCounts = useCallback(async () => {
       setStatusFilter(newStatus);
       setPagination((prev) => ({ ...prev, page: 0 }));
     }
+  };
+
+  // Handle clear cluster
+  const handleClearCluster = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedCluster('All');
+    // School will be reset in useEffect whenever selectedCluster changes
+    setPagination((prev) => ({ ...prev, page: 0 }));
+  };
+
+  // Handle clear school
+  const handleClearSchool = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedSchool('All');
+    setPagination((prev) => ({ ...prev, page: 0 }));
   };
 
   // Handle cluster filter change
@@ -1296,7 +1324,7 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
             <SchoolIcon sx={{ fontSize: 40, color: '#1976d2' }} />
             <Box>
               <Typography variant="h6" fontWeight={600}>
-                {pagination.total}
+                {summaryCounts.total}
               </Typography>
               <Typography variant="body2" color="textSecondary">
                 Total Classes
@@ -1421,7 +1449,7 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
             </Box>
 
             {/* Cluster Dropdown */}
-            <Box sx={{ minWidth: 200 }}>
+            <Box sx={{ minWidth: 200, position: 'relative' }}>
               <FormControl fullWidth size="small">
                 <InputLabel id="cluster-filter-label">
                   Search by Cluster
@@ -1432,6 +1460,11 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
                   value={selectedCluster}
                   label="Search by Cluster"
                   onChange={handleClusterChange}
+                  sx={{
+                    '& .MuiSelect-select': {
+                      paddingRight: selectedCluster !== 'All' ? '50px' : undefined,
+                    },
+                  }}
                 >
                   <MenuItem value="All">-</MenuItem>
                   {clusters.map((cluster) => (
@@ -1441,20 +1474,41 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
                   ))}
                 </Select>
               </FormControl>
+              {selectedCluster !== 'All' && (
+                <IconButton
+                  size="small"
+                  onClick={handleClearCluster}
+                  sx={{
+                    position: 'absolute',
+                    right: 30,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 1,
+                  }}
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              )}
             </Box>
 
             {/* School Dropdown */}
-            <Box sx={{ minWidth: 200 }}>
+            <Box sx={{ minWidth: 200, position: 'relative' }}>
               <FormControl fullWidth size="small">
                 <InputLabel id="school-filter-label">
-                  Search by School
+                  Search by center
                 </InputLabel>
                 <Select
                   labelId="school-filter-label"
                   id="school-filter"
                   value={selectedSchool}
-                  label="Search by School"
+                  label="Search by center"
                   onChange={handleSchoolChange}
+                  disabled={selectedCluster === 'All'}
+                  sx={{
+                    '& .MuiSelect-select': {
+                      paddingRight: selectedSchool !== 'All' ? '50px' : undefined,
+                    },
+                  }}
                 >
                   <MenuItem value="All">-</MenuItem>
                   {schools.map((school) => (
@@ -1464,6 +1518,21 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
                   ))}
                 </Select>
               </FormControl>
+              {selectedSchool !== 'All' && (
+                <IconButton
+                  size="small"
+                  onClick={handleClearSchool}
+                  sx={{
+                    position: 'absolute',
+                    right: 30,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 1,
+                  }}
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              )}
             </Box>
 
             {/* Column Visibility Menu */}
@@ -1895,7 +1964,7 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
         </DialogTitle>
         <DialogContent dividers>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            {/* <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
               <FormControl size="small" sx={{ minWidth: 200 }}>
                 <InputLabel>Select Cluster</InputLabel>
                 <Select
@@ -1957,7 +2026,7 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
                   ))}
                 </Select>
               </FormControl>
-            </Box>
+            </Box> */}
 
             {/* Student List - Always show, either global (filtered by target) or from selected source class */}
             <Box>

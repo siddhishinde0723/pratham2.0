@@ -152,18 +152,21 @@ export const absentReasonOptions = [
   { label: 'UNPAID LEAVE FULL DAY', value: 'unpaid_leave_full_day' },
   { label: 'MENSTRUAL LEAVE HALF DAY', value: 'menstrual_leave_half_day' },
   { label: 'MENSTRUAL LEAVE FULL DAY', value: 'menstrual_leave_full_day' },
+    { label: "STUDY_LEAVE_HALF_DAY", value: "Study Leave - Half day" },
+  { label: "STUDY_LEAVE_FULL_DAY", value: "Study Leave - Full day" },
+  { label: "OTHER", value: "Other" },
 ];
 
 export const workLocationOptions = [
   { label: 'WORK FROM HOME', value: 'work_from_home' },
   { label: 'WORK FROM FIELD', value: 'work_from_field' },
-  { label: 'WORK FROM OFF', value: 'work_from_off' },
+  { label: 'WORK FROM OFFICE', value: 'work_from_off' },
   { label: 'OTHER', value: 'other' },
 ];
 
 export const attendanceCommentOptions = [
-  'sup',
-  'tap',
+ "STAT",
+  "TAB",
   // 'fld - Field Work',
   // 'mtg - Team Meeting',
   // 'doc - Documentation',

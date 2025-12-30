@@ -70,6 +70,7 @@ import {
     CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
   Pending as PendingIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import {
   getCohortMemberList,
@@ -190,6 +191,7 @@ const TeacherList = () => {
     new Set()
   );
   const [selectedAssignmentCenter, setSelectedAssignmentCenter] = useState<string>('');
+  const [selectedAssignmentCluster, setSelectedAssignmentCluster] = useState<string>('');
 
 
   // Archive/Unarchive Dialog State
@@ -720,6 +722,7 @@ const TeacherList = () => {
     setAssignLoading(true);
     setAssignClassDialogOpen(true);
     setSelectedAssignmentCenter(''); // Reset center filter
+    setSelectedAssignmentCluster(''); // Reset cluster filter
 
     try {
       console.log('Fetching classes for teacher:', teacher.userId);
@@ -757,6 +760,21 @@ const TeacherList = () => {
     setSelectedTeacher(null);
     setClassAssignments([]);
     setExpandedSchools(new Set());
+    setSelectedAssignmentCenter('');
+    setSelectedAssignmentCluster('');
+  };
+
+  // Handle clear assignment cluster filter
+  const handleClearAssignmentCluster = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedAssignmentCluster('');
+    setSelectedAssignmentCenter('');
+  };
+
+  // Handle clear assignment center filter
+  const handleClearAssignmentCenter = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedAssignmentCenter('');
   };
 
   // Handle class checkbox change
@@ -939,6 +957,7 @@ useEffect(() => {
         active: activeResp?.totalCount || 0,
         archived: archivedResp?.totalCount || 0,
         pending: pendingResp?.totalCount || 0,
+        inactive: archivedResp?.totalCount || 0,
       });
     } catch (e) {
       console.error('Error fetching teacher summary counts', e);
@@ -1021,7 +1040,23 @@ useEffect(() => {
   // Group classes by school for the assign class dialog
   const groupedClasses = useMemo(() => {
     const groups: Record<string, ClassAssignment[]> = {};
+    
+    // Get school IDs that belong to the selected cluster
+    const schoolIdsInCluster = selectedAssignmentCluster
+      ? new Set(
+          schools
+            .filter((school) => school.parentId === selectedAssignmentCluster)
+            .map((school) => school.cohortId)
+        )
+      : null;
+    
     classAssignments.forEach((cls) => {
+      // Filter by cluster if selected
+      if (schoolIdsInCluster && !schoolIdsInCluster.has(cls.schoolId)) {
+        return;
+      }
+      
+      // Filter by center if selected
       if (
         selectedAssignmentCenter &&
         selectedAssignmentCenter !== '' &&
@@ -1037,21 +1072,41 @@ useEffect(() => {
       groups[schoolId].push(cls);
     });
     return groups;
-  }, [classAssignments, selectedAssignmentCenter]);
+  }, [classAssignments, selectedAssignmentCenter, selectedAssignmentCluster, schools]);
 
-  // Derive unique schools for dropdown
+  // Derive unique clusters for dropdown
+  const uniqueAssignmentClusters = useMemo(() => {
+    const clustersMap = new Map<string, string>();
+    // Get clusters from the existing clusters state
+    clusters.forEach((cluster) => {
+      if (cluster.cohortId && cluster.name) {
+        clustersMap.set(cluster.cohortId, cluster.name);
+      }
+    });
+    return Array.from(clustersMap.entries()).map(([id, name]) => ({
+      id,
+      name,
+    }));
+  }, [clusters]);
+
+  // Derive unique schools for dropdown - filter by selected cluster if any
   const uniqueAssignmentSchools = useMemo(() => {
     const schoolsMap = new Map<string, string>();
-    classAssignments.forEach((cls) => {
-      if (cls.schoolId) {
-        schoolsMap.set(cls.schoolId, cls.schoolName);
+    // Filter schools based on selected cluster
+    const filteredSchools = selectedAssignmentCluster
+      ? schools.filter((school) => school.parentId === selectedAssignmentCluster)
+      : schools;
+    
+    filteredSchools.forEach((school) => {
+      if (school.cohortId && school.name) {
+        schoolsMap.set(school.cohortId, school.name);
       }
     });
     return Array.from(schoolsMap.entries()).map(([id, name]) => ({
       id,
       name,
     }));
-  }, [classAssignments]);
+  }, [schools, selectedAssignmentCluster]);
 
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
@@ -1689,23 +1744,92 @@ useEffect(() => {
                 Select or deselect classes for this teacher
               </Typography>
 
-              <FormControl size="small" fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Filter by Center</InputLabel>
-                <Select
-                  value={selectedAssignmentCenter}
-                  label="Filter by Center"
-                  onChange={(e) => setSelectedAssignmentCenter(e.target.value)}
-                >
-                  <MenuItem value="">
-                    <em>All Centers</em>
-                  </MenuItem>
-                  {uniqueAssignmentSchools.map((school) => (
-                    <MenuItem key={school.id} value={school.id}>
-                      {school.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                {/* Search by Cluster Filter */}
+                <Box sx={{ flex: 1, minWidth: 200, position: 'relative' }}>
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Search by Cluster</InputLabel>
+                    <Select
+                      value={selectedAssignmentCluster}
+                      label="Search by Cluster"
+                      onChange={(e) => {
+                        setSelectedAssignmentCluster(e.target.value);
+                        setSelectedAssignmentCenter(''); // Reset center when cluster changes
+                      }}
+                      sx={{
+                        '& .MuiSelect-select': {
+                          paddingRight: selectedAssignmentCluster ? '50px' : undefined,
+                        },
+                      }}
+                    >
+                      <MenuItem value="">
+                        <em>All Clusters</em>
+                      </MenuItem>
+                      {uniqueAssignmentClusters.map((cluster) => (
+                        <MenuItem key={cluster.id} value={cluster.id}>
+                          {cluster.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  {selectedAssignmentCluster && (
+                    <IconButton
+                      size="small"
+                      onClick={handleClearAssignmentCluster}
+                      sx={{
+                        position: 'absolute',
+                        right: 30,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        zIndex: 1,
+                      }}
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+
+                {/* Search by Center Filter */}
+                <Box sx={{ flex: 1, minWidth: 200, position: 'relative' }}>
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Search by Center</InputLabel>
+                    <Select
+                      value={selectedAssignmentCenter}
+                      label="Search by Center"
+                      onChange={(e) => setSelectedAssignmentCenter(e.target.value)}
+                      sx={{
+                        '& .MuiSelect-select': {
+                          paddingRight: selectedAssignmentCenter ? '50px' : undefined,
+                        },
+                      }}
+                    >
+                      <MenuItem value="">
+                        <em>All Centers</em>
+                      </MenuItem>
+                      {uniqueAssignmentSchools.map((school) => (
+                        <MenuItem key={school.id} value={school.id}>
+                          {school.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  {selectedAssignmentCenter && (
+                    <IconButton
+                      size="small"
+                      onClick={handleClearAssignmentCenter}
+                      sx={{
+                        position: 'absolute',
+                        right: 30,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        zIndex: 1,
+                      }}
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+              </Box>
 
               <Divider sx={{ my: 2 }} />
 
@@ -1763,7 +1887,7 @@ useEffect(() => {
                     </Typography>
                   </Box>
                 ) : (
-                  <List sx={{ p: 0 }}>
+                  <List sx={{ p: 0,pb:4}}>
                     {Object.entries(groupedClasses).map(
                       ([schoolId, schoolClasses]) => {
                         const schoolName =
