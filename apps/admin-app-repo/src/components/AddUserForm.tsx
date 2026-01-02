@@ -13,6 +13,10 @@ import {
   Alert,
   IconButton,
   InputAdornment,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormLabel,
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { SelectChangeEvent } from '@mui/material';
@@ -30,7 +34,7 @@ import { getFieldIdsByName } from '@/services/FieldsService';
 interface AddUserFormProps {
   onSuccess: () => void;
   onCancel: () => void;
-  userType: 'learner' | 'content-creator' | 'content-reviewer';
+  userType: 'learner' | 'content-creator' | 'content-reviewer' | 'staff' | 'supervisor';
 }
 
 const AddUserForm: React.FC<AddUserFormProps> = ({
@@ -54,6 +58,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
     district: '',
     block: '',
     village: '',
+    department: '',
   });
   
   // Store location IDs (not just names) for API submission
@@ -315,7 +320,14 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
     if (!formData.lastName.trim()) errors.lastName = 'Last name is required';
     if (!formData.username.trim()) errors.username = 'Username is required';
     if (!formData.email.trim()) errors.email = 'Email is required';
-    if (!formData.password) errors.password = 'Password is required';
+    
+    // Validate password with same rules as new form
+    if (formData.password) {
+      const passwordError = validatePassword(formData.password);
+      if (passwordError) errors.password = passwordError;
+    } else {
+      errors.password = 'Password is required';
+    }
 
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
@@ -351,13 +363,20 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
 
   // Check if form is valid for button state (old form)
   const isFormValidOld = (): boolean => {
-    return (
+    const hasRequiredFields = (
       formData.firstName.trim() !== '' &&
       formData.lastName.trim() !== '' &&
       formData.username.trim() !== '' &&
       formData.email.trim() !== '' &&
       formData.password !== ''
     );
+    
+    // Validate password format
+    const isPasswordValid = formData.password 
+      ? validatePassword(formData.password) === null 
+      : false;
+
+    return hasRequiredFields && isPasswordValid;
   };
 
   // Check if form is valid for button state (new form)
@@ -518,6 +537,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
       email: true,
       username: true,
       gender: true,
+      department: true,
     });
 
     // Validate form before submitting
@@ -544,7 +564,13 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
           ? 'Learner'
           : userType === 'content-creator'
           ? 'Content creator'
-          : 'Content reviewer';
+          : userType === 'content-reviewer'
+          ? 'Content reviewer'
+          : userType === 'staff'
+          ? 'Staff'
+          : userType === 'supervisor'
+          ? 'Supervisor'
+          : 'Learner';
 
       // Get role ID from tenant data
       const roleId = getRoleIdByTenantAndRoleName(
@@ -573,15 +599,16 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
         }
       }
 
-      // Build customFields array for location fields (only for new form)
-      let customFieldsArray: Array<{ fieldId: string; value: string[] }> = [];
+      // Build customFields array for location fields (only for new form) and department (for staff)
+      // `value` can be either a single string or an array of strings, depending on backend expectations
+      let customFieldsArray: Array<{ fieldId: string; value: string | string[] }> = [];
       
       if (useNewForm) {
         console.log('Field IDs loaded:', fieldIds);
         console.log('Location IDs:', locationIds);
         
         // Build customFields array with proper checks
-        const fieldsToAdd: Array<{ fieldId: string; value: string[] }> = [];
+        const fieldsToAdd: Array<{ fieldId: string; value: string | string[] }> = [];
         
         // State field
         if (locationIds.stateId && fieldIds.State) {
@@ -630,6 +657,17 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
         customFieldsArray = fieldsToAdd;
         console.log('Final customFields array:', customFieldsArray);
       }
+      
+      // Add department field for staff and supervisor (OBLF)
+      if ((userType === 'staff' || userType === 'supervisor') && formData.department) {
+        const departmentFieldId = '0d501559-3bb2-44ed-8e33-850f6ed22666';
+        customFieldsArray.push({
+          fieldId: departmentFieldId,
+          // Department should be sent as a single string value, not an array
+          value: formData.department
+        });
+        console.log('Adding Department field:', { fieldId: departmentFieldId, value: formData.department });
+      }
 
       // Prepare account creation data
       const accountData: CreateAccountRequest = {
@@ -670,6 +708,7 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
         district: '',
         block: '',
         village: '',
+        department: '',
       });
       // Reset location dropdowns and IDs
       setLocationIds({
@@ -718,13 +757,13 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
 
       if (isAxiosError(error)) {
         // Try multiple possible error response formats
-        // Priority: errmsg > err > error > message
-        if (error.response?.data?.params?.errmsg) {
-          // Format: { params: { errmsg: "gender must be a valid enum value" } }
-          errorMessage = error.response.data.params.errmsg;
-        } else if (error.response?.data?.params?.err) {
-          // Format: { params: { err: "User already exist." } }
+        // Priority: err (user-friendly message) > errmsg (error code) > error > message
+        if (error.response?.data?.params?.err) {
+          // Format: { params: { err: "Mobile number must be 10 digits long" } }
           errorMessage = error.response.data.params.err;
+        } else if (error.response?.data?.params?.errmsg) {
+          // Format: { params: { errmsg: "BAD_REQUEST" } } - fallback to error code if err not available
+          errorMessage = error.response.data.params.errmsg;
         } else if (error.response?.data?.params?.error) {
           // Another alternative format
           errorMessage = error.response.data.params.error;
@@ -752,439 +791,295 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
   if (!tenantList) {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography>Loading tenant information...</Typography>
+        <Typography>Loading form...</Typography>
       </Box>
     );
   }
 
   return (
-    <Box sx={{ p: 4, maxWidth: 900, mx: 'auto' }}>
-      <Typography 
-        variant="h5" 
-        sx={{ 
-          mb: 4, 
-          textAlign: 'center',
-          fontWeight: 600,
-          color: '#1976d2'
-        }}
-      >
-        {t('COMMON.ADD_NEW')}{' '}
-        {userType === 'learner'
-          ? 'Learner'
-          : userType === 'content-creator'
-          ? 'Content Creator'
-          : 'Content Reviewer'}
-      </Typography>
-
+    <Box sx={{ mt: 2 }}>
       {error && (
-        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+        <Alert 
+          severity="error" 
+          sx={{ 
+            mb: 2, 
+            borderRadius: 1
+          }}
+        >
           {error}
         </Alert>
       )}
 
       <form onSubmit={handleSubmit}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="First Name"
-              value={formData.firstName}
-              onChange={(e) => handleInputChange('firstName', e.target.value)}
-              onBlur={() => handleFieldBlur('firstName')}
-              required
-              error={!!validationErrors.firstName && touchedFields.firstName}
-              helperText={touchedFields.firstName ? validationErrors.firstName : ''}
-              InputLabelProps={{
-                required: true,
-                sx: {
-                  '& .MuiFormLabel-asterisk': {
-                    color: 'red',
-                  },
-                },
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  '&:hover fieldset': {
-                    borderColor: '#1976d2',
-                  },
-                },
-              }}
-            />
-          </Grid>
+        {/* First Name */}
+        <TextField
+          fullWidth
+          required
+          size="small"
+          label="First Name"
+          placeholder="Enter first name"
+          value={formData.firstName}
+          onChange={(e) => handleInputChange('firstName', e.target.value)}
+          onBlur={() => handleFieldBlur('firstName')}
+          error={!!validationErrors.firstName && touchedFields.firstName}
+          helperText={touchedFields.firstName ? validationErrors.firstName : ''}
+          sx={{ mb: 2 }}
+        />
 
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Last Name"
-              value={formData.lastName}
-              onChange={(e) => handleInputChange('lastName', e.target.value)}
-              onBlur={useNewForm ? () => handleFieldBlur('lastName') : undefined}
-              required
-              error={useNewForm ? (!!validationErrors.lastName && touchedFields.lastName) : !!validationErrors.lastName}
-              helperText={useNewForm ? (touchedFields.lastName ? validationErrors.lastName : '') : validationErrors.lastName}
-              InputLabelProps={{
-                required: true,
-                sx: {
-                  '& .MuiFormLabel-asterisk': {
-                    color: 'red',
-                  },
-                },
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  '&:hover fieldset': {
-                    borderColor: '#1976d2',
-                  },
-                },
-              }}
-            />
-          </Grid>
+        {/* Last Name */}
+        <TextField
+          fullWidth
+          required
+          size="small"
+          label="Last Name"
+          placeholder="Enter last name"
+          value={formData.lastName}
+          onChange={(e) => handleInputChange('lastName', e.target.value)}
+          onBlur={useNewForm ? () => handleFieldBlur('lastName') : undefined}
+          error={useNewForm ? (!!validationErrors.lastName && touchedFields.lastName) : !!validationErrors.lastName}
+          helperText={useNewForm ? (touchedFields.lastName ? validationErrors.lastName : '') : validationErrors.lastName}
+          sx={{ mb: 2 }}
+        />
 
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Email"
-              type="email"
-              value={formData.email}
-              onChange={(e) => handleInputChange('email', e.target.value)}
-              onBlur={useNewForm ? () => handleFieldBlur('email') : undefined}
-              required={!useNewForm}
-              error={useNewForm ? (!!validationErrors.email && touchedFields.email) : !!validationErrors.email}
-              helperText={useNewForm ? (touchedFields.email ? validationErrors.email : '') : validationErrors.email}
-              InputLabelProps={!useNewForm ? {
-                required: true,
-                sx: {
-                  '& .MuiFormLabel-asterisk': {
-                    color: 'red',
-                  },
-                },
-              } : undefined}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  '&:hover fieldset': {
-                    borderColor: '#1976d2',
-                  },
-                },
-              }}
-            />
-          </Grid>
+        {/* Email */}
+        <TextField
+          fullWidth
+          size="small"
+          type="email"
+          label="Email"
+          placeholder="Enter email"
+          value={formData.email}
+          onChange={(e) => handleInputChange('email', e.target.value)}
+          onBlur={useNewForm ? () => handleFieldBlur('email') : undefined}
+          required={!useNewForm}
+          error={useNewForm ? (!!validationErrors.email && touchedFields.email) : !!validationErrors.email}
+          helperText={useNewForm ? (touchedFields.email ? validationErrors.email : '') : validationErrors.email}
+          sx={{ mb: 2 }}
+        />
 
-          {useNewForm && (
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Mobile"
-                value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                onFocus={() => handleFieldFocus('phone')}
-                onBlur={() => handleFieldBlur('phone')}
-                required
-                error={!!validationErrors.phone && touchedFields.phone}
-                helperText={touchedFields.phone ? validationErrors.phone : ''}
-                inputProps={{
-                  maxLength: 10,
-                  inputMode: 'numeric',
-                  pattern: '[0-9]*',
-                }}
-                InputLabelProps={{
-                  required: true,
-                  sx: {
-                    '& .MuiFormLabel-asterisk': {
-                      color: 'red',
-                    },
-                  },
-                }}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    '&:hover fieldset': {
-                      borderColor: '#1976d2',
-                    },
-                  },
-                }}
-              />
-            </Grid>
-          )}
-
-          {!useNewForm && (
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                label="Phone Number"
-                value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    '&:hover fieldset': {
-                      borderColor: '#1976d2',
-                    },
-                  },
-                }}
-              />
-            </Grid>
-          )}
-
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth error={useNewForm ? (!!validationErrors.gender && touchedFields.gender) : !!validationErrors.gender}>
-              <InputLabel>Gender</InputLabel>
-              <Select
-                value={formData.gender}
-                onChange={(e) => {
-                  handleInputChange('gender', e.target.value);
-                  if (useNewForm && !touchedFields.gender) {
-                    setTouchedFields((prev) => ({ ...prev, gender: true }));
-                  }
-                }}
-                onBlur={useNewForm ? () => handleFieldBlur('gender') : undefined}
-                label="Gender"
-                sx={{
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    '&:hover': {
-                      borderColor: '#1976d2',
-                    },
-                  },
-                }}
-              >
-                <MenuItem value="">Select Gender</MenuItem>
-                <MenuItem value="male">Male</MenuItem>
-                <MenuItem value="female">Female</MenuItem>
-                <MenuItem value="other">Other</MenuItem>
-              </Select>
-              {validationErrors.gender && (useNewForm ? touchedFields.gender : true) && (
-                <Typography
-                  variant="caption"
-                  color="error"
-                  sx={{ mt: 0.5, ml: 1.75 }}
-                >
-                  {validationErrors.gender}
-                </Typography>
-              )}
-            </FormControl>
-          </Grid>
-
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              label="Username"
-              value={formData.username}
-              onChange={(e) => handleInputChange('username', e.target.value)}
-              onBlur={useNewForm ? () => handleFieldBlur('username') : undefined}
-              required={!useNewForm}
-              error={useNewForm ? (!!validationErrors.username && touchedFields.username) : !!validationErrors.username}
-              helperText={useNewForm ? (touchedFields.username ? validationErrors.username : '') : validationErrors.username}
-              InputLabelProps={!useNewForm ? {
-                required: true,
-                sx: {
-                  '& .MuiFormLabel-asterisk': {
-                    color: 'red',
-                  },
-                },
-              } : undefined}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  '&:hover fieldset': {
-                    borderColor: '#1976d2',
-                  },
-                },
-              }}
-            />
-          </Grid>
-
-          <Grid item xs={12}>
-            <TextField
-              fullWidth
-              label="Password"
-              type={useNewForm && showPassword ? 'text' : 'password'}
-              value={formData.password}
-              onChange={(e) => handleInputChange('password', e.target.value)}
-              onFocus={useNewForm ? () => handleFieldFocus('password') : undefined}
-              onBlur={useNewForm ? () => handleFieldBlur('password') : undefined}
-              required
-              error={useNewForm ? (!!validationErrors.password && touchedFields.password) : !!validationErrors.password}
-              helperText={
-                useNewForm
-                  ? (touchedFields.password && validationErrors.password ? validationErrors.password : '')
-                  : validationErrors.password
-              }
-              InputProps={useNewForm ? {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={() => setShowPassword(!showPassword)}
-                      onMouseDown={(e) => e.preventDefault()}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              } : undefined}
-              InputLabelProps={{
-                required: true,
-                sx: {
-                  '& .MuiFormLabel-asterisk': {
-                    color: 'red',
-                  },
-                },
-              }}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  '&:hover fieldset': {
-                    borderColor: '#1976d2',
-                  },
-                },
-              }}
-            />
-          </Grid>
-
-          {/* Location filters - only show for new form (Swadhaar learners) */}
-          {useNewForm && (
-            <>
-              <Grid item xs={12}>
-                <Box 
-                  sx={{ 
-                    mt: 3, 
-                    mb: 2, 
-                    pt: 2, 
-                    borderTop: '2px solid #e0e0e0',
-                  }}
-                >
-                  <Typography 
-                    variant="subtitle1" 
-                    sx={{ 
-                      mb: 2, 
-                      fontWeight: 600,
-                      color: '#424242',
-                      fontSize: '1.1rem'
-                    }}
-                  >
-                    Location Information (Optional)
-                  </Typography>
-                </Box>
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>State</InputLabel>
-                  <Select
-                    value={formData.state}
-                    onChange={handleLocationChange('state')}
-                    label="State"
-                    disabled={loadingLocations.states}
-                    sx={{
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        '&:hover': {
-                          borderColor: '#1976d2',
-                        },
-                      },
-                    }}
-                  >
-                    <MenuItem value="">Select State</MenuItem>
-                    {states.map(state => (
-                      <MenuItem key={state.id} value={state.name}>{state.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>District</InputLabel>
-                  <Select
-                    value={formData.district}
-                    onChange={handleLocationChange('district')}
-                    label="District"
-                    disabled={loadingLocations.districts || !formData.state}
-                    sx={{
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        '&:hover': {
-                          borderColor: '#1976d2',
-                        },
-                      },
-                    }}
-                  >
-                    <MenuItem value="">Select District</MenuItem>
-                    {districts.map(district => (
-                      <MenuItem key={district.id} value={district.name}>{district.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Block</InputLabel>
-                  <Select
-                    value={formData.block}
-                    onChange={handleLocationChange('block')}
-                    label="Block"
-                    disabled={loadingLocations.blocks || !formData.district}
-                    sx={{
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        '&:hover': {
-                          borderColor: '#1976d2',
-                        },
-                      },
-                    }}
-                  >
-                    <MenuItem value="">Select Block</MenuItem>
-                    {blocks.map(block => (
-                      <MenuItem key={block.id} value={block.name}>{block.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} sm={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Village</InputLabel>
-                  <Select
-                    value={formData.village}
-                    onChange={handleLocationChange('village')}
-                    label="Village"
-                    disabled={loadingLocations.villages || !formData.block}
-                    sx={{
-                      '& .MuiOutlinedInput-notchedOutline': {
-                        '&:hover': {
-                          borderColor: '#1976d2',
-                        },
-                      },
-                    }}
-                  >
-                    <MenuItem value="">Select Village</MenuItem>
-                    {villages.map(village => (
-                      <MenuItem key={village.id} value={village.name}>{village.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-            </>
-          )}
-        </Grid>
-
-        <Box
-          sx={{ 
-            mt: 4, 
-            pt: 3,
-            borderTop: '2px solid #e0e0e0',
-            display: 'flex', 
-            gap: 2, 
-            justifyContent: 'flex-end' 
-          }}
-        >
-          <Button 
-            variant="outlined" 
-            onClick={onCancel} 
-            disabled={loading}
-            sx={{
-              minWidth: 120,
-              borderColor: '#1976d2',
-              color: '#1976d2',
-              '&:hover': {
-                borderColor: '#1565c0',
-                backgroundColor: 'rgba(25, 118, 210, 0.04)',
-              },
+        {/* Phone/Mobile */}
+        {useNewForm && (
+          <TextField
+            fullWidth
+            required
+            size="small"
+            label="Mobile"
+            placeholder="Enter mobile number"
+            value={formData.phone}
+            onChange={(e) => handleInputChange('phone', e.target.value)}
+            onFocus={() => handleFieldFocus('phone')}
+            onBlur={() => handleFieldBlur('phone')}
+            error={!!validationErrors.phone && touchedFields.phone}
+            helperText={touchedFields.phone ? validationErrors.phone : ''}
+            inputProps={{
+              maxLength: 10,
+              inputMode: 'numeric',
+              pattern: '[0-9]*',
             }}
+            sx={{ mb: 2 }}
+          />
+        )}
+
+        {!useNewForm && (
+          <TextField
+            fullWidth
+            size="small"
+            label="Phone Number"
+            placeholder="Enter phone number"
+            value={formData.phone}
+            onChange={(e) => handleInputChange('phone', e.target.value)}
+            sx={{ mb: 2 }}
+          />
+        )}
+
+        {/* Gender */}
+        <FormControl component="fieldset" sx={{ mb: 2, width: '100%' }}>
+          <FormLabel
+            component="legend"
+            sx={{ fontSize: '0.875rem', mb: 1 }}
+          >
+            Gender
+          </FormLabel>
+          <RadioGroup
+            row
+            value={formData.gender}
+            onChange={(e) => {
+              handleInputChange('gender', e.target.value);
+              if (useNewForm && !touchedFields.gender) {
+                setTouchedFields((prev) => ({ ...prev, gender: true }));
+              }
+            }}
+            onBlur={useNewForm ? () => handleFieldBlur('gender') : undefined}
+          >
+            <FormControlLabel
+              value="male"
+              control={<Radio size="small" />}
+              label="Male"
+            />
+            <FormControlLabel
+              value="female"
+              control={<Radio size="small" />}
+              label="Female"
+            />
+            <FormControlLabel
+              value="other"
+              control={<Radio size="small" />}
+              label="Other"
+            />
+          </RadioGroup>
+          {validationErrors.gender && (useNewForm ? touchedFields.gender : true) && (
+            <Typography
+              variant="caption"
+              color="error"
+              sx={{ mt: 0.5, ml: 1.75 }}
+            >
+              {validationErrors.gender}
+            </Typography>
+          )}
+        </FormControl>
+
+        {/* Department (for staff and supervisor) */}
+        {(userType === 'staff' || userType === 'supervisor') && (
+          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+            <InputLabel>Department</InputLabel>
+            <Select
+              value={formData.department}
+              label="Department"
+              onChange={(e) => handleInputChange('department', e.target.value)}
+            >
+              <MenuItem value="">Select Department</MenuItem>
+              <MenuItem value="Health">Health</MenuItem>
+              <MenuItem value="Education">Education</MenuItem>
+              <MenuItem value="Livelihood">Livelihood</MenuItem>
+              <MenuItem value="Finance">Finance</MenuItem>
+              <MenuItem value="General">General</MenuItem>
+              <MenuItem value="Admin">Admin</MenuItem>
+            </Select>
+          </FormControl>
+        )}
+
+        {/* Username */}
+        <TextField
+          fullWidth
+          size="small"
+          label="Username"
+          placeholder="Enter username"
+          value={formData.username}
+          onChange={(e) => handleInputChange('username', e.target.value)}
+          onBlur={useNewForm ? () => handleFieldBlur('username') : undefined}
+          required={!useNewForm}
+          error={useNewForm ? (!!validationErrors.username && touchedFields.username) : !!validationErrors.username}
+          helperText={useNewForm ? (touchedFields.username ? validationErrors.username : '') : validationErrors.username}
+          sx={{ mb: 2 }}
+        />
+
+        {/* Password */}
+        <TextField
+          fullWidth
+          required
+          size="small"
+          label="Password"
+          type={showPassword ? 'text' : 'password'}
+          placeholder="Enter password"
+          value={formData.password}
+          onChange={(e) => handleInputChange('password', e.target.value)}
+          onFocus={() => handleFieldFocus('password')}
+          onBlur={() => handleFieldBlur('password')}
+          error={!!validationErrors.password && touchedFields.password}
+          helperText={
+            touchedFields.password && validationErrors.password ? validationErrors.password : ''
+          }
+          InputProps={{
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  aria-label="toggle password visibility"
+                  onClick={() => setShowPassword(!showPassword)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  edge="end"
+                  size="small"
+                >
+                  {showPassword ? <VisibilityOff /> : <Visibility />}
+                </IconButton>
+              </InputAdornment>
+            ),
+          }}
+          sx={{ mb: 2 }}
+        />
+
+        {/* Location filters - only show for new form (Swadhaar learners) */}
+        {useNewForm && (
+          <>
+            <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+              <InputLabel>State</InputLabel>
+              <Select
+                value={formData.state}
+                onChange={handleLocationChange('state')}
+                label="State"
+                disabled={loadingLocations.states}
+              >
+                <MenuItem value="">Select State</MenuItem>
+                {states.map(state => (
+                  <MenuItem key={state.id} value={state.name}>{state.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+              <InputLabel>District</InputLabel>
+              <Select
+                value={formData.district}
+                onChange={handleLocationChange('district')}
+                label="District"
+                disabled={loadingLocations.districts || !formData.state}
+              >
+                <MenuItem value="">Select District</MenuItem>
+                {districts.map(district => (
+                  <MenuItem key={district.id} value={district.name}>{district.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+              <InputLabel>Block</InputLabel>
+              <Select
+                value={formData.block}
+                onChange={handleLocationChange('block')}
+                label="Block"
+                disabled={loadingLocations.blocks || !formData.district}
+              >
+                <MenuItem value="">Select Block</MenuItem>
+                {blocks.map(block => (
+                  <MenuItem key={block.id} value={block.name}>{block.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+              <InputLabel>Village</InputLabel>
+              <Select
+                value={formData.village}
+                onChange={handleLocationChange('village')}
+                label="Village"
+                disabled={loadingLocations.villages || !formData.block}
+              >
+                <MenuItem value="">Select Village</MenuItem>
+                {villages.map(village => (
+                  <MenuItem key={village.id} value={village.name}>{village.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </>
+        )}
+
+        {/* Action Buttons */}
+        <Box
+          sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}
+        >
+          <Button
+            variant="outlined"
+            onClick={onCancel}
+            disabled={loading}
           >
             Cancel
           </Button>
@@ -1192,21 +1087,12 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
             type="submit"
             variant="contained"
             disabled={loading || !isFormValid()}
-            sx={{ 
-              minWidth: 120,
-              backgroundColor: '#FDBE16',
-              color: '#000',
-              fontWeight: 600,
-              '&:hover': {
-                backgroundColor: '#f5a800',
-              },
-              '&:disabled': {
-                backgroundColor: '#e0e0e0',
-                color: '#9e9e9e',
-              },
+            sx={{
+              bgcolor: '#1976d2',
+              '&:hover': { bgcolor: '#1565c0' },
             }}
           >
-            {loading ? 'Creating...' : 'Create User'}
+            {loading ? 'Creating...' : 'Create'}
           </Button>
         </Box>
       </form>

@@ -227,6 +227,14 @@
   "NAVBAR": {
     "SEARCHBAR_PLACEHOLDER": "अभ्यासक्रम, विषय, विद्यार्थी, पीडीएफ इत्यादी शोधा.."
   },
+  "STAFF": {
+    "NEW_STAFF": "नवीन कर्मचारी",
+    "NO_STAFF_FOUND": "कर्मचारी सापडले नाहीत"
+  },
+  "SUPERVISORS": {
+    "NEW_SUPERVISOR": "नवीन पर्यवेक्षक",
+    "NO_SUPERVISORS_FOUND": "पर्यवेक्षक सापडले नाहीत"
+  },
   "LEARNERS": {
     "SEARCHBAR_PLACEHOLDER": "शिकणारे शोधा..",
     "NEW_LEARNER": "नवीन शिकणारा",

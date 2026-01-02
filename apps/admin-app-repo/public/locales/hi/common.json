@@ -234,6 +234,14 @@
   "NAVBAR": {
     "SEARCHBAR_PLACEHOLDER": "पाठ्यक्रम, विषय, छात्र, पीडीएफ आदि खोजें.."
   },
+  "STAFF": {
+    "NEW_STAFF": "नया कर्मचारी",
+    "NO_STAFF_FOUND": "कोई कर्मचारी नहीं मिला"
+  },
+  "SUPERVISORS": {
+    "NEW_SUPERVISOR": "नया पर्यवेक्षक",
+    "NO_SUPERVISORS_FOUND": "कोई पर्यवेक्षक नहीं मिला"
+  },
   "LEARNERS": {
     "LEARNER_CREATED_SUCCESSFULLY": "लर्नर को सफलतापूर्वक बनाया गया है!",
     "USER_CREDENTIALS_WILL_BE_SEND_SOON": "लर्नर बनाया गया है, क्रेडेंशियल्स जल्द ही भेजे जाएंगे",

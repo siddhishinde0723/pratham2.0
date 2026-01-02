@@ -248,6 +248,14 @@
     "EDIT_LEARNER": "Edit Learner",
     "NO_LEARNERS_FOUND": "No Learners Found"
   },
+  "STAFF": {
+    "NEW_STAFF": "New Staff",
+    "NO_STAFF_FOUND": "No Staff Found"
+  },
+  "SUPERVISORS": {
+    "NEW_SUPERVISOR": "New Supervisor",
+    "NO_SUPERVISORS_FOUND": "No Supervisors Found"
+  },
   "MENTORS": {
     "SEARCHBAR_PLACEHOLDER": "Search mentors..",
     "NEW_MENTOR": "New Mentor",

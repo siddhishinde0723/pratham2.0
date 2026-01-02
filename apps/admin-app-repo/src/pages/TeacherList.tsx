@@ -70,6 +70,7 @@ import {
     CheckCircle as CheckCircleIcon,
   Cancel as CancelIcon,
   Pending as PendingIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import {
   getCohortMemberList,
@@ -77,6 +78,7 @@ import {
   assignClassToTeacher,
   updateCohortMemberStatus,
   updateCohortUpdate,
+  getUserCohorts,
 } from '../services/CohortService/cohortService';
 import { showToastMessage } from '@/components/Toastify';
 import AddTeacherModal from '@/components/AddTeacherModal';
@@ -132,6 +134,7 @@ interface ClassAssignment {
   clusterId: string;
   clusterName: string;
   assigned: boolean;
+  originallyAssigned: boolean;
 }
 
 // Define sortable columns
@@ -187,6 +190,9 @@ const TeacherList = () => {
   const [expandedSchools, setExpandedSchools] = useState<Set<string>>(
     new Set()
   );
+  const [selectedAssignmentCenter, setSelectedAssignmentCenter] = useState<string>('');
+  const [selectedAssignmentCluster, setSelectedAssignmentCluster] = useState<string>('');
+
 
   // Archive/Unarchive Dialog State
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
@@ -407,85 +413,117 @@ const TeacherList = () => {
     fetchTeachers();
   }, [fetchTeachers]);
 
-  // Fetch all classes for assignment dialog - FIXED VERSION
-  const fetchAllClassesForAssignment = useCallback(
-    async (teacherId?: string) => {
+  // Helper function to fetch all paginated data
+  const fetchAllPaginatedData = useCallback(async (
+    type: string,
+    additionalFilters: Record<string, any> = {}
+  ): Promise<any[]> => {
+    const batchSize = 200; // Fetch in batches of 200
+    let allData: any[] = [];
+    let offset = 0;
+    let hasMore = true;
+
+    while (hasMore) {
       try {
-        const classRequestData = {
-          limit: 0,
-          offset: 0,
+        const requestData = {
+          limit: batchSize,
+          offset: offset,
           filters: {
-            type: 'COHORT',
+            type,
             status: ['active'],
+            ...additionalFilters,
           },
         };
 
-        const response: any = await getCohortList(classRequestData as any);
-        const allClasses = response?.results?.cohortDetails || [];
+        const response: any = await getCohortList(requestData as any);
+        const data = response?.results?.cohortDetails || [];
+        
+        if (data.length > 0) {
+          allData = [...allData, ...data];
+          offset += batchSize;
+          // If we got less than batchSize, we've reached the end
+          if (data.length < batchSize) {
+            hasMore = false;
+          }
+        } else {
+          hasMore = false;
+        }
+      } catch (err) {
+        console.error(`Error fetching paginated ${type} data:`, err);
+        hasMore = false;
+      }
+    }
+
+    console.log(`Total ${type} items fetched:`, allData.length);
+    return allData;
+  }, []);
+
+  // Fetch all classes and schools for assignment dialog using Promise.all
+  const fetchAllClassesForAssignment = useCallback(
+    async (teacherId?: string) => {
+      try {
+        // Fetch classes and schools in parallel using Promise.all
+        const [allClasses, allSchools] = await Promise.all([
+          fetchAllPaginatedData('COHORT'),
+          fetchAllPaginatedData('SCHOOL'),
+        ]);
 
         console.log('All classes fetched for assignment:', allClasses.length);
+        console.log('All schools fetched:', allSchools.length);
+
+        // Create a map for quick school name lookup
+        const schoolMap = new Map<string, string>();
+        allSchools.forEach((school: any) => {
+          if (school.cohortId) {
+            schoolMap.set(school.cohortId, school.name);
+          }
+        });
 
         // If we have a teacherId, we need to fetch their current classes
         let teacherCurrentClasses: string[] = [];
         if (teacherId) {
           try {
-            // Fetch teacher's current cohort memberships
-            const teacherResponse = await getCohortMemberList({
-              limit: 0,
-              offset: 0,
-              filters: {
-                cohortId: teacherId,
-                role: 'Teacher',
-              },
-            });
+            // Fetch teacher's current cohort memberships using getUserCohorts
+            const teacherCohorts = await getUserCohorts(teacherId);
+            console.log('Teacher cohorts response:', teacherCohorts);
 
-            if (
-              teacherResponse?.userDetails &&
-              Array.isArray(teacherResponse.userDetails)
-            ) {
-              teacherCurrentClasses = teacherResponse.userDetails
-                .filter((teacher: any) => teacher.cohortId)
-                .map((teacher: any) => teacher.cohortId);
+            // Handle various response formats
+            let cohortsArray: any[] = [];
+            
+            if (Array.isArray(teacherCohorts)) {
+              cohortsArray = teacherCohorts;
+            } else if (teacherCohorts?.cohortData && Array.isArray(teacherCohorts.cohortData)) {
+              cohortsArray = teacherCohorts.cohortData;
+            } else if (teacherCohorts?.result && Array.isArray(teacherCohorts.result)) {
+              cohortsArray = teacherCohorts.result;
             }
-            console.log('Teacher current classes:', teacherCurrentClasses);
+            
+            // Extract cohortIds from the array
+            teacherCurrentClasses = cohortsArray
+              .filter((cohort: any) => cohort.cohortId || cohort.id)
+              .map((cohort: any) => cohort.cohortId || cohort.id);
+            
+            console.log('Teacher current classes extracted:', teacherCurrentClasses);
           } catch (err) {
             console.error('Error fetching teacher current classes:', err);
           }
         }
 
-        // Fetch schools for grouping
-        const schoolRequestData = {
-          limit: 0,
-          offset: 0,
-          filters: {
-            type: 'SCHOOL',
-            status: ['active'],
-          },
-        };
-
-        const schoolResponse: any = await getCohortList(
-          schoolRequestData as any
-        );
-        const schoolsData = schoolResponse?.results?.cohortDetails || [];
-        console.log('Schools fetched:', schoolsData.length);
-
-        // Create a map for quick school name lookup
-        const schoolMap = new Map();
-        schoolsData.forEach((school: any) => {
-          schoolMap.set(school.cohortId, school.name);
-        });
-
         // Transform classes to ClassAssignment format
         const assignments: ClassAssignment[] = allClasses.map((cls: any) => {
           const schoolName = schoolMap.get(cls.parentId) || 'Unknown School';
+          const isAssigned = teacherCurrentClasses.some(
+            (assignedId) => String(assignedId).toLowerCase() === String(cls.cohortId).toLowerCase()
+          );
           return {
             classId: cls.cohortId,
             className: cls.name,
             schoolId: cls.parentId || '',
             schoolName: schoolName,
-            clusterId: '', // You might need to fetch cluster info
+            clusterId: '',
             clusterName: '',
-            assigned: teacherCurrentClasses.includes(cls.cohortId),
+            assigned: isAssigned,
+            originallyAssigned: isAssigned,
           };
         });
 
@@ -496,7 +534,7 @@ const TeacherList = () => {
         return [];
       }
     },
-    []
+    [fetchAllPaginatedData]
   );
 
   // Handle search
@@ -683,6 +721,8 @@ const TeacherList = () => {
     setSelectedTeacher(teacher);
     setAssignLoading(true);
     setAssignClassDialogOpen(true);
+    setSelectedAssignmentCenter(''); // Reset center filter
+    setSelectedAssignmentCluster(''); // Reset cluster filter
 
     try {
       console.log('Fetching classes for teacher:', teacher.userId);
@@ -694,7 +734,8 @@ const TeacherList = () => {
       const schoolsWithAssignments = new Set<string>();
       assignments.forEach((cls) => {
         if (cls.assigned) {
-          schoolsWithAssignments.add(cls.schoolId);
+          const schoolId = cls.schoolId || 'unknown';
+          schoolsWithAssignments.add(schoolId);
         }
       });
       setExpandedSchools(schoolsWithAssignments);
@@ -719,14 +760,34 @@ const TeacherList = () => {
     setSelectedTeacher(null);
     setClassAssignments([]);
     setExpandedSchools(new Set());
+    setSelectedAssignmentCenter('');
+    setSelectedAssignmentCluster('');
+  };
+
+  // Handle clear assignment cluster filter
+  const handleClearAssignmentCluster = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedAssignmentCluster('');
+    setSelectedAssignmentCenter('');
+  };
+
+  // Handle clear assignment center filter
+  const handleClearAssignmentCenter = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedAssignmentCenter('');
   };
 
   // Handle class checkbox change
+  // Handle class checkbox change
   const handleClassCheckboxChange = (classId: string) => {
     setClassAssignments((prev) =>
-      prev.map((cls) =>
-        cls.classId === classId ? { ...cls, assigned: !cls.assigned } : cls
-      )
+      prev.map((cls) => {
+        if (cls.classId === classId) {
+          if (cls.originallyAssigned) return cls; // Do not toggle originally assigned classes
+          return { ...cls, assigned: !cls.assigned };
+        }
+        return cls;
+      })
     );
   };
 
@@ -769,13 +830,13 @@ const TeacherList = () => {
       // Call the API to assign classes to teacher
       // FIXED: Make sure the API structure matches what your backend expects
       const response = await assignClassToTeacher({
-        userId: selectedTeacher.userId,
+        userId: [selectedTeacher.userId],
         cohortId: classesToAssign, // Changed from cohortId to cohortIds if needed
       });
 
       console.log('API Response:', response);
 
-      if (response?.success || response?.responseCode === 200) {
+      if (response?.success || response?.responseCode === 201) {
         const message = `${classesToAssign.length} class(es) assigned successfully`;
         showToastMessage(message, 'success');
 
@@ -896,6 +957,7 @@ useEffect(() => {
         active: activeResp?.totalCount || 0,
         archived: archivedResp?.totalCount || 0,
         pending: pendingResp?.totalCount || 0,
+        inactive: archivedResp?.totalCount || 0,
       });
     } catch (e) {
       console.error('Error fetching teacher summary counts', e);
@@ -978,7 +1040,31 @@ useEffect(() => {
   // Group classes by school for the assign class dialog
   const groupedClasses = useMemo(() => {
     const groups: Record<string, ClassAssignment[]> = {};
+    
+    // Get school IDs that belong to the selected cluster
+    const schoolIdsInCluster = selectedAssignmentCluster
+      ? new Set(
+          schools
+            .filter((school) => school.parentId === selectedAssignmentCluster)
+            .map((school) => school.cohortId)
+        )
+      : null;
+    
     classAssignments.forEach((cls) => {
+      // Filter by cluster if selected
+      if (schoolIdsInCluster && !schoolIdsInCluster.has(cls.schoolId)) {
+        return;
+      }
+      
+      // Filter by center if selected
+      if (
+        selectedAssignmentCenter &&
+        selectedAssignmentCenter !== '' &&
+        selectedAssignmentCenter !== 'All' &&
+        cls.schoolId !== selectedAssignmentCenter
+      ) {
+        return;
+      }
       const schoolId = cls.schoolId || 'unknown';
       if (!groups[schoolId]) {
         groups[schoolId] = [];
@@ -986,7 +1072,41 @@ useEffect(() => {
       groups[schoolId].push(cls);
     });
     return groups;
-  }, [classAssignments]);
+  }, [classAssignments, selectedAssignmentCenter, selectedAssignmentCluster, schools]);
+
+  // Derive unique clusters for dropdown
+  const uniqueAssignmentClusters = useMemo(() => {
+    const clustersMap = new Map<string, string>();
+    // Get clusters from the existing clusters state
+    clusters.forEach((cluster) => {
+      if (cluster.cohortId && cluster.name) {
+        clustersMap.set(cluster.cohortId, cluster.name);
+      }
+    });
+    return Array.from(clustersMap.entries()).map(([id, name]) => ({
+      id,
+      name,
+    }));
+  }, [clusters]);
+
+  // Derive unique schools for dropdown - filter by selected cluster if any
+  const uniqueAssignmentSchools = useMemo(() => {
+    const schoolsMap = new Map<string, string>();
+    // Filter schools based on selected cluster
+    const filteredSchools = selectedAssignmentCluster
+      ? schools.filter((school) => school.parentId === selectedAssignmentCluster)
+      : schools;
+    
+    filteredSchools.forEach((school) => {
+      if (school.cohortId && school.name) {
+        schoolsMap.set(school.cohortId, school.name);
+      }
+    });
+    return Array.from(schoolsMap.entries()).map(([id, name]) => ({
+      id,
+      name,
+    }));
+  }, [schools, selectedAssignmentCluster]);
 
   return (
     <Container maxWidth="xl" sx={{ py: 3 }}>
@@ -1450,41 +1570,56 @@ useEffect(() => {
                           {columnVisibility.actions && (
                             <TableCell>
                               <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                <Tooltip title="Assign Class">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      handleAssignClassClick(teacher)
-                                    }
-                                    color="primary"
-                                    disabled={teacher.status === 'archived'}
-                                  >
-                                    <AssignmentIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title={archiveProps.tooltip}>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() =>
-                                      handleArchiveTeacher(teacher)
-                                    }
-                                    color={archiveProps.color}
-                                    sx={{
-                                      ...(teacher.status === 'active' && {
-                                        '&:hover': {
-                                          backgroundColor: '#ffebee',
-                                        },
-                                      }),
-                                      ...(teacher.status === 'archived' && {
+                                {teacher.status === 'archived' ? (
+                                  // Only show delete icon for archived
+                                  <Tooltip title={archiveProps.tooltip}>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() =>
+                                        handleArchiveTeacher(teacher)
+                                      }
+                                      color={archiveProps.color}
+                                      sx={{
                                         '&:hover': {
                                           backgroundColor: '#e8f5e8',
                                         },
-                                      }),
-                                    }}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
+                                      }}
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                ) : (
+                                  // Show all action buttons for active/non-archived
+                                  <>
+                                    <Tooltip title="Assign Class">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() =>
+                                          handleAssignClassClick(teacher)
+                                        }
+                                        color="primary"
+                                      >
+                                        <AssignmentIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title={archiveProps.tooltip}>
+                                      <IconButton
+                                        size="small"
+                                        onClick={() =>
+                                          handleArchiveTeacher(teacher)
+                                        }
+                                        color={archiveProps.color}
+                                        sx={{
+                                          '&:hover': {
+                                            backgroundColor: '#ffebee',
+                                          },
+                                        }}
+                                      >
+                                        <DeleteIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </>
+                                )}
                               </Box>
                             </TableCell>
                           )}
@@ -1609,6 +1744,93 @@ useEffect(() => {
                 Select or deselect classes for this teacher
               </Typography>
 
+              <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                {/* Search by Cluster Filter */}
+                <Box sx={{ flex: 1, minWidth: 200, position: 'relative' }}>
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Search by Cluster</InputLabel>
+                    <Select
+                      value={selectedAssignmentCluster}
+                      label="Search by Cluster"
+                      onChange={(e) => {
+                        setSelectedAssignmentCluster(e.target.value);
+                        setSelectedAssignmentCenter(''); // Reset center when cluster changes
+                      }}
+                      sx={{
+                        '& .MuiSelect-select': {
+                          paddingRight: selectedAssignmentCluster ? '50px' : undefined,
+                        },
+                      }}
+                    >
+                      <MenuItem value="">
+                        <em>All Clusters</em>
+                      </MenuItem>
+                      {uniqueAssignmentClusters.map((cluster) => (
+                        <MenuItem key={cluster.id} value={cluster.id}>
+                          {cluster.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  {selectedAssignmentCluster && (
+                    <IconButton
+                      size="small"
+                      onClick={handleClearAssignmentCluster}
+                      sx={{
+                        position: 'absolute',
+                        right: 30,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        zIndex: 1,
+                      }}
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+
+                {/* Search by Center Filter */}
+                <Box sx={{ flex: 1, minWidth: 200, position: 'relative' }}>
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>Search by Center</InputLabel>
+                    <Select
+                      value={selectedAssignmentCenter}
+                      label="Search by Center"
+                      onChange={(e) => setSelectedAssignmentCenter(e.target.value)}
+                      sx={{
+                        '& .MuiSelect-select': {
+                          paddingRight: selectedAssignmentCenter ? '50px' : undefined,
+                        },
+                      }}
+                    >
+                      <MenuItem value="">
+                        <em>All Centers</em>
+                      </MenuItem>
+                      {uniqueAssignmentSchools.map((school) => (
+                        <MenuItem key={school.id} value={school.id}>
+                          {school.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  {selectedAssignmentCenter && (
+                    <IconButton
+                      size="small"
+                      onClick={handleClearAssignmentCenter}
+                      sx={{
+                        position: 'absolute',
+                        right: 30,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        zIndex: 1,
+                      }}
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+              </Box>
+
               <Divider sx={{ my: 2 }} />
 
               {/* Add bulk action buttons */}
@@ -1665,7 +1887,7 @@ useEffect(() => {
                     </Typography>
                   </Box>
                 ) : (
-                  <List sx={{ p: 0 }}>
+                  <List sx={{ p: 0,pb:4}}>
                     {Object.entries(groupedClasses).map(
                       ([schoolId, schoolClasses]) => {
                         const schoolName =
@@ -1744,6 +1966,7 @@ useEffect(() => {
                                   <ListItem key={cls.classId} disablePadding>
                                     <ListItemButton
                                       dense
+                                      disabled={cls.originallyAssigned}
                                       onClick={() =>
                                         handleClassCheckboxChange(cls.classId)
                                       }
@@ -1751,6 +1974,9 @@ useEffect(() => {
                                         borderRadius: 1,
                                         '&:hover': {
                                           bgcolor: 'action.selected',
+                                        },
+                                        '&.Mui-disabled': {
+                                          opacity: 0.8,
                                         },
                                       }}
                                     >
@@ -1760,6 +1986,7 @@ useEffect(() => {
                                           checked={cls.assigned}
                                           tabIndex={-1}
                                           disableRipple
+                                          disabled={cls.originallyAssigned}
                                         />
                                       </ListItemIcon>
                                       <ListItemText

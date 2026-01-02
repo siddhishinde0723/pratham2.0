@@ -67,6 +67,14 @@
   "NAVBAR": {
     "SEARCHBAR_PLACEHOLDER": "ପାଠ୍ୟକ୍ରମ, ବିଷୟ, ଛାତ୍ର, ପିଡ଼ଏଫ୍ ଇତ୍ୟାଦି ଖୋଜନ୍ତୁ.."
   },
+  "STAFF": {
+    "NEW_STAFF": "ନୂତନ କର୍ମଚାରୀ",
+    "NO_STAFF_FOUND": "କୌଣସି କର୍ମଚାରୀ ମିଳିଲା ନାହିଁ"
+  },
+  "SUPERVISORS": {
+    "NEW_SUPERVISOR": "ନୂତନ ପର୍ଯ୍ୟବେକ୍ଷକ",
+    "NO_SUPERVISORS_FOUND": "କୌଣସି ପର୍ଯ୍ୟବେକ୍ଷକ ମିଳିଲା ନାହିଁ"
+  },
   "LEARNERS": {
     "SEARCHBAR_PLACEHOLDER": "ଶିକ୍ଷାର୍ଥୀମାନଙ୍କୁ ଖୋଜନ୍ତୁ..",
     "NEW_LEARNER": "ନୂତନ ଶିକ୍ଷାର୍ଥୀ",

@@ -1,7 +1,7 @@
 /* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @nx/enforce-module-boundaries */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -37,6 +37,12 @@ import {
 import { getCohortMemberList } from '@/services/CohortService/cohortService';
 import { showToastMessage } from '@/components/Toastify';
 import { userList } from '@/services/UserList';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { TimePicker } from '@mui/x-date-pickers/TimePicker';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+dayjs.extend(customParseFormat);
 
 // Time options for dropdown
 const timeOptions = [
@@ -616,18 +622,21 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
       newErrors.className = 'Class name already exists for this school';
     }
 
-    if (!formData.teacherId.trim())
-      newErrors.teacherId = 'Teacher selection is required';
+    // if (!formData.teacherId.trim())
+    //   newErrors.teacherId = 'Teacher selection is required';
 
     // Time validation
     if (!formData.fromTime.trim()) newErrors.fromTime = 'From time is required';
     if (!formData.toTime.trim()) newErrors.toTime = 'To time is required';
 
     // Ensure toTime is after fromTime
-    const fromIndex = timeOptions.indexOf(formData.fromTime);
-    const toIndex = timeOptions.indexOf(formData.toTime);
-    if (fromIndex >= toIndex) {
-      newErrors.toTime = 'To time must be after from time';
+    if (formData.fromTime && formData.toTime) {
+      const from = dayjs(formData.fromTime, 'hh:mm A');
+      const to = dayjs(formData.toTime, 'hh:mm A');
+      
+      if (from.isValid() && to.isValid() && !to.isAfter(from)) {
+        newErrors.toTime = 'To time must be after from time';
+      }
     }
 
     // Capacity validation
@@ -681,12 +690,19 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
     }));
   };
 
+  const isSubmittingRef = useRef(false);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (isSubmittingRef.current) return;
 
     if (!validateForm()) {
       return;
     }
+
+    isSubmittingRef.current = true;
+    setLoading(true);
 
     setLoading(true);
     try {
@@ -762,15 +778,28 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         if (response?.responseCode === 201) {
           console.log('✅ Class created successfully');
 
+          const newClassId = response.result?.cohortId;
+
           // Prepare data for parent callback
           resultData = response.data || {
             ...classData,
-            cohortId: response.result?.cohortId || `temp-${Date.now()}`,
+            cohortId: newClassId || `temp-${Date.now()}`,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
 
           // For new classes, assign teacher immediately
+          if (formData.teacherId && newClassId) {
+             console.log('Assigning teacher to new class:', newClassId);
+             try {
+                await assignClassToTeacher({
+                    userId: [formData.teacherId],
+                    cohortId: [newClassId],
+                  });
+             } catch (assignError) {
+                 console.error('Failed to auto-assign teacher:', assignError);
+             }
+          }
         } else if (response?.responseCode === 409) {
           throw new Error(
             'Class name already exists. Please use a different name.'
@@ -798,7 +827,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         setSuccessMessage('');
       }, 1500);
     } catch (error) {
-      console.error('Error saving class:', error);
+           console.error('Error saving class:', error);
 
       let errorMsg;
       if (error.message.includes('already exists')) {
@@ -813,6 +842,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
       setErrorMessage(errorMsg);
       showToastMessage(errorMsg, 'error');
     } finally {
+      isSubmittingRef.current = false;
       setLoading(false);
     }
   };
@@ -873,18 +903,15 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
       <Dialog
         open={open}
         onClose={loading ? undefined : onClose}
-        maxWidth="lg"
+        maxWidth="md"
         fullWidth
         PaperProps={{
           sx: {
-            minHeight: '70vh',
             maxHeight: '90vh',
-            width: '50%',
-            maxWidth: '500px',
           },
         }}
       >
-        <DialogTitle>
+        <DialogTitle sx={{ pb: 1 }}>
           <Typography variant="h6" component="div">
             {center ? 'Edit Class' : 'Add New Class'}
           </Typography>
@@ -896,13 +923,13 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         </DialogTitle>
 
         <form onSubmit={handleSubmit}>
-          <DialogContent dividers>
+          <DialogContent dividers sx={{ py: 2 }}>
             <Grid container spacing={2}>
               {/* Cluster Selection */}
               <Grid item xs={12}>
                 <FormControl
                   fullWidth
-                  margin="normal"
+                  margin="dense"
                   error={!!errors.clusterId}
                 >
                   <InputLabel id="cluster-label">Select Cluster *</InputLabel>
@@ -933,7 +960,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
               <Grid item xs={12}>
                 <FormControl
                   fullWidth
-                  margin="normal"
+                  margin="dense"
                   error={!!errors.schoolId}
                 >
                   <InputLabel id="school-label">Select School *</InputLabel>
@@ -1023,7 +1050,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                   fullWidth
                   id="className"
                   name="className"
-                  label="Class Name *"
+                  label="Class Name"
                   placeholder="e.g., Class 1A, Grade 5B, etc."
                   value={formData.className}
                   onChange={handleChange}
@@ -1031,7 +1058,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                   helperText={
                     errors.className || 'Enter a unique name for this class'
                   }
-                  margin="normal"
+                  margin="dense"
                   disabled={loading || !formData.schoolId}
                   required
                   InputProps={{
@@ -1055,7 +1082,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
               </Grid>
 
               {/* Teacher Selection */}
-              <Grid item xs={12}>
+              {/* <Grid item xs={12}>
                 <FormControl
                   fullWidth
                   margin="normal"
@@ -1107,206 +1134,102 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                   )}
                   <FormHelperText>{getTeacherHelperText()}</FormHelperText>
                 </FormControl>
-              </Grid>
-
-              {/* Time Selection - Side by side */}
-              <Grid item xs={12} md={6}>
-                <FormControl
-                  fullWidth
-                  margin="normal"
-                  error={!!errors.fromTime}
-                >
-                  <InputLabel id="from-time-label">From Time *</InputLabel>
-                  <Select
-                    labelId="from-time-label"
-                    id="fromTime"
-                    name="fromTime"
-                    value={formData.fromTime}
-                    onChange={(e) =>
-                      handleSelectChange('fromTime', e.target.value)
-                    }
-                    label="From Time *"
-                    disabled={loading}
-                    startAdornment={
-                      <TimeIcon fontSize="small" sx={{ mr: 1 }} />
-                    }
-                  >
-                    {timeOptions.map((time) => (
-                      <MenuItem key={`from-${time}`} value={time}>
-                        {time}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {errors.fromTime && (
-                    <FormHelperText>{errors.fromTime}</FormHelperText>
-                  )}
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <FormControl fullWidth margin="normal" error={!!errors.toTime}>
-                  <InputLabel id="to-time-label">To Time *</InputLabel>
-                  <Select
-                    labelId="to-time-label"
-                    id="toTime"
-                    name="toTime"
-                    value={formData.toTime}
-                    onChange={(e) =>
-                      handleSelectChange('toTime', e.target.value)
-                    }
-                    label="To Time *"
-                    disabled={loading}
-                    startAdornment={
-                      <TimeIcon fontSize="small" sx={{ mr: 1 }} />
-                    }
-                  >
-                    {timeOptions.map((time) => (
-                      <MenuItem key={`to-${time}`} value={time}>
-                        {time}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {errors.toTime && (
-                    <FormHelperText>{errors.toTime}</FormHelperText>
-                  )}
-                </FormControl>
-              </Grid>
-
-              {/* Class Duration Display */}
-              {/* <Grid item xs={12}>
-                <Box
-                  sx={{
-                    p: 2,
-                    bgcolor: 'grey.50',
-                    borderRadius: 1,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    textAlign: 'center',
-                  }}
-                >
-                  <Typography variant="body2" color="textSecondary">
-                    Class Duration:
-                  </Typography>
-                  <Typography variant="h6" color="primary">
-                    {formData.fromTime} - {formData.toTime}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary">
-                    {(() => {
-                      const fromIndex = timeOptions.indexOf(formData.fromTime);
-                      const toIndex = timeOptions.indexOf(formData.toTime);
-                      return toIndex > fromIndex
-                        ? `${toIndex - fromIndex} hours`
-                        : 'Invalid time range';
-                    })()}
-                  </Typography>
-                </Box>
               </Grid> */}
 
-              {/* Additional Information */}
-              {/* <Grid item xs={12} md={6}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel id="status-label">Status</InputLabel>
-                  <Select
-                    labelId="status-label"
-                    id="status"
-                    name="status"
-                    value={formData.status}
-                    onChange={(e) =>
-                      handleSelectChange('status', e.target.value)
-                    }
-                    label="Status"
-                    disabled={loading}
+              {/* Time Selection - Using MUI TimePicker */}
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <Grid item xs={12} md={6}>
+                  <FormControl
+                    fullWidth
+                    margin="dense"
+                    error={!!errors.fromTime}
                   >
-                    {statusOptions.map((status) => (
-                      <MenuItem key={status.value} value={status.value}>
-                        {status.label}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
+                    <TimePicker
+                      label="From Time *"
+                      value={
+                        formData.fromTime
+                          ? dayjs(formData.fromTime, 'hh:mm A')
+                          : null
+                      }
+                      onChange={(newValue) => {
+                        handleSelectChange(
+                          'fromTime',
+                          newValue ? newValue.format('hh:mm A') : ''
+                        );
+                      }}
+                      disabled={loading}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          error: !!errors.fromTime,
+                          helperText: errors.fromTime,
+                          sx: {
+                            '& .MuiInputBase-input': {
+                              color: 'text.primary',
+                            },
+                          },
+                        },
+                        popper: {
+                          sx: {
+                            '& .MuiMultiSectionDigitalClockSection-item.Mui-selected': {
+                              color: '#000000 !important',
+                              fontWeight: 'bold',
+                            },
+                            '& .MuiMenuItem-root.Mui-selected': {
+                              color: '#000000 !important',
+                              fontWeight: 'bold',
+                            },
+                          },
+                        },
+                      }}
+                    />
+                  </FormControl>
+                </Grid>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  id="capacity"
-                  name="capacity"
-                  label="Student Capacity"
-                  type="number"
-                  value={formData.capacity}
-                  onChange={handleChange}
-                  error={!!errors.capacity}
-                  helperText={errors.capacity || 'Maximum number of students'}
-                  margin="normal"
-                  disabled={loading}
-                  InputProps={{ inputProps: { min: 1, max: 100 } }}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  id="description"
-                  name="description"
-                  label="Description (Optional)"
-                  placeholder="Add any additional notes about this class..."
-                  value={formData.description}
-                  onChange={handleChange}
-                  margin="normal"
-                  multiline
-                  rows={2}
-                  disabled={loading}
-                />
-              </Grid> */}
-
-              {/* <Grid item xs={12}>
-                <Box
-                  sx={{
-                    p: 2,
-                    bgcolor: 'primary.light',
-                    borderRadius: 1,
-                    border: '1px solid',
-                    borderColor: 'primary.main',
-                    opacity: 0.9,
-                  }}
-                >
-                  <Typography
-                    variant="subtitle2"
-                    color="primary.contrastText"
-                    gutterBottom
-                  >
-                    Class Summary
-                  </Typography>
-                  <Typography variant="body2" color="primary.contrastText">
-                    <strong>Mode:</strong>{' '}
-                    {isEditing ? 'Editing' : 'Creating New'}
-                  </Typography>
-                  <Typography variant="body2" color="primary.contrastText">
-                    <strong>Cluster:</strong>{' '}
-                    {clusters.find((c) => c.cohortId === selectedCluster)
-                      ?.name || 'Not selected'}
-                  </Typography>
-                  <Typography variant="body2" color="primary.contrastText">
-                    <strong>School:</strong>{' '}
-                    {getSelectedSchoolName() || 'Not selected'}
-                  </Typography>
-                  <Typography variant="body2" color="primary.contrastText">
-                    <strong>Existing Classes:</strong> {getClassCount()}
-                  </Typography>
-                  <Typography variant="body2" color="primary.contrastText">
-                    <strong>Class:</strong>{' '}
-                    {formData.className || 'Not entered'}
-                  </Typography>
-                  <Typography variant="body2" color="primary.contrastText">
-                    <strong>Teacher:</strong>{' '}
-                    {getSelectedTeacherName() || 'Not selected'}
-                  </Typography>
-                  <Typography variant="body2" color="primary.contrastText">
-                    <strong>Timing:</strong> {formData.fromTime} to{' '}
-                    {formData.toTime}
-                  </Typography>
-                </Box>
-              </Grid> */}
+                <Grid item xs={12} md={6}>
+                  <FormControl fullWidth margin="dense" error={!!errors.toTime}>
+                    <TimePicker
+                      label="To Time *"
+                      value={
+                        formData.toTime
+                          ? dayjs(formData.toTime, 'hh:mm A')
+                          : null
+                      }
+                      onChange={(newValue) => {
+                        handleSelectChange(
+                          'toTime',
+                          newValue ? newValue.format('hh:mm A') : ''
+                        );
+                      }}
+                      disabled={loading}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          error: !!errors.toTime,
+                          helperText: errors.toTime,
+                          sx: {
+                            '& .MuiInputBase-input': {
+                              color: 'text.primary',
+                            },
+                          },
+                        },
+                        popper: {
+                          sx: {
+                            '& .MuiMultiSectionDigitalClockSection-item.Mui-selected': {
+                              color: '#000000 !important',
+                              fontWeight: 'bold',
+                            },
+                            '& .MuiMenuItem-root.Mui-selected': {
+                              color: '#000000 !important',
+                              fontWeight: 'bold',
+                            },
+                          },
+                        },
+                      }}
+                    />
+                  </FormControl>
+                </Grid>
+              </LocalizationProvider>
             </Grid>
           </DialogContent>
 
@@ -1332,7 +1255,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
               disabled={
                 loading ||
                 !formData.schoolId ||
-                !formData.teacherId ||
+                // !formData.teacherId ||
                 isClassNameTaken(formData.className)
               }
               sx={{ minWidth: 120 }}

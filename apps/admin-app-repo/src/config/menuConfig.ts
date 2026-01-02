@@ -33,6 +33,16 @@ const UNIVERSAL_ADMIN_MENU = {
         link: '/StudentList',
         roles: [Role.ADMIN, Role.CENTRAL_ADMIN],
       },
+      {
+        title: 'Staff',
+        link: '/staff',
+        roles: [Role.ADMIN, Role.CENTRAL_ADMIN],
+      },
+      {
+        title: 'Supervisor',
+        link: '/supervisor',
+        roles: [Role.ADMIN, Role.CENTRAL_ADMIN],
+      },
     ],
   },
 

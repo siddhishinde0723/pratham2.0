@@ -104,9 +104,8 @@ export interface MarkAttendanceParams {
   absentReason: string;
   lateMark: boolean;
   scope: string;
-  comment?: string;
-  workLocation?: string;
-  reason?: string;
+  remark: string;
+metaData:any;
 }
 
 export interface UserIdFilter {

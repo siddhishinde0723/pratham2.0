@@ -52,7 +52,16 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
   };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -63,10 +72,6 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({
 
     if (!formData.lastName.trim()) {
       newErrors.lastName = 'Last name is required';
-    }
-
-    if (!formData.gender) {
-      newErrors.gender = 'Gender is required';
     }
 
     if (formData.contactNumber && !validateMobile(formData.contactNumber)) {
@@ -94,11 +99,11 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({
       name,
       username,
       password: DEFAULT_PASSWORD,
-      gender: formData.gender,
       firstName: formData.firstName,
       lastName: formData.lastName,
       ...(formData.contactNumber && { mobile: formData.contactNumber }),
       ...(formData.email && { email: formData.email }),
+      ...(formData.gender && { gender: formData.gender }),
       tenantCohortRoleMapping: [
         {
           tenantId,
@@ -115,12 +120,7 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({
   };
   const handleSubmit = async () => {
     // Validation
-    if (!formData.firstName.trim()) {
-      showToastMessage('Please enter full name', 'warning');
-      return;
-    }
-    if (!formData.gender) {
-      showToastMessage('Please select gender', 'warning');
+    if (!validateForm()) {
       return;
     }
     // if (!formData.grade) {
@@ -205,6 +205,7 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({
       // motherName: '',
       // accessToWhatsApp: '',
     });
+    setErrors({});
     onClose();
   };
 
@@ -222,9 +223,11 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({
           required
           size="small"
           label="First Name"
-          placeholder="Enter full name"
+          placeholder="Enter first name"
           value={formData.firstName}
           onChange={(e) => handleChange('firstName', e.target.value)}
+          error={!!errors.firstName}
+          helperText={errors.firstName}
           sx={{ mb: 2 }}
         />
         <TextField
@@ -232,9 +235,11 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({
           required
           size="small"
           label="Last Name"
-          placeholder="Enter full name"
+          placeholder="Enter last name"
           value={formData.lastName}
           onChange={(e) => handleChange('lastName', e.target.value)}
+          error={!!errors.lastName}
+          helperText={errors.lastName}
           sx={{ mb: 2 }}
         />
         {/* Contact Number */}
@@ -245,6 +250,8 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({
           placeholder="Enter contact number"
           value={formData.contactNumber}
           onChange={(e) => handleChange('contactNumber', e.target.value)}
+          error={!!errors.contactNumber}
+          helperText={errors.contactNumber}
           sx={{ mb: 2 }}
         />
         {/* Email */}
@@ -255,39 +262,10 @@ const AddStudentModal: React.FC<AddStudentModalProps> = ({
           placeholder="Enter Email Id"
           value={formData.email}
           onChange={(e) => handleChange('email', e.target.value)}
+          error={!!errors.email}
+          helperText={errors.email}
           sx={{ mb: 2 }}
         />
-        {/* Gender */}
-        <FormControl component="fieldset" sx={{ mb: 2, width: '100%' }}>
-          <FormLabel
-            component="legend"
-            required
-            sx={{ fontSize: '0.875rem', mb: 1 }}
-          >
-            Gender
-          </FormLabel>
-          <RadioGroup
-            row
-            value={formData.gender}
-            onChange={(e) => handleChange('gender', e.target.value)}
-          >
-            <FormControlLabel
-              value="male"
-              control={<Radio size="small" />}
-              label="Male"
-            />
-            <FormControlLabel
-              value="female"
-              control={<Radio size="small" />}
-              label="Female"
-            />
-            {/* <FormControlLabel
-              value="na"
-              control={<Radio size="small" />}
-              label="NA"
-            /> */}
-          </RadioGroup>
-        </FormControl>
 
         {/* Grade */}
         {/* <FormControl fullWidth size="small" required sx={{ mb: 2 }}>
