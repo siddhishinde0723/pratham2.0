@@ -30,6 +30,8 @@ import {
 import LocationService from '@/services/LocationService';
 import { isSwadhaarChannel } from '@/services/DomainTenantService';
 import { getFieldIdsByName } from '@/services/FieldsService';
+import { post } from '@/services/RestClient';
+import { API_ENDPOINTS } from '@/utils/API/APIEndpoints';
 
 interface AddUserFormProps {
   onSuccess: () => void;
@@ -693,7 +695,35 @@ const AddUserForm: React.FC<AddUserFormProps> = ({
 
       // Make API call to create account
       const result = await createAccount(accountData);
-       console.log('Account created successfully:', result);
+      console.log('Account created successfully:', result);
+
+      // If user type is staff, add user to cohort
+      if (userType === 'staff' && result) {
+        try {
+          // Extract userId from result.userData.userId based on API response structure
+          const userId = result?.userData?.userId;
+          
+          if (userId) {
+            // Hardcoded cohort ID as per requirement
+            const cohortId = '5767a18a-323a-4eac-b115-22dabcd9b8ae';
+            
+            // Make API call to bulkCreate cohort member using the same pattern as createAccount
+            await post(
+              API_ENDPOINTS.cohortMemberBulkCreate,
+              {
+                cohortId: [cohortId],
+                userId: [userId],
+              }
+            );
+            console.log('User added to cohort successfully');
+          } else {
+            console.warn('UserId not found in createAccount response. Expected result.userData.userId:', result);
+          }
+        } catch (cohortError) {
+          // Log error but don't fail the user creation
+          console.error('Error adding user to cohort:', cohortError);
+        }
+      }
 
       // Reset form
       setFormData({

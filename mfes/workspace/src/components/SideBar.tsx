@@ -93,13 +93,13 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
   const isSwadhaarChannel = channelId === 'swadhaar-channel';
 
   const menuItems = [
-    ...(userRole !== Role.TEACHER && userRole !== Role.STAFF
+    ...(userRole !== Role.TEACHER && userRole !== Role.STAFF && userRole !== Role.SUPERVISOR
       ? [
           { text: 'Create', key: 'create', icon: <AddOutlinedIcon /> },
           { text: 'Drafts', key: 'draft', icon: <CreateOutlinedIcon /> },
         ]
       : []),
-    ...(userRole !== Role.CCTA && userRole !== Role.TEACHER && userRole !== Role.STAFF
+    ...(userRole !== Role.CCTA && userRole !== Role.TEACHER && userRole !== Role.STAFF && userRole !== Role.SUPERVISOR
       ? [
           {
             text: 'Submitted for Review',
@@ -172,7 +172,7 @@ const Sidebar: React.FC<SidebarProps> = ({ selectedKey, onSelect }) => {
         ]
       : []),
 
-    ...(userRole == Role.TEACHER || userRole == Role.STAFF
+    ...(userRole == Role.TEACHER || userRole == Role.STAFF  || userRole == Role.SUPERVISOR
       ? [
           {
             text: 'Attendance',

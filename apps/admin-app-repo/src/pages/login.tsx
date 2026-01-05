@@ -193,7 +193,7 @@ const LoginPage = () => {
             } else {
               router.push('/learners');
             }
-          } else if (role?.role === Role.SCTA || role?.role === Role.CCTA || role?.role === Role.TEACHER || role?.role === Role.STAFF) {
+          } else if (role?.role === Role.SCTA || role?.role === Role.CCTA || role?.role === Role.TEACHER || role?.role === Role.STAFF || role?.role === Role.SUPERVISOR) {
             // Redirect SCTA and CCTA users to workspace
             if (locale) {
               router.push('/workspace', undefined, { locale: locale });
@@ -345,7 +345,7 @@ const LoginPage = () => {
           }
         } else if (
           userInfo?.role === Role.SCTA ||
-          userInfo?.role === Role.CCTA || userInfo?.role === Role.TEACHER || userInfo?.role === Role.STAFF
+          userInfo?.role === Role.CCTA || userInfo?.role === Role.TEACHER || userInfo?.role === Role.STAFF || userInfo?.role === Role.SUPERVISOR
         ) {
           console.log('✅ Redirecting SCTA/CCTA/TEACHER to /workspace');
           const { locale } = router;
@@ -408,7 +408,7 @@ const LoginPage = () => {
                 }
               } else if (
                 userInfo?.role === Role.SCTA ||
-                userInfo?.role === Role.CCTA || userInfo?.role === Role.TEACHER ||  userInfo?.role === Role.STAFF
+                userInfo?.role === Role.CCTA || userInfo?.role === Role.TEACHER ||  userInfo?.role === Role.STAFF || userInfo?.role === Role.SUPERVISOR
               ) {
                 console.log('✅ Redirecting SCTA/CCTA/TEACHER to /workspace (from academic year)');
                 const { locale } = router;
