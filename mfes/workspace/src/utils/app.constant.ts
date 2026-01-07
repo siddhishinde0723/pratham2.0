@@ -81,6 +81,7 @@ export enum Role {
   STAFF='Staff',
   TEAM_LEADER = 'Lead',
   ADMIN = 'Admin',
+  SUPERVISOR = 'Supervisor'
 }
 export enum Status {
   DROPOUT = 'dropout',

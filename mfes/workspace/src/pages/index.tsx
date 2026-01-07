@@ -17,7 +17,7 @@ function IndexPage() {
     return <div>Loading...</div>;
   }
 
-  return <>{userRole === Role.TEACHER || userRole === Role.STAFF ? <AttendancePage /> : <CreatePage />}</>;
+  return <>{userRole === Role.TEACHER || userRole === Role.STAFF || userRole === Role.SUPERVISOR ? <AttendancePage /> : <CreatePage />}</>;
 }
 
 export default IndexPage;

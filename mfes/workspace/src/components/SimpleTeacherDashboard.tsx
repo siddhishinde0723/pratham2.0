@@ -42,7 +42,7 @@ import {
 } from '../services/AttendanceService';
 import { getAcademicYear } from '../services/AcademicYearService';
 import { ShowSelfAttendance, absentReasonOptions, workLocationOptions, attendanceCommentOptions } from '../../app.config';
-import { getCohortList, getCohortDetails } from '../services/CohortServices';
+import { getCohortList, getCohortDetails, cohortList } from '../services/CohortServices';
 import { getMyCohortMemberList } from '../services/MyClassDetailsService';
 import { getUserDetails } from '../services/ProfileService';
 import {
@@ -326,10 +326,54 @@ const MAX_BACKDATED_MARK_DAYS = 7;
     () => isTodayDate(selectedDate),
     [selectedDate]
   );
+  const [oblfCoords, setOblfCoords] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
   useEffect(() => {
     const storedRole = localStorage.getItem('roleName');
     setRole(storedRole);
   }, []);
+
+  useEffect(() => {
+    const fetchOBLFLocation = async () => {
+      if (role === 'Staff') {
+        try {
+          const filters = { type: 'SCHOOL', status: ['active'] };
+          const response = await cohortList({ limit: 0, offset: 0, filters });
+          const cohorts = response?.results?.cohortDetails || [];
+          const oblfEntity = cohorts.find(
+            (c: any) =>
+              c.name?.toLowerCase().includes('oblf office') ||
+              c.cohortName?.toLowerCase().includes('oblf office')
+          );
+
+          if (oblfEntity) {
+            const customFields =
+              oblfEntity.customFields || oblfEntity.customField || [];
+            const latField = customFields.find(
+              (f: any) => f.label?.toLowerCase() === 'latitude'
+            );
+            const lonField = customFields.find(
+              (f: any) => f.label?.toLowerCase() === 'longitude'
+            );
+
+            if (latField && lonField) {
+              const lat = parseFloat(latField.selectedValues?.[0]);
+              const lon = parseFloat(lonField.selectedValues?.[0]);
+              if (Number.isFinite(lat) && Number.isFinite(lon)) {
+                setOblfCoords({ latitude: lat, longitude: lon });
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching OBLF location:', error);
+        }
+      }
+    };
+    fetchOBLFLocation();
+  }, [role]);
 
   const handleRemoteSession = () => {
     try {
@@ -482,8 +526,12 @@ const MAX_BACKDATED_MARK_DAYS = 7;
         const uniqueParentIds = [
           ...new Set(
             response
-              .filter((item: any) => item.parentId && item.type === 'COHORT')
-              .map((item: any) => item.parentId)
+              .map((item: any) => {
+                if (item.type === 'COHORT' && item.parentId) return item.parentId;
+                if (item.type !== 'COHORT') return item.cohortId;
+                return null;
+              })
+              .filter((id:any) => id)
           ),
         ];
         // Fetch hierarchy data for each unique parent ID
@@ -618,7 +666,6 @@ const MAX_BACKDATED_MARK_DAYS = 7;
       (center) => center.centerId === centerId
     );
     if (selectedCenter) {
-      console.log("selectedCenter",selectedCenter)
       const batches = cohortsData
         .filter(
           (item: any) =>
@@ -852,10 +899,13 @@ const MAX_BACKDATED_MARK_DAYS = 7;
     return null;
   };
 
+
+
   const isLocationValid = (
-    locationData: { latitude: number; longitude: number } | null
+    locationData: { latitude: number; longitude: number } | null,
+    targetCoordsOverride?: { latitude: number; longitude: number } | null
   ): { valid: boolean; distance?: number } => {
-    const centerCoords = getSelectedCenterCoordinates();
+    const centerCoords = targetCoordsOverride || getSelectedCenterCoordinates();
     if (!centerCoords) {
       return { valid: true };
     }
@@ -895,26 +945,20 @@ const MAX_BACKDATED_MARK_DAYS = 7;
 
       // Get location using useGeolocation hook
       const locationData = await getLocation(true);
-      if (locationData) {
-        console.log('[SelfAttendance] Current location', {
-          latitude: locationData.latitude,
-          longitude: locationData.longitude,
-        });
-      } else {
-        console.log('[SelfAttendance] No location data returned');
-      }
+     
 
       // Time Slot Validation
       let isLate = false;
       const currentBatch = batchesData.find((b) => b.batchId === classId);
-      const timeSlot = currentBatch?.timeSlot;
-console.log('[SelfAttendance] Time slot', timeSlot);
+      let timeSlot = currentBatch?.timeSlot;
+      if (role === 'Staff') {
+        timeSlot = '09:30 AM - 05:30 PM';
+      }
       if (timeSlot) {
         try {
           // Expected format: "10:15 AM - 11:15 AM"
           const [startTimeStr] = timeSlot.split(' - ');
-          console.log('[SelfAttendance] Time slot', timeSlot);
-          console.log('[SelfAttendance] Start time', startTimeStr);
+         
           if (startTimeStr) {
             const currentTime = new Date();
             const startTime = parse(startTimeStr, 'hh:mm a', new Date());
@@ -926,16 +970,17 @@ console.log('[SelfAttendance] Time slot', timeSlot);
               // If current time is more than 5 minutes BEFORE start time
               // diffInMinutes will be negative (e.g. -6)
               if (diffInMinutes < -5) {
-                showToastMessage(
-                  'You can mark self attendance only within 5 minutes before the slot start time.',
-                  'error'
-                );
-                return;
+                if (role !== 'Staff') {
+                  showToastMessage(
+                    'You can mark self attendance only within 5 minutes before the slot start time.',
+                    'error'
+                  );
+                  return;
+                }
               }
 
               // If current time is more than 5 minutes AFTER start time
               if (diffInMinutes > 5) {
-                console.log('isLate',isLate)
                 isLate = true;
               }
             }
@@ -950,7 +995,7 @@ console.log('[SelfAttendance] Time slot', timeSlot);
         userId: userId,
         attendance: selectedSelfAttendance?.toLowerCase(),
         attendanceDate: selectedDate,
-        contextId: classId,
+        contextId: role === 'Supervisor' ? selectedCenterId : classId,
         scope:'self',
         // scope: role === 'Teacher' ? 'self' : role === 'Staff'?'staff':'center',
         context: 'cohort',
@@ -980,23 +1025,47 @@ console.log('[SelfAttendance] Time slot', timeSlot);
           data.metaData.workLocation = '';
         }
         
-        // Comment - only for Teacher
-        if (role === 'Teacher') {
+        // Comment - for Teacher and Supervisor
+        if (role === 'Teacher' || role === 'Supervisor') {
           data.remark = attendanceComment || '';
         } else {
           data.remark = '';
         }
       }
 
-console.log('data',data)
       // Add location data if available from useGeolocation hook
       if (locationData) {
         data.latitude = locationData.latitude;
         data.longitude = locationData.longitude;
 
-        const validationResult = isLocationValid(locationData);
+        let targetCoords = null;
+        if (role === 'Staff' && workLocation === 'work_from_office') {
+          targetCoords = oblfCoords;
+        }
+
+        const validationResult = isLocationValid(locationData, targetCoords);
         data.validLocation = validationResult.valid;
-        if (!validationResult.valid) {
+
+        // Validation Enforcement Logic
+        let shouldEnforceLocation = true; 
+
+        // For Staff, only enforce if "Work from Office" AND Present
+        if (role === 'Staff') {
+          const isPresent = selectedSelfAttendance?.toLowerCase() === ATTENDANCE_ENUM.PRESENT;
+          if (isPresent && workLocation === 'work_from_office') {
+            shouldEnforceLocation = true;
+          } else {
+            shouldEnforceLocation = false;
+          }
+        }
+        
+        // For Supervisor, only enforce if Present
+        if (role === 'Supervisor') {
+           const isPresent = selectedSelfAttendance?.toLowerCase() === ATTENDANCE_ENUM.PRESENT;
+           shouldEnforceLocation = isPresent;
+        }
+
+        if (shouldEnforceLocation && !validationResult.valid) {
           const distanceMsg =
             validationResult.distance !== undefined
               ? `Distance from center: ${validationResult.distance.toFixed(2)}m`
@@ -1009,7 +1078,6 @@ console.log('data',data)
           return;
         }
       }
-      console.log('[SelfAttendance] Marking attendance', data);
       const response = await markAttendance(data);
       // Check both responseCode and params.status for success
       if (
@@ -1044,6 +1112,8 @@ console.log('data',data)
         // Refresh attendance data to show updated status
         await fetchSelfAttendance();
         fetchAttendanceData();
+        fetchDayWiseAttendanceData();
+        setHandleSaveHasRun(!handleSaveHasRun);
       } else if (response?.responseCode === 400 || response?.params?.err) {
         const errorMessage =
           response?.params?.errmsg ||
@@ -1061,11 +1131,7 @@ console.log('data',data)
 
   // Fetch attendance data when classId changes
   useEffect(() => {
-    console.log('useEffect triggered - fetching attendance data', {
-      classId,
-      selectedDate,
-      handleSaveHasRun,
-    });
+   
     if (classId && classId !== 'all') {
       fetchAttendanceData();
       fetchDayWiseAttendanceData();
@@ -1077,12 +1143,14 @@ console.log('data',data)
 
   // Fetch attendance data for all 30 days
   const fetchDayWiseAttendanceData = async () => {
-    if (!classId || classId === 'all') return;
+    const isStaffOrSupervisor = role === 'Staff' || role === 'Supervisor';
+
+    if (!isStaffOrSupervisor && (!classId || classId === 'all')) return;
 
     // Validate UUID format
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(classId)) {
+    if (!isStaffOrSupervisor && !uuidRegex.test(classId)) {
       console.warn(
         'fetchDayWiseAttendanceData: Invalid UUID format for classId:',
         classId
@@ -1096,6 +1164,48 @@ console.log('data',data)
 
       const firstDate = calendarDays[calendarDays.length - 1].dateString;
       const lastDate = calendarDays[0].dateString;
+
+      // Handle Staff and Supervisor roles (Self Attendance History)
+      if (isStaffOrSupervisor) {
+        const userId = localStorage.getItem('userId');
+        if (!userId) return;
+
+        const contextId = role === 'Supervisor' ? selectedCenterId : undefined;
+
+        const filters = {
+          contextId: contextId,
+          userId: userId,
+          scope: 'self',
+          fromDate: firstDate,
+          toDate: lastDate,
+        };
+
+        const limit = 300; // Sufficient for 30 days
+        const page = 0;
+
+        const response = await getLearnerAttendanceStatus({
+          limit,
+          page,
+          filters,
+        });
+
+        const attendanceList = response?.data?.attendanceList || [];
+        const processedData: { [date: string]: any } = {};
+
+        attendanceList.forEach((item: any) => {
+          if (item.attendanceDate) {
+            const isPresent = item.attendance === 'present';
+            processedData[item.attendanceDate] = {
+              presentCount: isPresent ? 1 : 0,
+              absentCount: isPresent ? 0 : 1,
+              totalCount: 1,
+              percentage: isPresent ? 100 : 0,
+            };
+          }
+        });
+        setDayWiseAttendanceData(processedData);
+        return;
+      }
 
       const cohortAttendanceData: CohortAttendancePercentParam = {
         limit: 1000,
@@ -1135,8 +1245,8 @@ console.log('data',data)
       });
       const members = memberResponse?.result?.userDetails || [];
       // Filter to only include members with role "Student" (case-insensitive)
-      const studentMembers = members.filter((member: any) => 
-        member?.role?.toLowerCase() === 'student'
+      const studentMembers = members.filter(
+        (member: any) => member?.role?.toLowerCase() === 'student'
       );
       const filteredMembers = filterMembersExcludingCurrentUser(studentMembers);
       const totalMembers = studentMembers.length;
@@ -1526,35 +1636,20 @@ console.log('data',data)
       if (userId) {
         fetchUserCohorts(userId);
       }
-
-      console.log('Changed academic year to:', {
-        displayName: yearDisplayName,
-        id: selectedYear.id,
-        startDate: selectedYear.startDate,
-        endDate: selectedYear.endDate,
-      });
     }
   };
   // Handle class selection change
   const handleClassChange = (event: any) => {
     const selectedClassId = event.target.value;
     setClassId(selectedClassId);
-    console.log('Selected class:', selectedClassId); // Debug log
   };
   // ADD THIS FUNCTION TO HANDLE SAVE SUCCESS
   const handleSaveSuccess = (isModified?: boolean) => {
-    console.log('handleSaveSuccess called, isModified:', isModified);
     if (isModified) {
       showToastMessage('Attendance modified successfully', 'success');
     } else {
       showToastMessage('Attendance marked successfully', 'success');
     }
-    console.log(
-      'Toggling handleSaveHasRun from',
-      handleSaveHasRun,
-      'to',
-      !handleSaveHasRun
-    );
     setHandleSaveHasRun(!handleSaveHasRun);
     handleClose();
   };
@@ -1853,11 +1948,23 @@ console.log('data',data)
                             >
                               <CircularProgress
                                 variant="determinate"
-                                value={attendancePercentage}
+                                value={
+                                  (role === 'Staff' || role === 'Supervisor') &&
+                                  dateAttendance?.absentCount > 0 &&
+                                  attendancePercentage === 0
+                                    ? 100
+                                    : attendancePercentage
+                                }
                                 size={20}
                                 thickness={10}
                                 sx={{
-                                  color: '#4caf50',
+                                  color:
+                                    (role === 'Staff' ||
+                                      role === 'Supervisor') &&
+                                    dateAttendance?.absentCount > 0 &&
+                                    attendancePercentage === 0
+                                      ? '#f44336'
+                                      : '#4caf50',
                                   position: 'absolute',
                                   '& .MuiCircularProgress-circle': {
                                     strokeLinecap: 'round',
@@ -2391,14 +2498,11 @@ console.log('data',data)
           }}
           primaryBtnDisabled={
             (() => {
-              // const role = localStorage.getItem('roleName');
               if (!selectedSelfAttendance) return true;
               if (selectedSelfAttendance === ATTENDANCE_ENUM.ABSENT && !absentReason) return true;
               if (selectedSelfAttendance === ATTENDANCE_ENUM.PRESENT) {
-                // For Staff/Supervisor: workLocation is required
-                if ((role === 'Staff' || role === 'Supervisor') && !workLocation) return true;
-                // For Teacher: comment is required
-                if (role === 'Teacher' && !attendanceComment) return true;
+                if (role === 'Staff' && !workLocation) return true;
+                if ((role === 'Teacher' || role === 'Supervisor') && !attendanceComment) return true;
               }
               return false;
             })()
@@ -2564,8 +2668,8 @@ console.log('data',data)
               // const role = localStorage.getItem('roleName');
               return (
                 <>
-                  {/* Work Location Dropdown - Only for Staff and Supervisor */}
-                  {(role === 'Staff' || role === 'Supervisor') && (
+                  {/* Work Location Dropdown - Only for Staff */}
+                  {role === 'Staff' && (
                     <Box sx={{ p: 2.5, pt: 2.5 }}>
                       <FormControl fullWidth size="small">
                         <InputLabel>Work Location</InputLabel>
@@ -2608,6 +2712,22 @@ console.log('data',data)
                             placeholder="Type to search or add custom comment..."
                           />
                         )}
+                      />
+                    </Box>
+                  )}
+
+                  {/* Plain Comment Field - For Supervisor */}
+                  {role === 'Supervisor' && (
+                    <Box sx={{ p: 2.5, pt: 2.5 }}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Comment"
+                        multiline
+                        rows={3}
+                        value={attendanceComment}
+                        onChange={(e) => setAttendanceComment(e.target.value)}
+                        placeholder="Add a comment..."
                       />
                     </Box>
                   )}
