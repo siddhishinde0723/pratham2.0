@@ -168,6 +168,7 @@ const Centers = () => {
     name: true,
     cohortId: true,
     parentId: true,
+    teacher: false,
     type: true,
     status: true,
     createdAt: true,
@@ -1623,10 +1624,12 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
                       {columnVisibility.cohortId && (
                         <TableCell>Class ID</TableCell>
                       )}
-                      {columnVisibility.parentId && (
+                      {/* {columnVisibility.parentId && (
                         <TableCell>Parent School</TableCell>
+                      )} */}
+                      {columnVisibility.teacher && (
+                        <TableCell>Teacher</TableCell>
                       )}
-                   
                       {columnVisibility.status && (
                         <TableCell>
                           <TableSortLabel
@@ -1702,7 +1705,7 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
                               </Tooltip>
                             </TableCell>
                           )}
-                          {columnVisibility.parentId && (
+                          {/* {columnVisibility.parentId && (
                             <TableCell>
                               <Typography variant="body2">
                                 {schools.find(
@@ -1711,8 +1714,49 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
                                   (center.parentId ? center.parentId.substring(0, 8) + '...' : 'N/A')}
                               </Typography>
                             </TableCell>
+                          )} */}
+                          {columnVisibility.teacher && (
+                            <TableCell>
+                              {(() => {
+                                // Parse metadata if it's a string
+                                const parseMetadata = (metadata: any) => {
+                                  if (!metadata) return {};
+                                  if (typeof metadata === 'string') {
+                                    try {
+                                      return JSON.parse(metadata);
+                                    } catch (e) {
+                                      return {};
+                                    }
+                                  }
+                                  return metadata;
+                                };
+
+                                const metadata = parseMetadata(center.metadata);
+                                const teacherName = metadata?.teacherName;
+                                const teacherEmail = metadata?.teacherEmail;
+
+                                if (teacherName) {
+                                  return (
+                                    <Box>
+                                      <Typography variant="body2" fontWeight="medium">
+                                        {teacherName}
+                                      </Typography>
+                                      {teacherEmail && (
+                                        <Typography variant="caption" color="textSecondary">
+                                          {teacherEmail}
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  );
+                                }
+                                return (
+                                  <Typography variant="body2" color="textSecondary">
+                                    No teacher assigned
+                                  </Typography>
+                                );
+                              })()}
+                            </TableCell>
                           )}
-                         
                           {columnVisibility.status && (
                             <TableCell>
                         
