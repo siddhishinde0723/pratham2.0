@@ -1938,18 +1938,32 @@ const { total, active, archived } = summaryCounts;
                                         },
                                       }}
                                     >
-                                      <ListItemIcon sx={{ minWidth: 40 }}>
+                                      <ListItemIcon 
+                                        sx={{ minWidth: 40 }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (!cls.originallyAssigned) {
+                                            handleClassCheckboxChange(cls.classId);
+                                          }
+                                        }}
+                                      >
                                         <Checkbox
                                           edge="start"
                                           checked={cls.assigned}
                                           tabIndex={-1}
                                           disableRipple
                                           disabled={cls.originallyAssigned}
-                                          onChange={() =>
-                                            handleClassCheckboxChange(
-                                              cls.classId
-                                            )
-                                          }
+                                          onChange={(e) => {
+                                            e.stopPropagation();
+                                            if (!cls.originallyAssigned) {
+                                              handleClassCheckboxChange(
+                                                cls.classId
+                                              );
+                                            }
+                                          }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                          }}
                                         />
                                       </ListItemIcon>
                                       <ListItemText

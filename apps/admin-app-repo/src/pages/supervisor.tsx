@@ -1128,7 +1128,7 @@ const Supervisor = () => {
                             ) : (
                               // Show all action buttons for active/non-archived
                               <>
-                                <Tooltip title="Assign Schools">
+                                <Tooltip title="Assign Center">
                                   <IconButton
                                     size="small"
                                     onClick={() => handleAssignSchoolClick(supervisor)}

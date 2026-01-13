@@ -1,7 +1,8 @@
 /* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @nx/enforce-module-boundaries */
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { debounce } from 'lodash';
 import {
   Dialog,
   DialogTitle,
@@ -21,6 +22,9 @@ import {
   Alert,
   Snackbar,
   Chip,
+  InputAdornment,
+  ListSubheader,
+  // Autocomplete, // Commented out - search functionality removed
 } from '@mui/material';
 import {
   Save as SaveIcon,
@@ -28,15 +32,20 @@ import {
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
   AccessTime as TimeIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 import {
   getCohortList,
   createCohort,
   assignClassToTeacher,
+  bulkCreateCohortMembers,
 } from '@/services/CohortService/cohortService';
+import { post, put } from '@/services/RestClient';
+import { API_ENDPOINTS } from '@/utils/API/APIEndpoints';
 import { getCohortMemberList } from '@/services/CohortService/cohortService';
 import { showToastMessage } from '@/components/Toastify';
 import { userList } from '@/services/UserList';
+import TenantService from '@/services/TenantService';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
@@ -68,8 +77,8 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
     schoolId: '',
     className: '',
     teacherId: '',
-    fromTime: '09:00 AM',
-    toTime: '04:00 PM',
+    fromTime: '',
+    toTime: '',
     status: 'active',
     capacity: 30,
     description: '',
@@ -90,6 +99,13 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
   const [classes, setClasses] = useState([]);
   const [selectedCluster, setSelectedCluster] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Search state for teachers
+  const [teacherSearchTerm, setTeacherSearchTerm] = useState('');
+  const [teacherSelectWidth, setTeacherSelectWidth] = useState(null);
+  const [assignedTeacherMembershipId, setAssignedTeacherMembershipId] = useState(null);
+  const [assignedTeacherData, setAssignedTeacherData] = useState(null);
+  const [timeSlotTouched, setTimeSlotTouched] = useState(false); // Track if user has interacted with time pickers
 
   const statusOptions = [
     { value: 'active', label: 'Active' },
@@ -97,44 +113,211 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
     { value: 'pending', label: 'Pending' },
   ];
 
-  // Fetch clusters on component mount
+  // Fetch schools and teachers on component mount
   useEffect(() => {
     if (open) {
-      fetchClusters();
+      // fetchClusters(); // Commented out - cluster dropdown removed
+      fetchAllSchools(); // Fetch all schools independently
+      fetchAllTeachers(''); // Fetch teachers independently when dialog opens
       setIsEditing(!!center);
     }
   }, [open, center]);
 
-  // Fetch schools when cluster is selected
+  // Fetch teachers when search term changes (debounced)
   useEffect(() => {
-    if (selectedCluster) {
-      fetchSchools(selectedCluster);
-    } else {
-      setSchools([]);
-      setFormData((prev) => ({ ...prev, schoolId: '' }));
-    }
-  }, [selectedCluster]);
+    const timer = setTimeout(() => {
+      if (open) {
+        fetchAllTeachers(teacherSearchTerm);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [teacherSearchTerm, open]);
 
   // Fetch classes when school is selected
   useEffect(() => {
     if (formData.schoolId) {
       fetchClasses(formData.schoolId);
-      // Only fetch teachers if not editing an existing class
-      if (!center?.cohortId) {
-        fetchTeachersForSchool(formData.schoolId);
-      }
     } else {
       setClasses([]);
-      setTeachers([]);
       setFormData((prev) => ({ ...prev, teacherId: '' }));
     }
   }, [formData.schoolId, center]);
+
+  // Fetch assigned teacher when editing using cohortmember/list API
+  const fetchAssignedTeacher = useCallback(async (cohortId, teacherId, centerMetadata) => {
+    if (!cohortId) return;
+
+    try {
+      // Call cohortmember/list API to get teacher data and cohortMembershipId
+      const teacherRequestData = {
+        limit: 300,
+        offset: 0,
+        filters: {
+          cohortId: cohortId,
+          role: 'Teacher',
+        },
+        sort: ['name', 'asc'],
+      };
+
+      const response = await getCohortMemberList(teacherRequestData);
+      console.log('CohortMember list response:', response);
+
+      if (response && response.userDetails) {
+        // Filter for active teachers only (role: "Teacher" and status: "active")
+        const activeTeachers = response.userDetails.filter(
+          (member) => member.role === 'Teacher' && member.status === 'active'
+        );
+
+        // If teacherId is provided, try to find that specific teacher
+        // Otherwise, get the first active teacher
+        let assignedTeacher = null;
+        
+        if (teacherId) {
+          // First try to find the specified teacher if active
+          assignedTeacher = activeTeachers.find(
+            (teacher) => teacher.userId === teacherId
+          );
+          
+          // If specified teacher is not active, get first active teacher instead
+          if (!assignedTeacher && activeTeachers.length > 0) {
+            assignedTeacher = activeTeachers[0];
+            console.log('Specified teacher not active, using first active teacher:', assignedTeacher.userId);
+          }
+        } else {
+          // No teacherId specified, get first active teacher
+          if (activeTeachers.length > 0) {
+            assignedTeacher = activeTeachers[0];
+            console.log('No teacher specified, using first active teacher:', assignedTeacher.userId);
+          }
+        }
+
+        if (assignedTeacher) {
+          // Store cohortMembershipId for slot updates
+          const membershipId = assignedTeacher.cohortMembershipId || assignedTeacher.id || assignedTeacher.membershipId;
+          if (membershipId) {
+            setAssignedTeacherMembershipId(membershipId);
+            console.log('Stored cohortMembershipId:', membershipId);
+          }
+
+          // Extract slot information from customField
+          const slotFieldId = 'f3658b23-1394-48a9-afc5-7589874465af';
+          let slotValue = null;
+          if (assignedTeacher.customField && Array.isArray(assignedTeacher.customField)) {
+            const slotField = assignedTeacher.customField.find(
+              (field) => field.fieldId === slotFieldId
+            );
+            if (slotField && slotField.selectedValues && slotField.selectedValues.length > 0) {
+              // Get first slot value and ensure it's a clean string
+              let rawSlotValue = slotField.selectedValues[0];
+              // Handle if it's already an array (shouldn't be, but just in case)
+              if (Array.isArray(rawSlotValue)) {
+                rawSlotValue = rawSlotValue[0] || '';
+              }
+              // Remove any extra encoding/stringification
+              slotValue = String(rawSlotValue).replace(/^["'[\]]+|["'[\]]+$/g, '').trim();
+              console.log('📥 Extracted slot value from API:', { raw: slotField.selectedValues[0], cleaned: slotValue });
+            }
+          }
+
+          // Store teacher data from API for display
+          const teacherData = {
+            id: assignedTeacher.userId,
+            name: `${assignedTeacher.firstName} ${assignedTeacher.lastName}`.trim(),
+            email: assignedTeacher.email || '',
+            userId: assignedTeacher.userId,
+            username: assignedTeacher.username || '',
+            firstName: assignedTeacher.firstName || '',
+            lastName: assignedTeacher.lastName || '',
+            status: assignedTeacher.status || 'active',
+            role: assignedTeacher.role,
+            cohortId: assignedTeacher.cohortId || '',
+            cohortMembershipId: membershipId,
+            slot: slotValue, // Store slot value
+          };
+
+          // Set assignedTeacherData (always active since we filtered)
+          setAssignedTeacherData(teacherData);
+
+          // Update formData with the active teacher's ID and slot
+          setFormData((prev) => {
+            const updated = {
+              ...prev,
+              teacherId: assignedTeacher.userId,
+            };
+            
+            // Update slot times if slot value exists
+            if (slotValue) {
+              // Parse slot value like "04:00 PM - 05:00 PM"
+              // Handle both string and array formats
+              let slotString = slotValue;
+              if (Array.isArray(slotValue)) {
+                slotString = slotValue[0] || '';
+              }
+              // Remove any extra quotes or encoding
+              slotString = String(slotString).replace(/^["'[\]]+|["'[\]]+$/g, '').trim();
+              
+              const slotParts = slotString.split(' - ');
+              if (slotParts.length === 2) {
+                updated.fromTime = slotParts[0].trim();
+                updated.toTime = slotParts[1].trim();
+              }
+            }
+            
+            return updated;
+          });
+
+          // Add to teachers list if not already present
+          setTeachers((prevTeachers) => {
+            const exists = prevTeachers.some((t) => t.id === assignedTeacher.userId);
+            if (!exists) {
+              return [teacherData, ...prevTeachers];
+            }
+            return prevTeachers;
+          });
+          
+          return; // Success, exit early
+        } else {
+          // No active teacher found, clear assignedTeacherData to show dropdown
+          console.log('No active teacher found in cohort');
+          setAssignedTeacherData(null);
+          setAssignedTeacherMembershipId(null);
+        }
+      } else {
+        // No teachers found, show dropdown
+        console.log('No teachers found in cohort');
+        setAssignedTeacherData(null);
+        setAssignedTeacherMembershipId(null);
+      }
+    } catch (err) {
+      console.error('Error fetching assigned teacher:', err);
+      // On error, clear data to show dropdown
+      setAssignedTeacherData(null);
+      setAssignedTeacherMembershipId(null);
+    }
+  }, []);
+
+  // Parse metadata if it's a string
+  const parseMetadata = (metadata) => {
+    if (!metadata) return {};
+    if (typeof metadata === 'string') {
+      try {
+        return JSON.parse(metadata);
+      } catch (e) {
+        console.error('Error parsing metadata:', e);
+        return {};
+      }
+    }
+    return metadata;
+  };
 
   // Load center data when editing
   useEffect(() => {
     if (center && open) {
       // Find the school ID from the center
       const schoolId = center.parentId || '';
+      const metadata = parseMetadata(center.metadata);
+      const teacherId = metadata?.teacherId || '';
 
       // Set editing mode
       setIsEditing(true);
@@ -143,21 +326,23 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
       if (schoolId) {
         fetchSchoolsAndCluster(schoolId);
         fetchClasses(schoolId);
-        // For existing class, fetch teachers for edit (candidates from school - current class members)
-        fetchTeachersForEdit(schoolId, center.cohortId, center.metadata?.teacherId);
       }
 
-      // Map API data to form structure
+      // Map API data to form structure (without teacher and slot from metadata)
       setFormData({
         schoolId: schoolId,
         className: center.name || '',
-        teacherId: center.metadata?.teacherId || '',
-        fromTime: center.metadata?.fromTime || '09:00 AM',
-        toTime: center.metadata?.toTime || '04:00 PM',
+        teacherId: '', // Will be set from API response
+        fromTime: '09:00 AM', // Will be set from API response
+        toTime: '04:00 PM', // Will be set from API response
         status: center.status || 'active',
-        capacity: center.metadata?.capacity || 30,
-        description: center.metadata?.description || '',
+        capacity: metadata?.capacity || 30,
+        description: metadata?.description || '',
       });
+      setTimeSlotTouched(false); // Reset time slot touched state
+
+      // Fetch assigned teacher from API (will get active teacher and slot)
+      fetchAssignedTeacher(center.cohortId, teacherId, metadata);
     } else {
       // Reset form for new class
       setIsEditing(false);
@@ -171,47 +356,29 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         capacity: 30,
         description: '',
       });
+      setTimeSlotTouched(false); // Reset time slot touched state
       setSelectedCluster('');
       setSchools([]);
       setTeachers([]);
       setClasses([]);
+      setTeacherSearchTerm('');
+      setAssignedTeacherMembershipId(null);
+      setAssignedTeacherData(null);
     }
     setErrors({});
-  }, [center, open]);
+  }, [center, open, fetchAssignedTeacher]);
 
-  // Function to fetch schools and determine cluster
+  // Function to fetch all schools (for edit mode)
   const fetchSchoolsAndCluster = async (schoolId) => {
     try {
-      // First, fetch all clusters
-      const clusterRequestData = {
-        limit: 0,
-        offset: 0,
-        filters: {
-          type: 'CLUSTER',
-          status: ['active'],
-        },
-      };
-
-      const clusterResponse = await getCohortList(clusterRequestData);
-      let allClusters = [];
-
-      if (
-        clusterResponse?.results?.cohortDetails &&
-        Array.isArray(clusterResponse.results.cohortDetails)
-      ) {
-        allClusters = clusterResponse.results.cohortDetails;
-      } else if (Array.isArray(clusterResponse)) {
-        allClusters = clusterResponse;
-      }
-      setClusters(allClusters);
-
-      // Now fetch schools for all clusters to find which cluster this school belongs to
+      // Fetch all schools without cluster filter
       const schoolRequestData = {
         limit: 0,
         offset: 0,
         filters: {
           type: 'SCHOOL',
           status: ['active'],
+          // parentId removed - fetch all schools
         },
       };
 
@@ -227,23 +394,9 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         allSchools = schoolResponse;
       }
 
-      // Find the current school
-      const currentSchool = allSchools.find(
-        (school) => school.cohortId === schoolId
-      );
-      if (currentSchool && currentSchool.parentId) {
-        setSelectedCluster(currentSchool.parentId);
-      }
-
-      // Filter schools for the found cluster
-      const filteredSchools = allSchools.filter((school) =>
-        currentSchool?.parentId
-          ? school.parentId === currentSchool.parentId
-          : true
-      );
-      setSchools(filteredSchools);
+      setSchools(allSchools);
     } catch (err) {
-      console.error('Error fetching schools and cluster:', err);
+      console.error('Error fetching schools:', err);
       showToastMessage('Failed to fetch school information', 'error');
     }
   };
@@ -279,8 +432,8 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
     }
   };
 
-  // Fetch schools based on selected cluster
-  const fetchSchools = async (clusterId) => {
+  // Fetch all schools (without cluster filter)
+  const fetchAllSchools = async () => {
     setLoadingSchools(true);
     try {
       const schoolRequestData = {
@@ -289,7 +442,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         filters: {
           type: 'SCHOOL',
           status: ['active'],
-          parentId: [clusterId],
+          // parentId removed - fetch all schools
         },
       };
 
@@ -349,66 +502,37 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
     }
   };
 
-  // Fetch teachers for edit mode (Global Teachers/Learners - Class Members + Current Teacher)
-  const fetchTeachersForEdit = useCallback(async (schoolId, classId, currentTeacherId) => {
+  // Fetch all teachers independently (with search support)
+  const fetchAllTeachers = useCallback(async (searchTerm = '') => {
     setLoadingTeachers(true);
     try {
-      console.log('Fetching teachers for edit:', { schoolId, classId, currentTeacherId });
+      const tenantId = TenantService.getTenantId();
+      const baseFilters = {
+        role: 'Teacher',
+        tenantId: tenantId,
+      };
 
-      // Step 1: Fetch all teachers/learners from userList
-      let globalTeachers = [];
-      try {
-        const userListRequestData = {
-          limit: 0,
-          offset: 0,
-          sort: ['firstName', 'asc'],
-          filters: {
-            role:'Teacher',
-            // role: ['Teacher', 'Learner'],
-            status: ['active'],
-          },
-        };
-        const response = await userList(userListRequestData);
-        if (response?.getUserDetails) {
-           // Apply client-side filter for roles
-           globalTeachers = response.getUserDetails.filter((user) => {
-             const role = user.role?.toLowerCase();
-             console.log('User Role:', role);
-             return ["teacher", "learner"].includes(role);
-           });
-        } else if (Array.isArray(response)) {
-           globalTeachers = response.filter((user) => {
-           
-             const role = user.role?.toLowerCase();
-             return ["teacher", "learner"].includes(role);
-           });
-        }
-      } catch (e) {
-        console.error('Error fetching global teachers:', e);
-      }
-      console.log('Global Teachers:', globalTeachers);
-      // Step 2: Fetch teachers currently in the class (To Exclude)
-      let classMembers = new Set();
-      try {
-          const classRequestData = {
-          limit: 0,
-          offset: 0,
-          filters: {
-            cohortId: classId,
-            status: ['active'],
-          },
-        };
-        // const classResponse = await getCohortMemberList(classRequestData);
-        //  if (classResponse?.userDetails) {
-        //    classResponse.userDetails.forEach(u => classMembers.add(u.userId));
-        // }
-      } catch (e) {
-          console.error('Error fetching class members:', e);
-      }
+      // Add search filter if search term is provided
+      const filters = searchTerm
+        ? {
+            ...baseFilters,
+            firstName: searchTerm, // Server-side search by firstName
+          }
+        : baseFilters;
 
-      // Step 3: Filter and Map
-      const teachersData = globalTeachers
-        .map((teacher) => ({
+      const response = await userList({
+        limit: 1000, // Large limit to fetch all teachers
+          offset: 0,
+        sort: ['createdAt', 'desc'],
+        filters: filters,
+      });
+
+      console.log('Teachers response:', response);
+
+      let teachersData = [];
+      
+      if (response?.getUserDetails) {
+        teachersData = response.getUserDetails.map((teacher) => ({
             id: teacher.userId,
             name: `${teacher.firstName} ${teacher.lastName}`.trim(),
             email: teacher.email || '',
@@ -420,91 +544,92 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
             role: teacher.role,
             cohortId: '', 
         }));
-      
-      setTeachers(teachersData);
+      } else if (Array.isArray(response)) {
+        teachersData = response.map((teacher) => ({
+          id: teacher.userId,
+          name: `${teacher.firstName} ${teacher.lastName}`.trim(),
+          email: teacher.email || '',
+          userId: teacher.userId,
+          username: teacher.username || '',
+          firstName: teacher.firstName || '',
+          lastName: teacher.lastName || '',
+          status: teacher.status || 'active',
+          role: teacher.role,
+          cohortId: '',
+        }));
+      }
 
+      // If search term is provided and no results from firstName, try filtering by username
+      if (searchTerm && teachersData.length === 0) {
+        const usernameResponse = await userList({
+          limit: 1000,
+        offset: 0,
+          sort: ['createdAt', 'desc'],
+        filters: {
+            ...baseFilters,
+            username: searchTerm,
+          },
+        });
+
+        if (usernameResponse?.getUserDetails) {
+          teachersData = usernameResponse.getUserDetails.map((teacher) => ({
+            id: teacher.userId,
+            name: `${teacher.firstName} ${teacher.lastName}`.trim(),
+            email: teacher.email || '',
+            userId: teacher.userId,
+            username: teacher.username || '',
+            firstName: teacher.firstName || '',
+            lastName: teacher.lastName || '',
+            status: teacher.status || 'active',
+            role: teacher.role,
+            cohortId: '',
+          }));
+        } else if (Array.isArray(usernameResponse)) {
+          teachersData = usernameResponse.map((teacher) => ({
+            id: teacher.userId,
+            name: `${teacher.firstName} ${teacher.lastName}`.trim(),
+            email: teacher.email || '',
+            userId: teacher.userId,
+            username: teacher.username || '',
+            firstName: teacher.firstName || '',
+            lastName: teacher.lastName || '',
+            status: teacher.status || 'active',
+            role: teacher.role,
+            cohortId: '',
+          }));
+        }
+      }
+
+      // Client-side filtering if server-side search didn't return results
+      if (searchTerm && teachersData.length > 0) {
+        const term = searchTerm.toLowerCase();
+        teachersData = teachersData.filter(
+          (teacher) =>
+            (teacher.firstName && teacher.firstName.toLowerCase().includes(term)) ||
+            (teacher.lastName && teacher.lastName.toLowerCase().includes(term)) ||
+            (teacher.username && teacher.username.toLowerCase().includes(term)) ||
+            (teacher.email && teacher.email.toLowerCase().includes(term))
+        );
+      }
+
+      setTeachers(teachersData);
     } catch (err) {
-      console.error('Error in fetchTeachersForEdit:', err);
+      console.error('Error fetching teachers:', err);
+      setTeachers([]);
       showToastMessage('Failed to fetch teachers', 'error');
     } finally {
       setLoadingTeachers(false);
     }
   }, []);
 
-  // Fetch all teachers for a school (when creating new class)
-  const fetchTeachersForSchool = useCallback(async (schoolId) => {
-    setLoadingTeachers(true);
-    try {
-      // First, let's try to fetch all teachers for the school
-      const teacherRequestData = {
-        limit: 0,
-        offset: 0,
-        sort: ['firstName', 'asc'],
-        filters: {
-          role: 'Teacher',
-          // Use the school cohortId to fetch teachers assigned to the school
-          cohortId: schoolId,
-          status: ['active'],
-        },
-      };
-
-      console.log('Fetching teachers for school:', schoolId);
-      console.log('Teacher request data:', teacherRequestData);
-
-      const response = await getCohortMemberList(teacherRequestData);
-
-      console.log('Teachers response:', response);
-
-      if (response && typeof response === 'object') {
-        let teachersData = [];
-
-        if (response.userDetails) {
-          teachersData = response.userDetails.map((teacher) => ({
-            id: teacher.userId,
-            name: `${teacher.firstName} ${teacher.lastName}`,
-            email: teacher.email || '',
-            userId: teacher.userId,
-            username: teacher.username,
-            firstName: teacher.firstName,
-            lastName: teacher.lastName,
-            status: teacher.status,
-            role: teacher.role,
-            cohortId: teacher.cohortId,
-          }));
-        } else if (Array.isArray(response)) {
-          teachersData = response.map((teacher) => ({
-            id: teacher.userId,
-            name: `${teacher.firstName} ${teacher.lastName}`,
-            email: teacher.email || '',
-            userId: teacher.userId,
-            username: teacher.username,
-            firstName: teacher.firstName,
-            lastName: teacher.lastName,
-            status: teacher.status,
-            role: teacher.role,
-            cohortId: teacher.cohortId,
-          }));
-        }
-
-        // If no teachers found with school cohortId, try to fetch teachers from all classes in the school
-        if (teachersData.length === 0) {
-          console.log('No teachers found for school, fetching from classes...');
-          await fetchTeachersFromAllClasses(schoolId);
-        } else {
-          setTeachers(teachersData);
-        }
-      } else {
-        console.log('No valid response, fetching from classes...');
-        await fetchTeachersFromAllClasses(schoolId);
-      }
-    } catch (err) {
-      console.error('Error fetching school teachers:', err);
-      // Try alternative approach
-      await fetchTeachersFromAllClasses(schoolId);
-    } finally {
-      setLoadingTeachers(false);
-    }
-  }, []);
+  // Debounced search handler - commented out
+  // const debouncedSearch = useMemo(
+  //   () =>
+  //     debounce((value) => {
+  //       setTeacherSearchTerm(value);
+  //     }, 400),
+  //   []
+  // );
 
   // Alternative: Fetch teachers from all classes in the school
   const fetchTeachersFromAllClasses = useCallback(async (schoolId) => {
@@ -669,17 +794,18 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
     }
   };
 
-  const handleClusterChange = (e) => {
-    const clusterId = e.target.value;
-    setSelectedCluster(clusterId);
-    setFormData((prev) => ({
-      ...prev,
-      schoolId: '',
-      teacherId: '',
-      className: '',
-    }));
-    setClasses([]);
-  };
+  // Cluster change handler - commented out as cluster dropdown is removed
+  // const handleClusterChange = (e) => {
+  //   const clusterId = e.target.value;
+  //   setSelectedCluster(clusterId);
+  //   setFormData((prev) => ({
+  //     ...prev,
+  //     schoolId: '',
+  //     teacherId: '',
+  //     className: '',
+  //   }));
+  //   setClasses([]);
+  // };
 
   const handleSchoolChange = (schoolId) => {
     setFormData((prev) => ({
@@ -691,6 +817,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
   };
 
   const isSubmittingRef = useRef(false);
+  const teacherSelectRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -704,6 +831,10 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
     isSubmittingRef.current = true;
     setLoading(true);
 
+    // Initialize slot update tracking (for CREATE MODE only)
+    // Declared here so it's accessible when setting success message
+    let slotUpdateSuccess = true;
+
     setLoading(true);
     try {
       // Prepare data for API
@@ -713,7 +844,8 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
       const selectedTeacher = teachers.find((t) => t.id === formData.teacherId);
 
       const classData = {
-        name: formData.className,
+        // Preserve the exact class name as entered (trimmed but original casing)
+        name: (formData.className || '').trim(),
         parentId: formData.schoolId,
         type: 'COHORT',
         status: formData.status,
@@ -739,24 +871,321 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         // Step 1: Update class details
         classData.cohortId = center.cohortId;
 
-        // Step 2: Assign teacher to class (if teacher has changed)
-        if (center.metadata?.teacherId !== formData.teacherId) {
-          console.log('👨‍🏫 Teacher changed, calling assignClassToTeacher API');
+        // Parse metadata to get original values
+        const originalMetadata = parseMetadata(center.metadata);
+        const originalFromTime = originalMetadata?.fromTime || '09:00 AM';
+        const originalToTime = originalMetadata?.toTime || '04:00 PM';
+        // Use assignedTeacherData.id if available (from API), otherwise fallback to metadata
+        // This ensures we compare with the actual active teacher, not just what's in metadata
+        const originalTeacherId = assignedTeacherData?.id || assignedTeacherData?.userId || originalMetadata?.teacherId || '';
 
-          const assignResponse = await assignClassToTeacher({
-            userId: [formData.teacherId],
-            cohortId: [center.cohortId],
-          });
+        // Step 2: Handle teacher reassignment (if teacher has changed)
+        // Check if teacher actually changed (comparing IDs)
+        const teacherChanged = originalTeacherId && formData.teacherId && originalTeacherId !== formData.teacherId;
+        
+        console.log('🔍 Teacher change check:', {
+          originalTeacherId,
+          newTeacherId: formData.teacherId,
+          teacherChanged,
+          assignedTeacherMembershipId,
+          assignedTeacherData: assignedTeacherData?.id
+        });
+        
+        if (teacherChanged) {
+          console.log('👨‍🏫 Teacher changed, reassigning teacher');
+          console.log('Original teacher ID:', originalTeacherId);
+          console.log('New teacher ID:', formData.teacherId);
+          console.log('Stored membershipId:', assignedTeacherMembershipId);
+          
+          try {
+            // Step 2a: Archive the old teacher if one exists
+            let oldMembershipId = assignedTeacherMembershipId;
+            
+            // If membershipId is not stored, fetch it from API
+            if (!oldMembershipId && originalTeacherId) {
+              console.log('📡 Fetching old teacher membershipId from API');
+              try {
+                const teacherRequestData = {
+                  limit: 300,
+                  offset: 0,
+                  filters: {
+                    cohortId: center.cohortId,
+                    role: 'Teacher',
+                  },
+                  sort: ['name', 'asc'],
+                };
 
-          console.log('Assign teacher response:', assignResponse);
+                const memberResponse = await getCohortMemberList(teacherRequestData);
 
-          if (
-            assignResponse?.responseCode === 200 ||
-            assignResponse?.responseCode === 201
-          ) {
-            console.log('✅ Teacher assigned successfully');
+                if (memberResponse && memberResponse.userDetails) {
+                  // Find the old teacher (could be active or archived)
+                  const oldTeacher = memberResponse.userDetails.find(
+                    (member) => member.userId === originalTeacherId
+                  );
+                  
+                  if (oldTeacher) {
+                    oldMembershipId = oldTeacher.cohortMembershipId || oldTeacher.id || oldTeacher.membershipId;
+                    console.log('Found old teacher membershipId:', oldMembershipId);
+                  }
+                }
+              } catch (fetchError) {
+                console.error('Failed to fetch old teacher membership:', fetchError);
+              }
+            }
+            
+            if (originalTeacherId && oldMembershipId) {
+              console.log('📦 Archiving old teacher:', originalTeacherId, 'MembershipId:', oldMembershipId);
+              
+              try {
+                await put(
+                  API_ENDPOINTS.cohortMemberUpdate(oldMembershipId),
+                  {
+                    status: 'archived',
+                  }
+                );
+                console.log('✅ Old teacher archived successfully');
+              } catch (archiveError) {
+                console.error('❌ Failed to archive old teacher:', archiveError);
+                throw new Error('Failed to remove previous teacher. Please try again.');
+              }
+            } else {
+              console.warn('⚠️ Cannot archive old teacher - missing teacherId or membershipId');
+            }
+
+            // Step 2b: Assign new teacher using bulkCreate
+            if (formData.teacherId) {
+              console.log('➕ Assigning new teacher via bulkCreate:', formData.teacherId);
+              
+              const bulkCreateResponse = await post(
+                API_ENDPOINTS.cohortMemberBulkCreate,
+                {
+                  userId: [formData.teacherId],
+                  cohortId: [center.cohortId],
+                }
+              );
+              console.log('BulkCreate response:', bulkCreateResponse);
+
+              // Extract cohortMembershipId from bulkCreate response
+              let newCohortMembershipId = null;
+              const responseData = bulkCreateResponse?.data?.result || bulkCreateResponse?.data || bulkCreateResponse?.result;
+              
+              if (responseData) {
+                if (Array.isArray(responseData)) {
+                  newCohortMembershipId = responseData[0]?.cohortMembershipId || responseData[0]?.id || responseData[0]?.membershipId;
+                } else if (responseData.cohortMembershipId) {
+                  newCohortMembershipId = responseData.cohortMembershipId;
+                } else if (responseData.id) {
+                  newCohortMembershipId = responseData.id;
+                } else if (responseData.membershipId) {
+                  newCohortMembershipId = responseData.membershipId;
+                } else if (responseData.userDetails && Array.isArray(responseData.userDetails)) {
+                  newCohortMembershipId = responseData.userDetails[0]?.cohortMembershipId || responseData.userDetails[0]?.membershipId;
+                } else if (responseData.result && Array.isArray(responseData.result)) {
+                  newCohortMembershipId = responseData.result[0]?.cohortMembershipId || responseData.result[0]?.membershipId;
+                }
+              }
+
+              // Step 2c: Update slot for new teacher (only if user has interacted with time pickers)
+              if (newCohortMembershipId && timeSlotTouched) {
+                // Ensure we use clean string values, not stringified JSON
+                const fromTime = String(formData.fromTime || '').trim();
+                const toTime = String(formData.toTime || '').trim();
+                
+                // Only update if both times are set
+                if (fromTime && toTime) {
+                  const slotValue = `${fromTime} - ${toTime}`;
+                  const slotFieldId = 'f3658b23-1394-48a9-afc5-7589874465af';
+
+                  console.log('📝 Updating slot for new teacher with:', { fromTime, toTime, slotValue });
+
+                  try {
+                    await put(
+                      API_ENDPOINTS.cohortMemberUpdate(newCohortMembershipId),
+                      {
+                        cohortId: center.cohortId,
+                        customFields: [
+                          {
+                            fieldId: slotFieldId,
+                            value: [slotValue], // Value should be an array with a single string
+                          },
+                        ],
+                      }
+                    );
+                    console.log('✅ Slot updated for new teacher:', slotValue);
+                  } catch (slotError) {
+                    slotUpdateSuccess = false;
+                    console.error('Failed to update slot for new teacher:', slotError);
+                  }
+                } else {
+                  console.log('⏭️ Skipping slot update for new teacher - time slot not explicitly selected');
+                }
+              } else if (newCohortMembershipId && !timeSlotTouched) {
+                console.log('⏭️ Skipping slot update for new teacher - user has not interacted with time pickers');
+              } else {
+                slotUpdateSuccess = false;
+                console.warn('⚠️ CohortMembershipId not found for new teacher');
+              }
+              
+              console.log('✅ Teacher reassigned successfully');
+            }
+          } catch (reassignError) {
+            console.error('❌ Failed to reassign teacher:', reassignError);
+            throw reassignError; // Re-throw to stop the update process
+          }
+        }
+
+        // Step 3: Handle teacher assignment if no teacher was assigned before
+        if (!originalTeacherId && formData.teacherId) {
+          console.log('👨‍🏫 Adding new teacher to class via bulkCreate');
+          
+          try {
+            const bulkCreateResponse = await post(
+              API_ENDPOINTS.cohortMemberBulkCreate,
+              {
+                userId: [formData.teacherId],
+                cohortId: [center.cohortId],
+              }
+            );
+            console.log('BulkCreate response:', bulkCreateResponse);
+
+            // Extract cohortMembershipId from bulkCreate response
+            let cohortMembershipId = null;
+            const responseData = bulkCreateResponse?.data?.result || bulkCreateResponse?.data || bulkCreateResponse?.result;
+            
+            if (responseData) {
+              if (Array.isArray(responseData)) {
+                cohortMembershipId = responseData[0]?.cohortMembershipId || responseData[0]?.id || responseData[0]?.membershipId;
+              } else if (responseData.cohortMembershipId) {
+                cohortMembershipId = responseData.cohortMembershipId;
+              } else if (responseData.id) {
+                cohortMembershipId = responseData.id;
+              } else if (responseData.membershipId) {
+                cohortMembershipId = responseData.membershipId;
+              } else if (responseData.userDetails && Array.isArray(responseData.userDetails)) {
+                cohortMembershipId = responseData.userDetails[0]?.cohortMembershipId || responseData.userDetails[0]?.membershipId;
+              } else if (responseData.result && Array.isArray(responseData.result)) {
+                cohortMembershipId = responseData.result[0]?.cohortMembershipId || responseData.result[0]?.membershipId;
+              }
+            }
+
+            // Update slot immediately after assigning teacher (only if user has interacted with time pickers)
+            if (cohortMembershipId && timeSlotTouched) {
+              // Ensure we use clean string values, not stringified JSON
+              const fromTime = String(formData.fromTime || '').trim();
+              const toTime = String(formData.toTime || '').trim();
+              
+              // Only update if both times are set
+              if (fromTime && toTime) {
+                const slotValue = `${fromTime} - ${toTime}`;
+                const slotFieldId = 'f3658b23-1394-48a9-afc5-7589874465af';
+
+                console.log('📝 Updating slot after teacher assignment with:', { fromTime, toTime, slotValue });
+
+                try {
+                  await put(
+                    API_ENDPOINTS.cohortMemberUpdate(cohortMembershipId),
+                    {
+                      cohortId: center.cohortId,
+                      customFields: [
+                        {
+                          fieldId: slotFieldId,
+                          value: [slotValue], // Value should be an array with a single string
+                        },
+                      ],
+                    }
+                  );
+                  console.log('✅ Slot updated after teacher assignment:', slotValue);
+                } catch (slotError) {
+                  slotUpdateSuccess = false;
+                  console.error('Failed to update slot after teacher assignment:', slotError);
+                }
+              } else {
+                console.log('⏭️ Skipping slot update after teacher assignment - time slot not explicitly selected');
+              }
+            } else if (cohortMembershipId && !timeSlotTouched) {
+              console.log('⏭️ Skipping slot update after teacher assignment - user has not interacted with time pickers');
+            }
+          } catch (assignError) {
+            console.error('Failed to assign teacher:', assignError);
+            slotUpdateSuccess = false;
+          }
+        }
+
+        // Step 4: Update slot if time has changed and teacher is assigned
+        // Only update if user has explicitly interacted with time pickers
+        const slotChanged = 
+          (originalFromTime !== formData.fromTime || originalToTime !== formData.toTime);
+        const currentTeacherId = formData.teacherId || originalTeacherId;
+
+        if (slotChanged && timeSlotTouched && currentTeacherId) {
+          console.log('⏰ Slot time changed, updating slot for teacher:', currentTeacherId);
+          
+          // Use stored cohortMembershipId or fetch it from cohortmember/list API
+          let cohortMembershipId = assignedTeacherMembershipId;
+
+          // If not stored, fetch from cohortmember/list API
+          if (!cohortMembershipId) {
+            try {
+              const teacherRequestData = {
+                limit: 300,
+                offset: 0,
+                filters: {
+                  cohortId: center.cohortId,
+                  role: 'Teacher',
+                },
+                sort: ['name', 'asc'],
+              };
+
+              const memberResponse = await getCohortMemberList(teacherRequestData);
+
+              if (memberResponse && memberResponse.userDetails) {
+                const teacherMember = memberResponse.userDetails.find(
+                  (member) => member.userId === currentTeacherId
+                );
+                
+                if (teacherMember) {
+                  cohortMembershipId = teacherMember.cohortMembershipId || teacherMember.id || teacherMember.membershipId;
+                }
+              }
+            } catch (memberError) {
+              slotUpdateSuccess = false;
+              console.error('Failed to fetch teacher membership:', memberError);
+            }
+          }
+
+          if (cohortMembershipId) {
+            console.log('CohortMembershipId found:', cohortMembershipId);
+            
+            // Update the slot with new fromTime and toTime
+            // Ensure we use clean string values, not stringified JSON
+            const fromTime = String(formData.fromTime || '').trim();
+            const toTime = String(formData.toTime || '').trim();
+            const slotValue = `${fromTime} - ${toTime}`;
+            const slotFieldId = 'f3658b23-1394-48a9-afc5-7589874465af';
+
+            console.log('📝 Updating slot with:', { fromTime, toTime, slotValue });
+
+            try {
+              await put(
+                API_ENDPOINTS.cohortMemberUpdate(cohortMembershipId),
+                {
+                  cohortId: center.cohortId,
+                  customFields: [
+                    {
+                      fieldId: slotFieldId,
+                      value: [slotValue], // Value should be an array with a single string
+                    },
+                  ],
+                }
+              );
+              console.log('✅ Slot updated successfully in edit mode:', slotValue);
+            } catch (slotError) {
+              slotUpdateSuccess = false;
+              console.error('Failed to update slot in edit mode:', slotError);
+            }
           } else {
-            console.warn('⚠️ Teacher assignment failed, but class was updated');
+            slotUpdateSuccess = false;
+            console.warn('CohortMembershipId not found for teacher:', currentTeacherId);
           }
         }
 
@@ -788,16 +1217,86 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
             updatedAt: new Date().toISOString(),
           };
 
-          // For new classes, assign teacher immediately
+          // For new classes, assign teacher immediately using bulkCreate
           if (formData.teacherId && newClassId) {
              console.log('Assigning teacher to new class:', newClassId);
              try {
-                await assignClassToTeacher({
+                // Step 1: Call bulkCreate API to add teacher to cohort
+                const bulkCreateResponse = await post(
+                  API_ENDPOINTS.cohortMemberBulkCreate,
+                  {
                     userId: [formData.teacherId],
                     cohortId: [newClassId],
-                  });
+                  }
+                );
+                console.log('BulkCreate response:', bulkCreateResponse);
+
+                // Step 2: Extract cohortMembershipId from response
+                // Response structure can vary, try multiple paths
+                let cohortMembershipId = null;
+                const responseData = bulkCreateResponse?.data?.result || bulkCreateResponse?.data || bulkCreateResponse?.result;
+                
+                
+                if (responseData) {
+                  // Check if it's an array and get the first item
+                  if (Array.isArray(responseData)) {
+                    cohortMembershipId = responseData[0]?.cohortMembershipId || responseData[0]?.id || responseData[0]?.membershipId;
+                  } else if (responseData.cohortMembershipId) {
+                    cohortMembershipId = responseData.cohortMembershipId;
+                  } else if (responseData.id) {
+                    cohortMembershipId = responseData.id;
+                  } else if (responseData.membershipId) {
+                    cohortMembershipId = responseData.membershipId;
+                  } else if (responseData.userDetails && Array.isArray(responseData.userDetails)) {
+                    cohortMembershipId = responseData.userDetails[0]?.cohortMembershipId || responseData.userDetails[0]?.membershipId;
+                  } else if (responseData.result && Array.isArray(responseData.result)) {
+                    cohortMembershipId = responseData.result[0]?.cohortMembershipId || responseData.result[0]?.membershipId;
+                  }
+                }
+
+                if (cohortMembershipId) {
+                  console.log('CohortMembershipId extracted:', cohortMembershipId);
+
+                  // Step 3: Update the slot with fromTime and toTime
+                  // Only update slot if user has explicitly interacted with time pickers
+                  const fromTime = String(formData.fromTime || '').trim();
+                  const toTime = String(formData.toTime || '').trim();
+                  
+                  // Only update slot if user has touched the time pickers and both times are set
+                  if (timeSlotTouched && fromTime && toTime) {
+                    // Format: "09:00 AM - 04:00 PM" in array
+                    const slotValue = `${fromTime} - ${toTime}`;
+                    const slotFieldId = 'f3658b23-1394-48a9-afc5-7589874465af'; // Hardcoded fieldId for slot
+
+                    try {
+                      const updateResponse = await put(
+                        API_ENDPOINTS.cohortMemberUpdate(cohortMembershipId),
+                        {
+                          cohortId: newClassId,
+                          customFields: [
+                            {
+                              fieldId: slotFieldId,
+                              value: [slotValue], // Value should be an array
+                            },
+                          ],
+                        }
+                      );
+                      console.log('Slot updated successfully:', slotValue, updateResponse);
+                    } catch (slotError) {
+                      slotUpdateSuccess = false;
+                      console.error('Failed to update slot:', slotError);
+                    }
+                  } else {
+                    console.log('⏭️ Skipping slot update - user has not interacted with time pickers');
+                  }
+                } else {
+                  slotUpdateSuccess = false;
+                  console.warn('CohortMembershipId not found in bulkCreate response. Full response:', bulkCreateResponse);
+                }
              } catch (assignError) {
-                 console.error('Failed to auto-assign teacher:', assignError);
+                 console.error('Failed to assign teacher:', assignError);
+                 // Don't fail the entire operation if this fails
+                 slotUpdateSuccess = false;
              }
           }
         } else if (response?.responseCode === 409) {
@@ -815,17 +1314,53 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         onSubmit(resultData);
       }
 
-      setSuccessMessage(
-        isEditing
-          ? 'Class updated successfully!'
-          : 'Class created successfully!'
-      );
+      // Set success message based on slot update status
+      if (isEditing) {
+        // Check if teacher was changed
+        const originalMetadata = parseMetadata(center?.metadata);
+        const originalTeacherId = originalMetadata?.teacherId || '';
+        const teacherChanged = originalTeacherId !== formData.teacherId;
+        
+        // Check if slot was updated
+        const originalFromTime = originalMetadata?.fromTime || '09:00 AM';
+        const originalToTime = originalMetadata?.toTime || '04:00 PM';
+        const slotChanged = 
+          (originalFromTime !== formData.fromTime || originalToTime !== formData.toTime);
+        
+        if (teacherChanged) {
+          if (slotUpdateSuccess) {
+            setSuccessMessage('Class updated and teacher reassigned successfully!');
+          } else {
+            setSuccessMessage('Class updated and teacher reassigned');
+          }
+        } else if (slotChanged && (formData.teacherId || originalMetadata?.teacherId)) {
+          if (slotUpdateSuccess) {
+            setSuccessMessage('Class and slot timing updated successfully!');
+          } else {
+            setSuccessMessage('Class updated successfully');
+          }
+        } else {
+          setSuccessMessage('Class updated successfully!');
+        }
+      } else {
+        // Only check slotUpdateSuccess for CREATE MODE
+        // slotUpdateSuccess is only set in CREATE MODE, so check if teacher was assigned
+        if (formData.teacherId) {
+          if (slotUpdateSuccess) {
+            setSuccessMessage('Class created and teacher assigned successfully!');
+          } else {
+            setSuccessMessage('Class created and teacher assigned');
+          }
+        } else {
+          setSuccessMessage('Class created successfully!');
+        }
+      }
 
       // Close after success
       setTimeout(() => {
         onClose();
         setSuccessMessage('');
-      }, 1500);
+      }, 3000);
     } catch (error) {
            console.error('Error saving class:', error);
 
@@ -886,17 +1421,11 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
 
   // Get teacher helper text
   const getTeacherHelperText = () => {
-    if (loadingTeachers) return 'Loading teachers...';
+    if (loadingTeachers && teachers.length === 0) return 'Loading teachers...';
     if (teachers.length === 0) return 'No teachers available';
-
-    if (isEditing) {
-      return `${teachers.length} teacher(s) assigned to this class`;
-    } else {
-      const activeTeachers = teachers.filter((t) => t.status === 'active');
-      const uniqueClasses = new Set(teachers.map((t) => t.sourceClassId)).size;
-      return `${activeTeachers.length} active teacher(s) found from ${uniqueClasses} class(es)`;
-    }
+    return `${teachers.length} teacher(s) available`;
   };
+
 
   return (
     <>
@@ -925,8 +1454,8 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         <form onSubmit={handleSubmit}>
           <DialogContent dividers sx={{ py: 2 }}>
             <Grid container spacing={2}>
-              {/* Cluster Selection */}
-              <Grid item xs={12}>
+              {/* Cluster Selection - Commented out */}
+              {/* <Grid item xs={12}>
                 <FormControl
                   fullWidth
                   margin="dense"
@@ -954,51 +1483,64 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                     <FormHelperText>{errors.clusterId}</FormHelperText>
                   )}
                 </FormControl>
-              </Grid>
+              </Grid> */}
 
               {/* School Selection */}
               <Grid item xs={12}>
-                <FormControl
-                  fullWidth
-                  margin="dense"
-                  error={!!errors.schoolId}
-                >
-                  <InputLabel id="school-label">Select School *</InputLabel>
-                  <Select
-                    labelId="school-label"
-                    id="schoolId"
-                    name="schoolId"
-                    value={formData.schoolId}
-                    onChange={(e) => handleSchoolChange(e.target.value)}
-                    label="Select School *"
-                    disabled={loading || !selectedCluster || loadingSchools}
+                {isEditing ? (
+                  <TextField
+                    fullWidth
+                    label="School"
+                    value={schools.find((s) => s.cohortId === formData.schoolId)?.name || formData.schoolId || ''}
+                    margin="dense"
+                    InputProps={{
+                      readOnly: true,
+                    }}
+                    helperText="School cannot be changed"
+                  />
+                ) : (
+                  <FormControl
+                    fullWidth
+                    margin="dense"
+                    error={!!errors.schoolId}
                   >
-                    <MenuItem value="">
-                      <em>Select a school</em>
-                    </MenuItem>
-                    {loadingSchools ? (
-                      <MenuItem disabled>
-                        <CircularProgress size={20} />
-                        <Typography variant="body2" sx={{ ml: 2 }}>
-                          Loading schools...
-                        </Typography>
+                    <InputLabel id="school-label">Select School *</InputLabel>
+                    <Select
+                      labelId="school-label"
+                      id="schoolId"
+                      name="schoolId"
+                      value={formData.schoolId}
+                      onChange={(e) => handleSchoolChange(e.target.value)}
+                      label="Select School *"
+                      disabled={loading || loadingSchools}
+                    >
+                      <MenuItem value="">
+                        <em>Select a school</em>
                       </MenuItem>
-                    ) : (
-                      schools.map((school) => (
-                        <MenuItem key={school.cohortId} value={school.cohortId}>
-                          {school.name}
+                      {loadingSchools ? (
+                        <MenuItem disabled>
+                          <CircularProgress size={20} />
+                          <Typography variant="body2" sx={{ ml: 2 }}>
+                            Loading schools...
+                          </Typography>
                         </MenuItem>
-                      ))
+                      ) : (
+                        schools.map((school) => (
+                          <MenuItem key={school.cohortId} value={school.cohortId}>
+                            {school.name}
+                          </MenuItem>
+                        ))
+                      )}
+                    </Select>
+                    {errors.schoolId && (
+                      <FormHelperText>{errors.schoolId}</FormHelperText>
                     )}
-                  </Select>
-                  {errors.schoolId && (
-                    <FormHelperText>{errors.schoolId}</FormHelperText>
-                  )}
-                </FormControl>
+                  </FormControl>
+                )}
               </Grid>
 
               {/* Existing Classes Display */}
-              {formData.schoolId && classes.length > 0 && (
+              {/* {formData.schoolId && classes.length > 0 && (
                 <Grid item xs={12}>
                   <Box
                     sx={{
@@ -1042,7 +1584,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                     </Box>
                   </Box>
                 </Grid>
-              )}
+              )} */}
 
               {/* Class Name */}
               <Grid item xs={12}>
@@ -1056,13 +1598,16 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                   onChange={handleChange}
                   error={!!errors.className}
                   helperText={
-                    errors.className || 'Enter a unique name for this class'
+                    isEditing 
+                      ? 'Class name cannot be changed'
+                      : (errors.className || 'Enter a unique name for this class')
                   }
                   margin="dense"
-                  disabled={loading || !formData.schoolId}
+                  disabled={loading || !formData.schoolId || isEditing}
                   required
                   InputProps={{
-                    endAdornment: formData.className && (
+                    readOnly: isEditing,
+                    endAdornment: formData.className && !isEditing && (
                       <Chip
                         label={
                           isClassNameTaken(formData.className)
@@ -1078,11 +1623,17 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                       />
                     ),
                   }}
+                sx={{
+                  '& .MuiInputBase-input.Mui-disabled': {
+                    WebkitTextFillColor: 'inherit',
+                    color: 'text.primary',
+                  },
+                }}
                 />
               </Grid>
 
               {/* Teacher Selection */}
-              {/* <Grid item xs={12}>
+              <Grid item xs={12}>
                 <FormControl
                   fullWidth
                   margin="normal"
@@ -1092,6 +1643,12 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                     {getTeacherLabel()}
                   </InputLabel>
                   <Select
+                      ref={(node) => {
+                        teacherSelectRef.current = node;
+                        if (node) {
+                          setTeacherSelectWidth(node.clientWidth);
+                        }
+                      }}
                     labelId="teacher-label"
                     id="teacherId"
                     name="teacherId"
@@ -1100,12 +1657,111 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                       handleSelectChange('teacherId', e.target.value)
                     }
                     label={getTeacherLabel()}
-                    disabled={loading || !formData.schoolId || loadingTeachers}
+                      disabled={loading || (loadingTeachers && teachers.length === 0)}
+                    MenuProps={{
+                      PaperProps: {
+                        sx: {
+                          maxHeight: 300,
+                          width: teacherSelectWidth ? `${teacherSelectWidth}px` : 'auto',
+                          minWidth: teacherSelectWidth ? `${teacherSelectWidth}px` : 'auto',
+                          maxWidth: teacherSelectWidth ? `${teacherSelectWidth}px` : 'none',
+                          overflowX: 'auto',
+                          overflowY: 'auto',
+                          '&::-webkit-scrollbar': {
+                            width: '0px',
+                            height: '0px',
+                            background: 'transparent',
+                          },
+                          '&::-webkit-scrollbar-thumb': {
+                            background: 'transparent',
+                          },
+                          '&::-webkit-scrollbar-track': {
+                            background: 'transparent',
+                          },
+                          scrollbarWidth: 'none',
+                          msOverflowStyle: 'none',
+                          '& .MuiList-root': {
+                            overflowX: 'auto',
+                            overflowY: 'auto',
+                            '&::-webkit-scrollbar': {
+                              width: '0px',
+                              height: '0px',
+                              background: 'transparent',
+                            },
+                            '&::-webkit-scrollbar-thumb': {
+                              background: 'transparent',
+                            },
+                            '&::-webkit-scrollbar-track': {
+                              background: 'transparent',
+                            },
+                            scrollbarWidth: 'none',
+                            msOverflowStyle: 'none',
+                          },
+                          '& .MuiListSubheader-root': {
+                            position: 'sticky',
+                            top: 0,
+                            backgroundColor: 'background.paper',
+                            zIndex: 10,
+                            padding: '8px',
+                            paddingBottom: '4px',
+                            borderBottom: '1px solid',
+                            borderColor: 'divider',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                          },
+                          '& .MuiMenuItem-root': {
+                            whiteSpace: 'nowrap',
+                            overflowX: 'auto',
+                            minWidth: 'max-content',
+                          },
+                        },
+                      },
+                      anchorOrigin: {
+                        vertical: 'bottom',
+                        horizontal: 'left',
+                      },
+                      transformOrigin: {
+                        vertical: 'top',
+                        horizontal: 'left',
+                      },
+                      autoFocus: false,
+                    }}
                   >
+                    <ListSubheader sx={{ px: 1, py: 0.5, lineHeight: 1, m: 0, width: '100%' }}>
+                      <TextField
+                        size="small"
+                        placeholder="Search teachers..."
+                        value={teacherSearchTerm}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setTeacherSearchTerm(e.target.value);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                        fullWidth
+                        sx={{ 
+                          mb: 0.5,
+                          width: 'calc(100% - 16px)',
+                          '& .MuiOutlinedInput-root': {
+                            backgroundColor: 'background.paper',
+                            fontSize: '0.875rem',
+                          },
+                          '& .MuiInputBase-input': {
+                            padding: '6px 8px',
+                          },
+                        }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start" sx={{ ml: 0 }}>
+                              <SearchIcon fontSize="small" />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    </ListSubheader>
                     <MenuItem value="">
                       <em>Select a teacher</em>
                     </MenuItem>
-                    {loadingTeachers ? (
+                    {loadingTeachers && teachers.length === 0 ? (
                       <MenuItem disabled>
                         <CircularProgress size={20} />
                         <Typography variant="body2" sx={{ ml: 2 }}>
@@ -1114,17 +1770,21 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                       </MenuItem>
                     ) : teachers.length === 0 ? (
                       <MenuItem disabled>
-                        {isEditing
-                          ? 'No teachers assigned to this class'
-                          : 'No teachers available for this school'}
+                        No teachers available
                       </MenuItem>
                     ) : (
                       teachers.map((teacher) => (
-                        <MenuItem key={teacher.id} value={teacher.id}>
+                        <MenuItem 
+                          key={teacher.id} 
+                          value={teacher.id}
+                          sx={{
+                            whiteSpace: 'nowrap',
+                            overflowX: 'auto',
+                            minWidth: 'max-content',
+                          }}
+                        >
                           {teacher.firstName} {teacher.lastName}
-                          {teacher.sourceClass && ` - ${teacher.sourceClass}`}
-                          {teacher.status !== 'active' &&
-                            ` - ${teacher.status}`}
+                          {teacher.email && ` (${teacher.email})`}
                         </MenuItem>
                       ))
                     )}
@@ -1134,7 +1794,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                   )}
                   <FormHelperText>{getTeacherHelperText()}</FormHelperText>
                 </FormControl>
-              </Grid> */}
+              </Grid>
 
               {/* Time Selection - Using MUI TimePicker */}
               <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -1145,13 +1805,14 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                     error={!!errors.fromTime}
                   >
                     <TimePicker
-                      label="From Time *"
+                      label="From Time"
                       value={
                         formData.fromTime
                           ? dayjs(formData.fromTime, 'hh:mm A')
                           : null
                       }
                       onChange={(newValue) => {
+                        setTimeSlotTouched(true); // Mark that user has interacted with time picker
                         handleSelectChange(
                           'fromTime',
                           newValue ? newValue.format('hh:mm A') : ''
@@ -1162,7 +1823,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                         textField: {
                           fullWidth: true,
                           error: !!errors.fromTime,
-                          helperText: errors.fromTime,
+                          helperText: errors.fromTime || (isEditing && assignedTeacherData?.slot ? `Current slot: ${assignedTeacherData.slot}` : ''),
                           sx: {
                             '& .MuiInputBase-input': {
                               color: 'text.primary',
@@ -1189,13 +1850,14 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth margin="dense" error={!!errors.toTime}>
                     <TimePicker
-                      label="To Time *"
+                      label="To Time"
                       value={
                         formData.toTime
                           ? dayjs(formData.toTime, 'hh:mm A')
                           : null
                       }
                       onChange={(newValue) => {
+                        setTimeSlotTouched(true); // Mark that user has interacted with time picker
                         handleSelectChange(
                           'toTime',
                           newValue ? newValue.format('hh:mm A') : ''
@@ -1255,7 +1917,8 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
               disabled={
                 loading ||
                 !formData.schoolId ||
-                // !formData.teacherId ||
+                !formData.className.trim() ||
+                !formData.teacherId ||
                 isClassNameTaken(formData.className)
               }
               sx={{ minWidth: 120 }}

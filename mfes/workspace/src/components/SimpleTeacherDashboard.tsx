@@ -340,7 +340,7 @@ const MAX_BACKDATED_MARK_DAYS = 7;
     const fetchOBLFLocation = async () => {
       if (role === 'Staff') {
         try {
-          const filters = { type: 'SCHOOL', status: ['active'] };
+          const filters = { type: 'SCHOOL', status: ['active'] } as any;
           const response = await cohortList({ limit: 0, offset: 0, filters });
           const cohorts = response?.results?.cohortDetails || [];
           const oblfEntity = cohorts.find(
