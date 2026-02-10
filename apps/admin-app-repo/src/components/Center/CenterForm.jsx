@@ -72,7 +72,7 @@ const timeOptions = [
   '08:00 PM',
 ];
 
-const CenterForm = ({ open, onClose, onSubmit, center }) => {
+const CenterForm = ({ open, onClose, onSubmit, center, isCenter = false, parentName = '' }) => {
   const [formData, setFormData] = useState({
     schoolId: '',
     className: '',
@@ -99,6 +99,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
   const [classes, setClasses] = useState([]);
   const [selectedCluster, setSelectedCluster] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [schoolSearchTerm, setSchoolSearchTerm] = useState(''); // New state for school search
   
   // Search state for teachers
   const [teacherSearchTerm, setTeacherSearchTerm] = useState('');
@@ -376,7 +377,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         limit: 0,
         offset: 0,
         filters: {
-          type: 'SCHOOL',
+          type: isCenter ? 'CLUSTER' : 'SCHOOL',
           status: ['active'],
           // parentId removed - fetch all schools
         },
@@ -397,7 +398,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
       setSchools(allSchools);
     } catch (err) {
       console.error('Error fetching schools:', err);
-      showToastMessage('Failed to fetch school information', 'error');
+      showToastMessage(`Failed to fetch ${isCenter ? 'cluster' : 'school'} information`, 'error');
     }
   };
 
@@ -440,7 +441,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         limit: 0,
         offset: 0,
         filters: {
-          type: 'SCHOOL',
+          type: isCenter ? 'CLUSTER' : 'SCHOOL',
           status: ['active'],
           // parentId removed - fetch all schools
         },
@@ -461,23 +462,23 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
     } catch (err) {
       console.error('Error fetching schools:', err);
       setSchools([]);
-      showToastMessage('Failed to fetch schools', 'error');
+      showToastMessage(`Failed to fetch ${isCenter ? 'clusters' : 'schools'}`, 'error');
     } finally {
       setLoadingSchools(false);
     }
   };
 
-  // Fetch classes for selected school
-  const fetchClasses = async (schoolId) => {
+  // Fetch centers/classes for selected parent
+  const fetchClasses = async (parentId) => {
     setLoadingClasses(true);
     try {
       const classRequestData = {
         limit: 0,
         offset: 0,
         filters: {
-          type: 'COHORT',
+          type: isCenter ? 'SCHOOL' : 'COHORT',
           status: ['active'],
-          parentId: [schoolId],
+          parentId: [parentId],
         },
       };
 
@@ -494,9 +495,9 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         setClasses([]);
       }
     } catch (err) {
-      console.error('Error fetching classes:', err);
+      console.error(`Error fetching ${isCenter ? 'centers' : 'classes'}:`, err);
       setClasses([]);
-      showToastMessage('Failed to fetch classes', 'error');
+      showToastMessage(`Failed to fetch ${isCenter ? 'centers' : 'classes'}`, 'error');
     } finally {
       setLoadingClasses(false);
     }
@@ -881,7 +882,8 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
 
         // Step 2: Handle teacher reassignment (if teacher has changed)
         // Check if teacher actually changed (comparing IDs)
-        const teacherChanged = originalTeacherId && formData.teacherId && originalTeacherId !== formData.teacherId;
+        // Trigger if there was an original teacher and the new ID is different (including if it's now empty)
+        const teacherChanged = originalTeacherId && originalTeacherId !== formData.teacherId;
         
         console.log('🔍 Teacher change check:', {
           originalTeacherId,
@@ -894,7 +896,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         if (teacherChanged) {
           console.log('👨‍🏫 Teacher changed, reassigning teacher');
           console.log('Original teacher ID:', originalTeacherId);
-          console.log('New teacher ID:', formData.teacherId);
+          console.log('New teacher ID:', formData.teacherId || 'None');
           console.log('Stored membershipId:', assignedTeacherMembershipId);
           
           try {
@@ -911,6 +913,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                   filters: {
                     cohortId: center.cohortId,
                     role: 'Teacher',
+                    // We don't filter by status here to find the membership even if it's already in a different state
                   },
                   sort: ['name', 'asc'],
                 };
@@ -918,8 +921,10 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                 const memberResponse = await getCohortMemberList(teacherRequestData);
 
                 if (memberResponse && memberResponse.userDetails) {
-                  // Find the old teacher (could be active or archived)
+                  // Find the teacher's record - prefer an active one if multiple exist
                   const oldTeacher = memberResponse.userDetails.find(
+                    (member) => member.userId === originalTeacherId && member.status === 'active'
+                  ) || memberResponse.userDetails.find(
                     (member) => member.userId === originalTeacherId
                   );
                   
@@ -1329,30 +1334,30 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
         
         if (teacherChanged) {
           if (slotUpdateSuccess) {
-            setSuccessMessage('Class updated and teacher reassigned successfully!');
+            setSuccessMessage(`${isCenter ? 'Center' : 'Class'} updated and teacher reassigned successfully!`);
           } else {
-            setSuccessMessage('Class updated and teacher reassigned');
+            setSuccessMessage(`${isCenter ? 'Center' : 'Class'} updated and teacher reassigned`);
           }
         } else if (slotChanged && (formData.teacherId || originalMetadata?.teacherId)) {
           if (slotUpdateSuccess) {
-            setSuccessMessage('Class and slot timing updated successfully!');
+            setSuccessMessage(`${isCenter ? 'Center' : 'Class'} and slot timing updated successfully!`);
           } else {
-            setSuccessMessage('Class updated successfully');
+            setSuccessMessage(`${isCenter ? 'Center' : 'Class'} updated successfully`);
           }
         } else {
-          setSuccessMessage('Class updated successfully!');
+          setSuccessMessage(`${isCenter ? 'Center' : 'Class'} updated successfully!`);
         }
       } else {
         // Only check slotUpdateSuccess for CREATE MODE
         // slotUpdateSuccess is only set in CREATE MODE, so check if teacher was assigned
         if (formData.teacherId) {
           if (slotUpdateSuccess) {
-            setSuccessMessage('Class created and teacher assigned successfully!');
+            setSuccessMessage(`${isCenter ? 'Center' : 'Class'} created and teacher assigned successfully!`);
           } else {
-            setSuccessMessage('Class created and teacher assigned');
+            setSuccessMessage(`${isCenter ? 'Center' : 'Class'} created and teacher assigned`);
           }
         } else {
-          setSuccessMessage('Class created successfully!');
+          setSuccessMessage(`${isCenter ? 'Center' : 'Class'} created successfully!`);
         }
       }
 
@@ -1366,12 +1371,12 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
 
       let errorMsg;
       if (error.message.includes('already exists')) {
-        errorMsg = 'Class name already exists. Please use a different name.';
+        errorMsg = `${isCenter ? 'Center' : 'Class'} name already exists. Please use a different name.`;
         setErrors((prev) => ({ ...prev, className: errorMsg }));
       } else if (error.message.includes('Network Error')) {
         errorMsg = 'Network error. Please check your connection and try again.';
       } else {
-        errorMsg = error.message || 'Failed to save class. Please try again.';
+        errorMsg = error.message || `Failed to save ${isCenter ? 'center' : 'class'}. Please try again.`;
       }
 
       setErrorMessage(errorMsg);
@@ -1414,7 +1419,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
   // Get teacher selection label based on mode
   const getTeacherLabel = () => {
     if (isEditing) {
-      return 'Class Teacher (Assigned to this class)';
+      return `Class Teacher (Assigned to this ${isCenter ? 'center' : 'class'})`;
     }
     return 'Select Teacher *';
   };
@@ -1442,12 +1447,12 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
       >
         <DialogTitle sx={{ pb: 1 }}>
           <Typography variant="h6" component="div">
-            {center ? 'Edit Class' : 'Add New Class'}
+            {center ? `Edit ${isCenter ? 'Center' : 'Class'}` : `Add New ${isCenter ? 'Center' : 'Class'}`}
           </Typography>
           <Typography variant="body2" color="textSecondary">
             {center
-              ? 'Update class details'
-              : 'Fill in the details to create a new class'}
+              ? `Update ${isCenter ? 'center' : 'class'} details`
+              : `Fill in the details to create a new ${isCenter ? 'center' : 'class'}`}
           </Typography>
         </DialogTitle>
 
@@ -1490,13 +1495,13 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                 {isEditing ? (
                   <TextField
                     fullWidth
-                    label="School"
-                    value={schools.find((s) => s.cohortId === formData.schoolId)?.name || formData.schoolId || ''}
+                    label={isCenter ? "Cluster" : "School"}
+                    value={schools.find((s) => s.cohortId === formData.schoolId)?.name || parentName || formData.schoolId || ''}
                     margin="dense"
                     InputProps={{
                       readOnly: true,
                     }}
-                    helperText="School cannot be changed"
+                    helperText={`${isCenter ? "Cluster" : "School"} cannot be changed`}
                   />
                 ) : (
                   <FormControl
@@ -1504,33 +1509,93 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                     margin="dense"
                     error={!!errors.schoolId}
                   >
-                    <InputLabel id="school-label">Select School *</InputLabel>
+                    <InputLabel id="school-label">{`Select ${isCenter ? 'Cluster' : 'School'} *`}</InputLabel>
                     <Select
                       labelId="school-label"
                       id="schoolId"
                       name="schoolId"
                       value={formData.schoolId}
                       onChange={(e) => handleSchoolChange(e.target.value)}
-                      label="Select School *"
+                      label={`Select ${isCenter ? 'Cluster' : 'School'} *`}
                       disabled={loading || loadingSchools}
+                      onClose={() => setSchoolSearchTerm('')} // Clear search when closed
+                      MenuProps={{
+                        autoFocus: false,
+                        PaperProps: {
+                          style: {
+                            maxHeight: 300,
+                          },
+                        },
+                      }}
                     >
+                      <ListSubheader>
+                        <TextField
+                          size="small"
+                          // autofocus
+                          placeholder={`Search ${isCenter ? 'Cluster' : 'School'}...`}
+                          fullWidth
+                           sx={{ 
+                          mb: 0.5,
+                          width: 'calc(100% - 16px)',
+                          '& .MuiOutlinedInput-root': {
+                            backgroundColor: 'background.paper',
+                            fontSize: '0.875rem',
+                          },
+                          '& .MuiInputBase-input': {
+                            padding: '6px 8px',
+                          },
+                        }}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start">
+                                <SearchIcon />
+                              </InputAdornment>
+                            ),
+                          }}
+                          onChange={(e) => setSchoolSearchTerm(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key !== 'Escape') {
+                              // Prevents autoselecting item while typing (default Select behaviour)
+                              e.stopPropagation();
+                            }
+                          }}
+                        />
+                      </ListSubheader>
                       <MenuItem value="">
-                        <em>Select a school</em>
+                        <em>{`Select a ${isCenter ? 'cluster' : 'school'}`}</em>
                       </MenuItem>
                       {loadingSchools ? (
                         <MenuItem disabled>
                           <CircularProgress size={20} />
                           <Typography variant="body2" sx={{ ml: 2 }}>
-                            Loading schools...
+                            {`Loading ${isCenter ? 'clusters' : 'schools'}...`}
                           </Typography>
                         </MenuItem>
                       ) : (
-                        schools.map((school) => (
-                          <MenuItem key={school.cohortId} value={school.cohortId}>
-                            {school.name}
-                          </MenuItem>
-                        ))
+                        schools
+                          .filter((school) =>
+                            school.name
+                              .toLowerCase()
+                              .includes(schoolSearchTerm.toLowerCase())
+                          )
+                          .map((school) => (
+                            <MenuItem key={school.cohortId} value={school.cohortId}>
+                              {school.name}
+                            </MenuItem>
+                          ))
                       )}
+                      {!loadingSchools &&
+                        schools.filter((school) =>
+                          school.name
+                            .toLowerCase()
+                            .includes(schoolSearchTerm.toLowerCase())
+                        ).length === 0 && (
+                          <MenuItem disabled>
+                            <Typography variant="body2">
+                              {`No ${isCenter ? 'clusters' : 'schools'} found`}
+                            </Typography>
+                          </MenuItem>
+                        )}
                     </Select>
                     {errors.schoolId && (
                       <FormHelperText>{errors.schoolId}</FormHelperText>
@@ -1592,15 +1657,15 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                   fullWidth
                   id="className"
                   name="className"
-                  label="Class Name"
-                  placeholder="e.g., Class 1A, Grade 5B, etc."
+                  label={isCenter ? "Center Name" : "Class Name"}
+                  placeholder={isCenter ? "e.g., Center A, Community Center, etc." : "e.g., Class 1A, Grade 5B, etc."}
                   value={formData.className}
                   onChange={handleChange}
                   error={!!errors.className}
                   helperText={
                     isEditing 
-                      ? 'Class name cannot be changed'
-                      : (errors.className || 'Enter a unique name for this class')
+                      ? `${isCenter ? 'Center' : 'Class'} name cannot be changed`
+                      : (errors.className || `Enter a unique name for this ${isCenter ? 'center' : 'class'}`)
                   }
                   margin="dense"
                   disabled={loading || !formData.schoolId || isEditing}
@@ -1631,56 +1696,57 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                 }}
                 />
               </Grid>
-
-              {/* Teacher Selection */}
-              <Grid item xs={12}>
-                <FormControl
-                  fullWidth
-                  margin="normal"
-                  error={!!errors.teacherId}
-                >
-                  <InputLabel id="teacher-label">
-                    {getTeacherLabel()}
-                  </InputLabel>
+{
+  (isCenter && isEditing) && 
+    <Grid item xs={12}>
+                <FormControl fullWidth margin="dense">
+                  <InputLabel>Status</InputLabel>
                   <Select
+                    label="Status"
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    disabled={loading}
+                  >
+                    <MenuItem value="active">Active</MenuItem>
+                    <MenuItem value="inactive">Inactive</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+}
+              {/* Teacher Selection */}
+              {!(isCenter && isEditing) && (
+                <Grid item xs={12}>
+                  <FormControl
+                    fullWidth
+                    margin="normal"
+                    error={!!errors.teacherId}
+                  >
+                    <InputLabel id="teacher-label">
+                      {getTeacherLabel()}
+                    </InputLabel>
+                    <Select
                       ref={(node) => {
                         teacherSelectRef.current = node;
                         if (node) {
                           setTeacherSelectWidth(node.clientWidth);
                         }
                       }}
-                    labelId="teacher-label"
-                    id="teacherId"
-                    name="teacherId"
-                    value={formData.teacherId}
-                    onChange={(e) =>
-                      handleSelectChange('teacherId', e.target.value)
-                    }
-                    label={getTeacherLabel()}
+                      labelId="teacher-label"
+                      id="teacherId"
+                      name="teacherId"
+                      value={formData.teacherId}
+                      onChange={(e) =>
+                        handleSelectChange('teacherId', e.target.value)
+                      }
+                      label={getTeacherLabel()}
                       disabled={loading || (loadingTeachers && teachers.length === 0)}
-                    MenuProps={{
-                      PaperProps: {
-                        sx: {
-                          maxHeight: 300,
-                          width: teacherSelectWidth ? `${teacherSelectWidth}px` : 'auto',
-                          minWidth: teacherSelectWidth ? `${teacherSelectWidth}px` : 'auto',
-                          maxWidth: teacherSelectWidth ? `${teacherSelectWidth}px` : 'none',
-                          overflowX: 'auto',
-                          overflowY: 'auto',
-                          '&::-webkit-scrollbar': {
-                            width: '0px',
-                            height: '0px',
-                            background: 'transparent',
-                          },
-                          '&::-webkit-scrollbar-thumb': {
-                            background: 'transparent',
-                          },
-                          '&::-webkit-scrollbar-track': {
-                            background: 'transparent',
-                          },
-                          scrollbarWidth: 'none',
-                          msOverflowStyle: 'none',
-                          '& .MuiList-root': {
+                      MenuProps={{
+                        PaperProps: {
+                          sx: {
+                            maxHeight: 300,
+                            width: teacherSelectWidth ? `${teacherSelectWidth}px` : 'auto',
+                            minWidth: teacherSelectWidth ? `${teacherSelectWidth}px` : 'auto',
+                            maxWidth: teacherSelectWidth ? `${teacherSelectWidth}px` : 'none',
                             overflowX: 'auto',
                             overflowY: 'auto',
                             '&::-webkit-scrollbar': {
@@ -1696,202 +1762,221 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                             },
                             scrollbarWidth: 'none',
                             msOverflowStyle: 'none',
-                          },
-                          '& .MuiListSubheader-root': {
-                            position: 'sticky',
-                            top: 0,
-                            backgroundColor: 'background.paper',
-                            zIndex: 10,
-                            padding: '8px',
-                            paddingBottom: '4px',
-                            borderBottom: '1px solid',
-                            borderColor: 'divider',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                          },
-                          '& .MuiMenuItem-root': {
-                            whiteSpace: 'nowrap',
-                            overflowX: 'auto',
-                            minWidth: 'max-content',
+                            '& .MuiList-root': {
+                              overflowX: 'auto',
+                              overflowY: 'auto',
+                              '&::-webkit-scrollbar': {
+                                width: '0px',
+                                height: '0px',
+                                background: 'transparent',
+                              },
+                              '&::-webkit-scrollbar-thumb': {
+                                background: 'transparent',
+                              },
+                              '&::-webkit-scrollbar-track': {
+                                background: 'transparent',
+                              },
+                              scrollbarWidth: 'none',
+                              msOverflowStyle: 'none',
+                            },
+                            '& .MuiListSubheader-root': {
+                              position: 'sticky',
+                              top: 0,
+                              backgroundColor: 'background.paper',
+                              zIndex: 10,
+                              padding: '8px',
+                              paddingBottom: '4px',
+                              borderBottom: '1px solid',
+                              borderColor: 'divider',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                            },
+                            '& .MuiMenuItem-root': {
+                              whiteSpace: 'nowrap',
+                              overflowX: 'auto',
+                              minWidth: 'max-content',
+                            },
                           },
                         },
-                      },
-                      anchorOrigin: {
-                        vertical: 'bottom',
-                        horizontal: 'left',
-                      },
-                      transformOrigin: {
-                        vertical: 'top',
-                        horizontal: 'left',
-                      },
-                      autoFocus: false,
-                    }}
-                  >
-                    <ListSubheader sx={{ px: 1, py: 0.5, lineHeight: 1, m: 0, width: '100%' }}>
-                      <TextField
-                        size="small"
-                        placeholder="Search teachers..."
-                        value={teacherSearchTerm}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          setTeacherSearchTerm(e.target.value);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => e.stopPropagation()}
-                        fullWidth
-                        sx={{ 
-                          mb: 0.5,
-                          width: 'calc(100% - 16px)',
-                          '& .MuiOutlinedInput-root': {
-                            backgroundColor: 'background.paper',
-                            fontSize: '0.875rem',
-                          },
-                          '& .MuiInputBase-input': {
-                            padding: '6px 8px',
-                          },
-                        }}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start" sx={{ ml: 0 }}>
-                              <SearchIcon fontSize="small" />
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                    </ListSubheader>
-                    <MenuItem value="">
-                      <em>Select a teacher</em>
-                    </MenuItem>
-                    {loadingTeachers && teachers.length === 0 ? (
-                      <MenuItem disabled>
-                        <CircularProgress size={20} />
-                        <Typography variant="body2" sx={{ ml: 2 }}>
-                          Loading teachers...
-                        </Typography>
-                      </MenuItem>
-                    ) : teachers.length === 0 ? (
-                      <MenuItem disabled>
-                        No teachers available
-                      </MenuItem>
-                    ) : (
-                      teachers.map((teacher) => (
-                        <MenuItem 
-                          key={teacher.id} 
-                          value={teacher.id}
-                          sx={{
-                            whiteSpace: 'nowrap',
-                            overflowX: 'auto',
-                            minWidth: 'max-content',
+                        anchorOrigin: {
+                          vertical: 'bottom',
+                          horizontal: 'left',
+                        },
+                        transformOrigin: {
+                          vertical: 'top',
+                          horizontal: 'left',
+                        },
+                        autoFocus: false,
+                      }}
+                    >
+                      <ListSubheader sx={{ px: 1, py: 0.5, lineHeight: 1, m: 0, width: '100%' }}>
+                        <TextField
+                          size="small"
+                          placeholder="Search teachers..."
+                          value={teacherSearchTerm}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            setTeacherSearchTerm(e.target.value);
                           }}
-                        >
-                          {teacher.firstName} {teacher.lastName}
-                          {teacher.email && ` (${teacher.email})`}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                          fullWidth
+                          sx={{ 
+                            mb: 0.5,
+                            width: 'calc(100% - 16px)',
+                            '& .MuiOutlinedInput-root': {
+                              backgroundColor: 'background.paper',
+                              fontSize: '0.875rem',
+                            },
+                            '& .MuiInputBase-input': {
+                              padding: '6px 8px',
+                            },
+                          }}
+                          InputProps={{
+                            startAdornment: (
+                              <InputAdornment position="start" sx={{ ml: 0 }}>
+                                <SearchIcon fontSize="small" />
+                              </InputAdornment>
+                            ),
+                          }}
+                        />
+                      </ListSubheader>
+                      <MenuItem value="">
+                        <em>Select a teacher</em>
+                      </MenuItem>
+                      {loadingTeachers && teachers.length === 0 ? (
+                        <MenuItem disabled>
+                          <CircularProgress size={20} />
+                          <Typography variant="body2" sx={{ ml: 2 }}>
+                            Loading teachers...
+                          </Typography>
                         </MenuItem>
-                      ))
+                      ) : teachers.length === 0 ? (
+                        <MenuItem disabled>
+                          No teachers available
+                        </MenuItem>
+                      ) : (
+                        teachers.map((teacher) => (
+                          <MenuItem 
+                            key={teacher.id} 
+                            value={teacher.id}
+                            sx={{
+                              whiteSpace: 'nowrap',
+                              overflowX: 'auto',
+                              minWidth: 'max-content',
+                            }}
+                          >
+                            {teacher.firstName} {teacher.lastName}
+                            {teacher.email && ` (${teacher.email})`}
+                          </MenuItem>
+                        ))
+                      )}
+                    </Select>
+                    {errors.teacherId && (
+                      <FormHelperText>{errors.teacherId}</FormHelperText>
                     )}
-                  </Select>
-                  {errors.teacherId && (
-                    <FormHelperText>{errors.teacherId}</FormHelperText>
-                  )}
-                  <FormHelperText>{getTeacherHelperText()}</FormHelperText>
-                </FormControl>
-              </Grid>
+                    <FormHelperText>{getTeacherHelperText()}</FormHelperText>
+                  </FormControl>
+                </Grid>
+              )}
 
               {/* Time Selection - Using MUI TimePicker */}
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <Grid item xs={12} md={6}>
-                  <FormControl
-                    fullWidth
-                    margin="dense"
-                    error={!!errors.fromTime}
-                  >
-                    <TimePicker
-                      label="From Time"
-                      value={
-                        formData.fromTime
-                          ? dayjs(formData.fromTime, 'hh:mm A')
-                          : null
-                      }
-                      onChange={(newValue) => {
-                        setTimeSlotTouched(true); // Mark that user has interacted with time picker
-                        handleSelectChange(
-                          'fromTime',
-                          newValue ? newValue.format('hh:mm A') : ''
-                        );
-                      }}
-                      disabled={loading}
-                      slotProps={{
-                        textField: {
-                          fullWidth: true,
-                          error: !!errors.fromTime,
-                          helperText: errors.fromTime || (isEditing && assignedTeacherData?.slot ? `Current slot: ${assignedTeacherData.slot}` : ''),
-                          sx: {
-                            '& .MuiInputBase-input': {
-                              color: 'text.primary',
+              {!(isCenter && isEditing) && (
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <Grid item xs={12} md={6}>
+                    <FormControl
+                      fullWidth
+                      margin="dense"
+                      error={!!errors.fromTime}
+                    >
+                      <TimePicker
+                        label="From Time"
+                        value={
+                          formData.fromTime
+                            ? dayjs(formData.fromTime, 'hh:mm A')
+                            : null
+                        }
+                        onChange={(newValue) => {
+                          setTimeSlotTouched(true); // Mark that user has interacted with time picker
+                          handleSelectChange(
+                            'fromTime',
+                            newValue ? newValue.format('hh:mm A') : ''
+                          );
+                        }}
+                        disabled={loading}
+                        slotProps={{
+                          textField: {
+                            fullWidth: true,
+                            error: !!errors.fromTime,
+                            helperText: errors.fromTime || (isEditing && assignedTeacherData?.slot ? `Current slot: ${assignedTeacherData.slot}` : ''),
+                            sx: {
+                              '& .MuiInputBase-input': {
+                                color: 'text.primary',
+                              },
                             },
                           },
-                        },
-                        popper: {
-                          sx: {
-                            '& .MuiMultiSectionDigitalClockSection-item.Mui-selected': {
-                              color: '#000000 !important',
-                              fontWeight: 'bold',
-                            },
-                            '& .MuiMenuItem-root.Mui-selected': {
-                              color: '#000000 !important',
-                              fontWeight: 'bold',
+                          popper: {
+                            sx: {
+                              '& .MuiMultiSectionDigitalClockSection-item.Mui-selected': {
+                                color: '#000000 !important',
+                                fontWeight: 'bold',
+                              },
+                              '& .MuiMenuItem-root.Mui-selected': {
+                                color: '#000000 !important',
+                                fontWeight: 'bold',
+                              },
                             },
                           },
-                        },
-                      }}
-                    />
-                  </FormControl>
-                </Grid>
+                        }}
+                      />
+                    </FormControl>
+                  </Grid>
 
-                <Grid item xs={12} md={6}>
-                  <FormControl fullWidth margin="dense" error={!!errors.toTime}>
-                    <TimePicker
-                      label="To Time"
-                      value={
-                        formData.toTime
-                          ? dayjs(formData.toTime, 'hh:mm A')
-                          : null
-                      }
-                      onChange={(newValue) => {
-                        setTimeSlotTouched(true); // Mark that user has interacted with time picker
-                        handleSelectChange(
-                          'toTime',
-                          newValue ? newValue.format('hh:mm A') : ''
-                        );
-                      }}
-                      disabled={loading}
-                      slotProps={{
-                        textField: {
-                          fullWidth: true,
-                          error: !!errors.toTime,
-                          helperText: errors.toTime,
-                          sx: {
-                            '& .MuiInputBase-input': {
-                              color: 'text.primary',
+                  <Grid item xs={12} md={6}>
+                    <FormControl fullWidth margin="dense" error={!!errors.toTime}>
+                      <TimePicker
+                        label="To Time"
+                        value={
+                          formData.toTime
+                            ? dayjs(formData.toTime, 'hh:mm A')
+                            : null
+                        }
+                        onChange={(newValue) => {
+                          setTimeSlotTouched(true); // Mark that user has interacted with time picker
+                          handleSelectChange(
+                            'toTime',
+                            newValue ? newValue.format('hh:mm A') : ''
+                          );
+                        }}
+                        disabled={loading}
+                        slotProps={{
+                          textField: {
+                            fullWidth: true,
+                            error: !!errors.toTime,
+                            helperText: errors.toTime,
+                            sx: {
+                              '& .MuiInputBase-input': {
+                                color: 'text.primary',
+                              },
                             },
                           },
-                        },
-                        popper: {
-                          sx: {
-                            '& .MuiMultiSectionDigitalClockSection-item.Mui-selected': {
-                              color: '#000000 !important',
-                              fontWeight: 'bold',
-                            },
-                            '& .MuiMenuItem-root.Mui-selected': {
-                              color: '#000000 !important',
-                              fontWeight: 'bold',
+                          popper: {
+                            sx: {
+                              '& .MuiMultiSectionDigitalClockSection-item.Mui-selected': {
+                                color: '#000000 !important',
+                                fontWeight: 'bold',
+                              },
+                              '& .MuiMenuItem-root.Mui-selected': {
+                                color: '#000000 !important',
+                                fontWeight: 'bold',
+                              },
                             },
                           },
-                        },
-                      }}
-                    />
-                  </FormControl>
-                </Grid>
-              </LocalizationProvider>
+                        }}
+                      />
+                    </FormControl>
+                  </Grid>
+                </LocalizationProvider>
+              )}
             </Grid>
           </DialogContent>
 
@@ -1918,7 +2003,7 @@ const CenterForm = ({ open, onClose, onSubmit, center }) => {
                 loading ||
                 !formData.schoolId ||
                 !formData.className.trim() ||
-                !formData.teacherId ||
+                // !formData.teacherId ||
                 isClassNameTaken(formData.className)
               }
               sx={{ minWidth: 120 }}

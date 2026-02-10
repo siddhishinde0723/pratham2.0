@@ -33,6 +33,17 @@ import {
   Avatar,
   Card,
   CardContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemButton,
+  ListItemText,
+  Checkbox,
+  Divider,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -43,14 +54,19 @@ import {
   CalendarToday as CalendarIcon,
   Badge as BadgeIcon,
   Phone as PhoneIcon,
-      CheckCircle as CheckCircleIcon,
-    Cancel as CancelIcon,
-    Pending as PendingIcon,
+  CheckCircle as CheckCircleIcon,
+  Cancel as CancelIcon,
+  Pending as PendingIcon,
+  Assignment as AssignmentIcon,
+  School as SchoolIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import { Numbers } from '@mui/icons-material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddUserForm from '@/components/AddUserForm';
+import EditUserModal from '@/components/EditUserModal';
 import SimpleModal from '@/components/SimpleModal';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import { deleteUser } from '@/services/UserService';
@@ -59,6 +75,13 @@ import Image from 'next/image';
 import {
   searchListData,
 } from '@/components/DynamicForm/DynamicFormCallback';
+import {
+  getCohortList,
+  bulkCreateCohortMembers,
+} from '@/services/CohortService/cohortService';
+import { API_ENDPOINTS } from '@/utils/API/APIEndpoints';
+import { get } from '@/services/RestClient';
+import { showToastMessage } from '@/components/Toastify';
 
 const Staff = () => {
   const [pageLimit, setPageLimit] = useState<number>(10);
@@ -76,6 +99,18 @@ const Staff = () => {
     archived: 0,
   });
   const [departmentSortDirection, setDepartmentSortDirection] = useState<'asc' | 'desc' | null>(null);
+
+  // Assign Schools Dialog State
+  const [assignSchoolDialogOpen, setAssignSchoolDialogOpen] = useState(false);
+  const [selectedStaffMember, setSelectedStaffMember] = useState<any | null>(null);
+  const [schoolAssignments, setSchoolAssignments] = useState<any[]>([]);
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [expandedSchools, setExpandedSchools] = useState<Set<string>>(new Set());
+  const [schoolSearchTerm, setSchoolSearchTerm] = useState('');
+
+  // Edit Staff Modal State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [staffToEdit, setStaffToEdit] = useState<any | null>(null);
 
   const { t, i18n } = useTranslation();
 
@@ -298,6 +333,11 @@ const Staff = () => {
     setOpenModal(false);
   };
 
+  const handleEditStaff = (staffMember: any) => {
+    setStaffToEdit(staffMember);
+    setEditModalOpen(true);
+  };
+
 
   // Get department from custom fields
   const getDepartment = (staffMember: any) => {
@@ -435,6 +475,208 @@ const Staff = () => {
     if (response) {
       const searchFormData = searchTerm ? { firstName: searchTerm } : {};
       searchData(searchFormData, currentPage);
+    }
+  };
+
+  // Interface for school assignments
+  interface SchoolAssignment {
+    schoolId: string;
+    schoolName: string;
+    assigned: boolean;
+    originallyAssigned: boolean;
+  }
+
+  // Fetch all schools for assignment dialog
+  const fetchAllSchoolsForAssignment = useCallback(
+    async (staffId?: string) => {
+      try {
+        const schoolRequestData = {
+          limit: 0,
+          offset: 0,
+          filters: {
+            type: 'SCHOOL',
+            status: ['active'],
+          },
+        };
+
+        const response: any = await getCohortList(schoolRequestData as any);
+        
+        let allSchools: any[] = [];
+        if (Array.isArray(response)) {
+          allSchools = response;
+        } else if (response?.results?.cohortDetails) {
+          allSchools = response.results.cohortDetails;
+        } else if (response?.cohortDetails) {
+          allSchools = response.cohortDetails;
+        } else if (response?.results && Array.isArray(response.results)) {
+          allSchools = response.results;
+        }
+
+        // If we have a staffId, fetch their current school assignments using mycohorts API
+        let staffCurrentSchools: string[] = [];
+        if (staffId) {
+          try {
+            const apiUrl = `${API_ENDPOINTS.myCohorts(staffId)}?customField=true&children=true`;
+            const staffResponse = await get(apiUrl);
+            const cohorts = staffResponse?.data?.result || [];
+            
+            staffCurrentSchools = cohorts
+              .filter((cohort: any) => cohort.type === 'SCHOOL')
+              .map((cohort: any) => String(cohort.cohortId || '').trim())
+              .filter((id: string) => id);
+          } catch (err) {
+            console.error('Error fetching staff current schools:', err);
+          }
+        }
+
+        // Transform schools to SchoolAssignment format
+        const assignments: SchoolAssignment[] = allSchools.map((school: any) => {
+          const schoolId = String(school.cohortId || school.id || '').trim();
+          const assignedSchoolsAsStrings = staffCurrentSchools.map(id => String(id).trim());
+          const isAssigned = assignedSchoolsAsStrings.some(assignedId => assignedId === schoolId);
+          
+          return {
+            schoolId: schoolId,
+            schoolName: school.name || school.cohortName || 'Unknown School',
+            assigned: isAssigned,
+            originallyAssigned: isAssigned,
+          };
+        });
+
+        return assignments;
+      } catch (err) {
+        console.error('Error fetching all schools for assignment:', err);
+        return [];
+      }
+    },
+    []
+  );
+
+  // Handle assign school button click
+  const handleAssignSchoolClick = async (staffMember: any) => {
+    setSelectedStaffMember(staffMember);
+    setAssignSchoolDialogOpen(true);
+    setAssignLoading(true);
+
+    try {
+      const assignments = await fetchAllSchoolsForAssignment(staffMember.userId);
+      setSchoolAssignments(assignments);
+
+      // Expand schools that have assignments
+      const schoolsWithAssignments = new Set(
+        assignments
+          .filter((school) => school.assigned)
+          .map((school) => school.schoolId)
+      );
+      setExpandedSchools(schoolsWithAssignments);
+    } catch (err) {
+      console.error('Error loading schools for assignment:', err);
+      showToastMessage('Failed to load schools. Please try again.', 'error');
+      setSchoolAssignments([]);
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+  // Handle assign school dialog close
+  const handleAssignSchoolDialogClose = () => {
+    setAssignSchoolDialogOpen(false);
+    setSelectedStaffMember(null);
+    setSchoolAssignments([]);
+    setExpandedSchools(new Set());
+    setSchoolSearchTerm('');
+  };
+
+  // Filter schools based on search term
+  const filteredSchoolAssignments = useMemo(() => {
+    if (!schoolSearchTerm.trim()) {
+      return schoolAssignments;
+    }
+    const searchLower = schoolSearchTerm.toLowerCase().trim();
+    return schoolAssignments.filter((school) =>
+      school.schoolName.toLowerCase().includes(searchLower)
+    );
+  }, [schoolAssignments, schoolSearchTerm]);
+
+  // Handle school checkbox change
+  const handleSchoolCheckboxChange = (schoolId: string) => {
+    setSchoolAssignments((prev) =>
+      prev.map((school) => {
+        if (school.schoolId === schoolId) {
+          return { ...school, assigned: !school.assigned };
+        }
+        return school;
+      })
+    );
+  };
+
+  // Handle school expand/collapse
+  const handleSchoolToggle = (schoolId: string) => {
+    setExpandedSchools((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(schoolId)) {
+        newSet.delete(schoolId);
+      } else {
+        newSet.add(schoolId);
+      }
+      return newSet;
+    });
+  };
+
+  // Handle save school assignments
+  const handleSaveSchoolAssignments = async () => {
+    if (!selectedStaffMember) return;
+
+    setAssignLoading(true);
+    try {
+      const schoolsToAssign = schoolAssignments
+        .filter((school) => school.assigned)
+        .map((school) => school.schoolId);
+
+      let previouslyAssignedSchools: string[] = [];
+      try {
+        const apiUrl = `${API_ENDPOINTS.myCohorts(selectedStaffMember.userId)}?customField=true&children=true`;
+        const currentResponse = await get(apiUrl);
+        const currentCohorts = currentResponse?.data?.result || [];
+        previouslyAssignedSchools = currentCohorts
+          .filter((cohort: any) => cohort.type === 'SCHOOL' && cohort.cohortMemberStatus === 'active')
+          .map((cohort: any) => cohort.cohortId || cohort.id);
+      } catch (err) {
+        console.error('Error fetching current assignments:', err);
+      }
+
+      const schoolsToRemove = previouslyAssignedSchools.filter(
+        (schoolId) => !schoolsToAssign.includes(schoolId)
+      );
+
+      const payload: any = {
+        userId: [selectedStaffMember.userId],
+        cohortId: schoolsToAssign,
+      };
+
+      if (schoolsToRemove.length > 0) {
+        payload.removeCohortId = schoolsToRemove;
+      }
+
+      const response = await bulkCreateCohortMembers(payload);
+      const isSuccess = 
+        response?.responseCode === 200 || 
+        response?.responseCode === 201 ||
+        response?.params?.status === 'successful' ||
+        response?.success;
+
+      if (isSuccess) {
+        showToastMessage('School assignments updated successfully', 'success');
+        handleAssignSchoolDialogClose();
+        handleRefresh();
+      } else {
+        throw new Error(response?.message || 'Failed to update school assignments');
+      }
+    } catch (err: any) {
+      console.error('Error updating school assignments:', err);
+      showToastMessage(err.message || 'Failed to update school assignments', 'error');
+    } finally {
+      setAssignLoading(false);
     }
   };
 
@@ -727,46 +969,62 @@ const Staff = () => {
                               />
                         </TableCell>
                         <TableCell>
-                          <Tooltip
-                            title={
-                              staffMember.status === 'active'
-                                ? 'Archive Staff'
-                                : 'Activate Staff'
-                            }
-                          >
-                            <IconButton
-                              size="small"
-                              onClick={() => handleArchive(staffMember)}
-                              color={
-                                staffMember.status === 'active'
-                                  ? 'error'
-                                  : 'success'
-                              }
-                              sx={{
-                                ...(staffMember.status === 'active' && {
-                                  '&:hover': {
-                                    backgroundColor: '#ffebee',
-                                  },
-                                }),
-                                ...(staffMember.status === 'archived' && {
-                                  '&:hover': {
-                                    backgroundColor: '#e8f5e8',
-                                  },
-                                }),
-                              }}
-                            >
-                              <Archive
-                                size={20}
-                                color={
-                                  staffMember.status === 'active'
-                                    ? '#f44336'
-                                    : '#4caf50'
-                                }
-                                strokeWidth={2}
-                              />
-                            </IconButton>
-                          </Tooltip>
-                        </TableCell>
+                              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                {staffMember.status === 'archived' ? (
+                                  <Tooltip title="Activate">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleArchive(staffMember)}
+                                     color={getStatusColor(staffMember.status) as any}
+                                      sx={{
+                                        '&:hover': {
+                                          backgroundColor: '#f5f5f5',
+                                        },
+                                      }}
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                ) : (
+                                  <>
+                                    <Tooltip title="Assign Center">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() =>
+                                          handleAssignSchoolClick(staffMember)
+                                        }
+                                        color="primary"
+                                      >
+                                        <SchoolIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Edit Staff">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleEditStaff(staffMember)}
+                                        // color="primary"
+                                      >
+                                        <EditIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Archive">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleArchive(staffMember)}
+                                        color="error"
+                                        sx={{
+                                          '&:hover': {
+                                            backgroundColor: '#ffebee',
+                                          },
+                                        }}
+                                      >
+                                        <DeleteIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </>
+                                )}
+                              </Box>
+                              </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -844,6 +1102,185 @@ const Staff = () => {
           }}
         />
       </SimpleModal>
+
+      {/* Edit Staff Modal */}
+      <EditUserModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSuccess={handleRefresh}
+        user={staffToEdit}
+        userType="Staff"
+      />
+
+      {/* Assign Center Dialog */}
+      <Dialog
+        open={assignSchoolDialogOpen}
+        onClose={handleAssignSchoolDialogClose}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            maxHeight: '80vh',
+            display: 'flex',
+            flexDirection: 'column',
+          },
+        }}
+      >
+        <DialogTitle sx={{ flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AssignmentIcon />
+            Assign Center to {getFullName(selectedStaffMember || {})}
+          </Box>
+        </DialogTitle>
+        <DialogContent
+          dividers
+          sx={{
+            flex: 1,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            p: 0,
+          }}
+        >
+          {assignLoading ? (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                flex: 1,
+                p: 4
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                p: 2,
+              }}
+            >
+              <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                Select or deselect centers for this staff member
+              </Typography>
+
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Search centers..."
+                value={schoolSearchTerm}
+                onChange={(e) => setSchoolSearchTerm(e.target.value)}
+                sx={{ mb: 2 }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              <Box
+                sx={{
+                  flex: 1,
+                  overflow: 'auto',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 1,
+                  minHeight: 200,
+                }}
+              >
+                {filteredSchoolAssignments.length === 0 ? (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      height: 200,
+                      flexDirection: 'column',
+                      gap: 1,
+                    }}
+                  >
+                    <Typography variant="body2" color="textSecondary">
+                      No centers found
+                    </Typography>
+                  </Box>
+                ) : (
+                  <List sx={{ p: 0 }}>
+                    {filteredSchoolAssignments.map((school) => {
+                      return (
+                        <React.Fragment key={school.schoolId}>
+                          <ListItem
+                            disablePadding
+                          >
+                            <ListItemButton
+                              onClick={() => handleSchoolCheckboxChange(school.schoolId)}
+                              sx={{ py: 1 }}
+                            >
+                              <ListItemIcon sx={{ minWidth: 40 }}>
+                                <Checkbox
+                                  edge="start"
+                                  checked={school.assigned}
+                                  tabIndex={-1}
+                                  disableRipple
+                                />
+                              </ListItemIcon>
+                              <ListItemIcon sx={{ minWidth: 40 }}>
+                                <SchoolIcon />
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {school.schoolName}
+                                  </Typography>
+                                }
+                                secondary={
+                                  <Typography variant="caption" color="textSecondary">
+                                    ID: {school.schoolId.substring(0, 8)}...
+                                  </Typography>
+                                }
+                              />
+                              {school.originallyAssigned && (
+                                <Chip 
+                                  label="Assigned" 
+                                  size="small" 
+                                  variant="outlined" 
+                                  color="success"
+                                  sx={{ ml: 1 }} 
+                                />
+                              )}
+                            </ListItemButton>
+                          </ListItem>
+                          <Divider />
+                        </React.Fragment>
+                      );
+                    })}
+                  </List>
+                )}
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, flexShrink: 0 }}>
+          <Button
+            onClick={handleAssignSchoolDialogClose}
+            disabled={assignLoading}
+            color="inherit"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveSchoolAssignments}
+            variant="contained"
+            disabled={assignLoading}
+          >
+            {assignLoading ? 'Saving...' : 'Save Assignments'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

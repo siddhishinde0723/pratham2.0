@@ -4,6 +4,7 @@
 export enum ArtifactType {
   PDF = 'PDF',
   MP4 = 'MP4',
+  MP3 = 'MP3',
   YOUTUBE = 'YOUTUBE',
   UNSUPPORTED = 'UNSUPPORTED',
 }
@@ -18,12 +19,15 @@ export function detectArtifactType(
   artifactUrl: string | undefined,
   mimeType?: string
 ): ArtifactType {
+  console.log('[ContentTypeDetection] Starting detection with:', { artifactUrl, mimeType });
+  
   if (!artifactUrl || typeof artifactUrl !== 'string') {
     console.warn('[ContentTypeDetection] No artifact URL provided');
     return ArtifactType.UNSUPPORTED;
   }
 
   const url = artifactUrl.toLowerCase().trim();
+  console.log('[ContentTypeDetection] Normalized URL:', url);
 
   // Check for YouTube links first
   const youtubePatterns = [
@@ -42,7 +46,8 @@ export function detectArtifactType(
 
   // Check MIME type if available
   if (mimeType) {
-    const mime = mimeType.toLowerCase();
+    const mime = String(mimeType).toLowerCase().trim();
+    console.log('[ContentTypeDetection] Checking MIME type:', mime, '(original:', mimeType, ')');
     if (mime === 'application/pdf') {
       console.log('[ContentTypeDetection] Detected PDF from MIME type');
       return ArtifactType.PDF;
@@ -51,10 +56,19 @@ export function detectArtifactType(
       console.log('[ContentTypeDetection] Detected MP4 from MIME type');
       return ArtifactType.MP4;
     }
+    // Check for MP3 - handle both audio/mp3 and audio/mpeg
+    if (mime === 'audio/mp3' || mime === 'audio/mpeg' || mime.includes('audio') && mime.includes('mp3')) {
+      console.log('[ContentTypeDetection] Detected MP3 from MIME type');
+      return ArtifactType.MP3;
+    }
+    console.log('[ContentTypeDetection] MIME type did not match known types');
+  } else {
+    console.log('[ContentTypeDetection] No MIME type provided');
   }
 
   // Check URL extension
-  const extension = url.split('.').pop()?.split('?')[0]; // Remove query params
+  const extension = url.split('.').pop()?.split('?')[0]?.split('#')[0]; // Remove query params and hash
+  console.log('[ContentTypeDetection] Extracted extension:', extension);
   
   if (extension === 'pdf') {
     console.log('[ContentTypeDetection] Detected PDF from URL extension');
@@ -65,8 +79,13 @@ export function detectArtifactType(
     console.log('[ContentTypeDetection] Detected MP4 from URL extension');
     return ArtifactType.MP4;
   }
+  
+  if (extension === 'mp3') {
+    console.log('[ContentTypeDetection] Detected MP3 from URL extension');
+    return ArtifactType.MP3;
+  }
 
-  // Check content-type from URL path patterns
+  // Check content-type from URL path patterns (more lenient check)
   if (url.includes('.pdf')) {
     console.log('[ContentTypeDetection] Detected PDF from URL pattern');
     return ArtifactType.PDF;
@@ -76,18 +95,23 @@ export function detectArtifactType(
     console.log('[ContentTypeDetection] Detected MP4 from URL pattern');
     return ArtifactType.MP4;
   }
+  
+  if (url.includes('.mp3')) {
+    console.log('[ContentTypeDetection] Detected MP3 from URL pattern');
+    return ArtifactType.MP3;
+  }
 
-  console.warn(`[ContentTypeDetection] Unsupported artifact type for URL: ${artifactUrl}`);
+  console.warn(`[ContentTypeDetection] Unsupported artifact type for URL: ${artifactUrl}, MIME: ${mimeType}, Extension: ${extension}`);
   return ArtifactType.UNSUPPORTED;
 }
 
 /**
- * Checks if the artifact type requires cloud upload (PDF or MP4)
+ * Checks if the artifact type requires cloud upload (PDF, MP4, or MP3)
  * @param artifactType - The artifact type
  * @returns boolean - True if upload is required
  */
 export function requiresCloudUpload(artifactType: ArtifactType): boolean {
-  return artifactType === ArtifactType.PDF || artifactType === ArtifactType.MP4;
+  return artifactType === ArtifactType.PDF || artifactType === ArtifactType.MP4 || artifactType === ArtifactType.MP3;
 }
 
 /**
@@ -101,6 +125,8 @@ export function getContentTypeForArtifact(artifactType: ArtifactType): string {
       return 'application/pdf';
     case ArtifactType.MP4:
       return 'video/mp4';
+    case ArtifactType.MP3:
+      return 'audio/mp3';
     default:
       return 'application/octet-stream';
   }
@@ -118,10 +144,19 @@ export function generateCloudFileName(
   artifactType: ArtifactType,
   contentId: string
 ): string {
-  const extension = artifactType === ArtifactType.PDF ? 'pdf' : 'mp4';
+  let extension: string;
+  if (artifactType === ArtifactType.PDF) {
+    extension = 'pdf';
+  } else if (artifactType === ArtifactType.MP4) {
+    extension = 'mp4';
+  } else if (artifactType === ArtifactType.MP3) {
+    extension = 'mp3';
+  } else {
+    extension = 'bin'; // fallback
+  }
+  
   const timestamp = Date.now();
   const safeContentId = contentId.replace(/[^a-zA-Z0-9]/g, '_');
   
   return `content/${safeContentId}/${timestamp}.${extension}`;
 }
-

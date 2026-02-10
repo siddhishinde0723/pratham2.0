@@ -80,6 +80,18 @@ const UNIVERSAL_ADMIN_MENU = {
     link: '/classes',
     roles: [Role.ADMIN, Role.CENTRAL_ADMIN],
   },
+  centers: {
+    title: 'Centers',
+    icon: '/images/centers.svg',
+    link: '/centers',
+    roles: [Role.ADMIN, Role.CENTRAL_ADMIN],
+  },
+  clusters: {
+    title: 'Clusters',
+    icon: '/images/group.svg',
+    link: '/clusters',
+    roles: [Role.ADMIN, Role.CENTRAL_ADMIN],
+  },
 };
 
 // ✅ Universal menu config function (no tenant logic)

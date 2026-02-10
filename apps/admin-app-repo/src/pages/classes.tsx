@@ -65,6 +65,8 @@ import {
   createCohort,
   updateCohortUpdate,
   getCohortMemberList,
+  updateCohortMemberStatus,
+  type CohortMember,
 } from '../services/CohortService/cohortService';
 import { addStudentsToClass } from '../services/CohortService/cohortService'; // Add this import
 import { showToastMessage } from '@/components/Toastify';
@@ -142,6 +144,7 @@ const Centers = () => {
   const [dialogClasses, setDialogClasses] = useState<CohortCenter[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [originalAssignedStudents, setOriginalAssignedStudents] = useState<Map<string, string>>(new Map());
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [studentSearchTerm, setStudentSearchTerm] = useState('');
   const [addingStudents, setAddingStudents] = useState(false);
@@ -158,6 +161,10 @@ const Centers = () => {
   );
   const [archiveLoading, setArchiveLoading] = useState(false);
 
+  // Student Counts State
+  // const [studentCounts, setStudentCounts] = useState<Record<string, number>>({});
+  // const [loadingCounts, setLoadingCounts] = useState<Record<string, boolean>>({});
+
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -168,11 +175,12 @@ const Centers = () => {
     name: true,
     cohortId: true,
     parentId: true,
-    teacher: false,
+    teacher: true,
+    studentCount: true,
     type: true,
     status: true,
-    createdAt: true,
-    updatedAt: true,
+    // createdAt: true,
+    // updatedAt: true,
     actions: true,
   });
 
@@ -304,14 +312,12 @@ const fetchSummaryCounts = useCallback(async () => {
           hasMore = false;
         }
       }
-      console.log('Total classes fetched for counting:', allCohorts.length);
       // Count by status
       const activeCount = allCohorts.filter((c: any) => c.status === 'active').length;
       const inactiveCount = allCohorts.filter((c: any) => c.status === 'inactive').length;
       const archivedCount = allCohorts.filter((c: any) => c.status === 'archived').length;
       const pendingCount = allCohorts.filter((c: any) => c.status === 'pending').length;
       const totalCount = allCohorts.length;
-      console.log('Summary counts calculated:', { total: totalCount, active: activeCount, inactive: inactiveCount, archived: archivedCount, pending: pendingCount });
       setSummaryCounts({
         total: totalCount,
         active: activeCount,
@@ -440,6 +446,68 @@ const fetchSummaryCounts = useCallback(async () => {
   useEffect(() => {
     fetchCenters();
   }, [fetchCenters]);
+
+  // Fetch student counts for displayed centers
+  // useEffect(() => {
+  //   const fetchCounts = async () => {
+  //     if (centers.length === 0) return;
+
+  //     const newLoadingCounts: Record<string, boolean> = {};
+      
+  //     // Only fetch for centers we don't have counts for yet, or simple refresh
+  //     // For simplicity, we'll mark all as loading if we are refetching
+  //     centers.forEach(center => {
+  //         newLoadingCounts[center.cohortId] = true;
+  //     });
+  //     setLoadingCounts(prev => ({ ...prev, ...newLoadingCounts }));
+
+  //     const promises = centers.map(async (center) => {
+  //       try {
+  //         const cohortRequestData = {
+  //             limit: 0,
+  //             offset: 0,
+  //             filters: {
+  //               cohortId: center.cohortId,
+  //               status: ['active'],
+  //               role: 'Student'
+  //             },
+  //           };
+  
+  //           const response: any = await getCohortMemberList(cohortRequestData);
+  //           let count = 0;
+  //            if (response?.count !== undefined) {
+  //                count = response.count;
+  //            } else if (response?.results?.count !== undefined) {
+  //                count = response.results.count;
+  //            } else if (response?.userDetails) {
+  //                count = response.userDetails.length;
+  //            } else if (Array.isArray(response)) {
+  //                count = response.length;
+  //            }
+             
+  //            return { id: center.cohortId, count };
+  //       } catch (error) {
+  //           console.error(`Error fetching count for ${center.cohortId}`, error);
+  //           return { id: center.cohortId, count: 0 };
+  //       }
+  //     });
+
+  //     const results = await Promise.all(promises);
+      
+  //     const newCounts: Record<string, number> = {};
+  //     const finishedLoading: Record<string, boolean> = {};
+      
+  //     results.forEach(result => {
+  //         newCounts[result.id] = result.count;
+  //         finishedLoading[result.id] = false;
+  //     });
+
+  //     setStudentCounts(prev => ({ ...prev, ...newCounts }));
+  //     setLoadingCounts(prev => ({ ...prev, ...finishedLoading }));
+  //   };
+
+  //   fetchCounts();
+  // }, [centers]);
 
   // Debounced Search Effect for Centers
   useEffect(() => {
@@ -659,6 +727,7 @@ const fetchSummaryCounts = useCallback(async () => {
     setDialogClasses([]);
     setStudents([]);
     setSelectedStudents([]);
+    setOriginalAssignedStudents(new Map());
     setStudentSearchTerm('');
   };
 
@@ -756,9 +825,10 @@ const fetchSummaryCounts = useCallback(async () => {
       } else {
         setLoadingStudents(true);
       }
-      // Only clear if not searching and not loading more
-      if (!searchTerm && !isLoadMore) {
-          setStudents([]); 
+      
+      // We don't clear students immediately if loading more or if we want to preserve existing ones while searching
+      if (!isLoadMore && offset === 0) {
+           // Don't clear here, we'll replace the list
       }
 
       try {
@@ -771,9 +841,12 @@ const fetchSummaryCounts = useCallback(async () => {
           return;
         }
 
-        // Step 1: Fetch students already in this class (to exclude them)
-        let existingStudentIds = new Set<string>();
-
+        // Step 1: Fetch students already in this class
+        let existingStudentMap = new Map<string, any>(); 
+        let currentAssignedMap = new Map<string, string>(); // userId -> membershipId
+        
+        // Only fetch existing members if we are at the start (offset 0) to re-establish baseline
+        // Or if we are searching, we still need to know who is assigned to check them
         try {
           const cohortRequestData: any = {
             limit: 0,
@@ -781,7 +854,7 @@ const fetchSummaryCounts = useCallback(async () => {
             filters: {
               cohortId: targetClassId,
               status: ['active'],
-              role:'Student'
+              role: 'Student'
             },
           };
 
@@ -789,38 +862,52 @@ const fetchSummaryCounts = useCallback(async () => {
             cohortRequestData
           );
 
-          if (
-            cohortResponse?.userDetails &&
-            Array.isArray(cohortResponse.userDetails)
-          ) {
-            cohortResponse.userDetails.forEach((student: any) => {
-              if (student.userId) {
-                existingStudentIds.add(student.userId);
-              }
-            });
-           /* console.log(
-              `Found ${existingStudentIds.size} students already in target class ${targetClassId}`
-            );*/
+          // Handle response structure variations
+          let members: any[] = [];
+          if (cohortResponse?.userDetails && Array.isArray(cohortResponse.userDetails)) {
+             members = cohortResponse.userDetails;
+          } else if (cohortResponse?.members && Array.isArray(cohortResponse.members)) {
+             members = cohortResponse.members;
+          } else if (Array.isArray(cohortResponse)) {
+             members = cohortResponse;
           }
+
+          members.forEach((member: any) => {
+             const userId = member.userId;
+             if (userId) {
+                existingStudentMap.set(userId, member);
+                // Try to find membership ID
+                const membershipId = member.cohortMembershipId || member.id;
+                if (membershipId) {
+                    currentAssignedMap.set(userId, membershipId);
+                }
+             }
+          });
+          
+          // If first load (offset 0), update the original assignment tracking
+          if (offset === 0) {
+             setOriginalAssignedStudents(currentAssignedMap);
+             // Also pre-select these students
+             setSelectedStudents(Array.from(currentAssignedMap.keys()));
+          }
+
         } catch (cohortErr) {
           console.error('Error fetching cohort members:', cohortErr);
         }
 
-        // Step 2: Determine which students to fetch
-        let allStudents: any[] = [];
+        // Step 2: Fetch candidates (Global or Source Class)
+        let candidates: any[] = [];
 
         // MODE 1: Filter Mode (User selected a source class)
         if (sourceClassId) {
-          console.log('Filter mode: Fetching students from source class:', sourceClassId);
            try {
             const cohortRequestData: any = {
-              limit: 0, // Using 0 here is generally safer for a single class roster than global list
+              limit: 0, 
               offset: 0,
               filters: {
                 cohortId: sourceClassId,
                 status: ['active'],
-                role:'Student'
-
+                role: 'Student'
               },
             };
 
@@ -832,17 +919,14 @@ const fetchSummaryCounts = useCallback(async () => {
               cohortResponse?.userDetails &&
               Array.isArray(cohortResponse.userDetails)
             ) {
-               allStudents = cohortResponse.userDetails;
-            } else {
-               if(Array.isArray(cohortResponse)) {
-                   allStudents = cohortResponse;
-               }
+               candidates = cohortResponse.userDetails;
+            } else if (Array.isArray(cohortResponse)) {
+                candidates = cohortResponse;
             }
             
-            // Client-side filtering for search term if in Mode 1 (since we fetched the whole class)
             if (searchTerm) {
                 const term = searchTerm.toLowerCase();
-                allStudents = allStudents.filter(student => 
+                candidates = candidates.filter(student => 
                     (student.firstName && student.firstName.toLowerCase().includes(term)) ||
                     (student.lastName && student.lastName.toLowerCase().includes(term)) ||
                     (student.username && student.username.toLowerCase().includes(term))
@@ -850,46 +934,35 @@ const fetchSummaryCounts = useCallback(async () => {
             }
 
           } catch (err) {
-            console.error('Error fetching source class students:', err);
+             console.error('Error fetching source class students:', err);
              showToastMessage('Failed to fetch students from selected class', 'error');
           }
         }
-        // MODE 2: Global Mode (No source class selected)
+        // MODE 2: Global Mode
         else {
-          console.log(
-            'Global mode: Fetching students from global list with search:', searchTerm, 'offset:', offset
-          );
-
           try {
             const userListRequestData: any = {
-              limit: 100, // PERFORMANCE FIX: Limit to 100
-              offset: offset, // Use offset for pagination
+              limit: 100, 
+              offset: offset, 
               filters: {
                 role: 'Student',
                 status: ['active'],
-                // Add search filters
-                ...(searchTerm && { firstName: searchTerm }),
+                ...(searchTerm && { firstName: searchTerm }), // Note: API might only support firstName search
               },
             };
             
-              
-
             const userListResponse: any = await userList(userListRequestData);
 
             if (
               userListResponse?.getUserDetails &&
               Array.isArray(userListResponse.getUserDetails)
             ) {
-              allStudents = userListResponse.getUserDetails;
+              candidates = userListResponse.getUserDetails;
             } else if (Array.isArray(userListResponse)) {
-              allStudents = userListResponse;
+              candidates = userListResponse;
             }
-             console.log(
-                `Fetched ${allStudents.length} students from global list`
-              );
               
-             // Check if we have more students
-             if (allStudents.length < 100) {
+             if (candidates.length < 100) {
                  setHasMoreStudents(false);
              } else {
                  setHasMoreStudents(true);
@@ -898,17 +971,50 @@ const fetchSummaryCounts = useCallback(async () => {
           } catch (userListErr) {
             console.error('Error fetching user list:', userListErr);
             showToastMessage('Failed to fetch student list', 'error');
+            candidates = [];
           }
         }
 
-        // Step 3: Filter out students who are already in the target class
-        const availableStudents: Student[] = allStudents
-          .filter((student: any) => {
-            const hasUserId = student.userId && typeof student.userId === 'string';
-            const isAlreadyInTarget = hasUserId && existingStudentIds.has(student.userId);
-            return hasUserId && !isAlreadyInTarget;
-          })
-          .map((student: any) => {
+        // Step 3: Combine Lists
+        // We want to show:
+        // 1. Existing members (so they can be unassigned) - usually show these first or integrated
+        // 2. Candidates who are NOT existing members
+        
+        // Convert existing map values to Student objects
+        const existingStudentsList = Array.from(existingStudentMap.values()).map((s: any) => ({
+            ...s,
+            // Ensure essential fields
+            name: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim(),
+        }));
+
+        // Filter candidates: exclude if already in existingStudentsList (to avoid duplicates if we merge)
+        // OR better: Just map candidates to clean objects.
+        
+        let displayStudents: any[] = [];
+        
+        if (offset === 0) {
+            // Initial load: Start with existing members
+            displayStudents = [...existingStudentsList];
+            
+            // Add candidates that are NOT in existing members
+            candidates.forEach((candidate: any) => {
+                if (!candidate.userId) return;
+                if (!existingStudentMap.has(candidate.userId)) {
+                    displayStudents.push(candidate);
+                }
+            });
+        } else {
+             // Load more: Just append new candidates (excluding existing ones)
+            candidates.forEach((candidate: any) => {
+                if (!candidate.userId) return;
+                if (!existingStudentMap.has(candidate.userId)) {
+                    displayStudents.push(candidate);
+                }
+            });
+        }
+        
+        // Normalize to Student interface
+        const formattedStudents: Student[] = displayStudents.map((student: any) => {
             return {
               userId: student.userId,
               enrollmentId: student.enrollmentId || null,
@@ -921,23 +1027,36 @@ const fetchSummaryCounts = useCallback(async () => {
               deviceId: student.deviceId || null,
               status: student.status || 'active',
               statusReason: student.statusReason || null,
-              cohortMembershipId: '',
+              cohortMembershipId: student.cohortMembershipId || '', 
               createdAt: student.createdAt || new Date().toISOString(),
               updatedAt: student.updatedAt || new Date().toISOString(),
               createdBy: student.createdBy || '',
               updatedBy: student.updatedBy || null,
               customField: student.customFields || student.customField || [],
               email: student.email || null,
-              name:
-                student.name ||
-                `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+              name: student.name || `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+              // We can add a flag here if we want UI to show "Already Assigned" badge
+              isAssigned: existingStudentMap.has(student.userId)
             };
-          });
-        
+        });
+
+        // Filter locally if needed matching search term for existing students
+        // (Since API search might only apply to candidates)
+        let finalFiltered = formattedStudents;
+        if (searchTerm && offset === 0) {
+            const term = searchTerm.toLowerCase();
+            // We want to keep existing students ONLY if they match the search?
+            // OR keep them always? Standard behavior is filter applies to list.
+            finalFiltered = formattedStudents.filter(s => 
+                 s.name.toLowerCase().includes(term) || 
+                 s.username.toLowerCase().includes(term)
+            );
+        }
+
         if (isLoadMore) {
-            setStudents(prev => [...prev, ...availableStudents]);
+            setStudents(prev => [...prev, ...formattedStudents]); // simplified append logic
         } else {
-            setStudents(availableStudents);
+            setStudents(finalFiltered);
         }
 
       } catch (err: any) {
@@ -953,7 +1072,7 @@ const fetchSummaryCounts = useCallback(async () => {
         setCustomLoading(false);
       }
     },
-    [selectedClass, dialogClass] // Added dialogClass as dependency
+    [selectedClass, dialogClass]
   );
   // Handle cluster change in dialog
   const handleDialogClusterChange = (event: SelectChangeEvent) => {
@@ -1018,83 +1137,83 @@ const fetchSummaryCounts = useCallback(async () => {
     setSelectedStudents([]);
   };
 
-  // Handle apply (add selected students to class) - UPDATED WITH API INTEGRATION
+  // Handle apply (add/remove students)
   const handleApplyStudents = async () => {
     if (!selectedClass) {
       showToastMessage('No target class selected', 'error');
       return;
     }
 
-    if (selectedStudents.length === 0) {
-      showToastMessage('Please select at least one student', 'warning');
-      return;
-    }
-
-    const targetClassId = selectedClass.cohortId;
-
     try {
       setAddingStudents(true);
-      console.log(
-        'Adding students:',
-        selectedStudents,
-        'to class:',
-        targetClassId
+      const targetClassId = selectedClass.cohortId;
+      
+      // Calculate additions and removals
+      const addedStudentIds = selectedStudents.filter(id => !originalAssignedStudents.has(id));
+      const removedStudentIds = Array.from(originalAssignedStudents.keys()).filter(id => !selectedStudents.includes(id));
+
+      if (addedStudentIds.length === 0 && removedStudentIds.length === 0) {
+        showToastMessage('No changes made', 'info');
+        return;
+      }
+
+      console.log('Adding students:', addedStudentIds);
+      console.log('Removing students:', removedStudentIds);
+      
+      // 1. Handle Additions
+      if (addedStudentIds.length > 0) {
+          const requestData = {
+            cohortId: [targetClassId],
+            userId: addedStudentIds,
+          };
+          const response = await addStudentsToClass(requestData);
+          if (response?.responseCode !== 201) {
+              throw new Error(response?.message || 'Failed to add some students');
+          }
+      }
+
+      // 2. Handle Removals (Unassignments)
+      if (removedStudentIds.length > 0) {
+          // We need to update status to 'archived' for each removed student
+          // Ideally we would have a bulk update endpoint, but we might need to do it one by one
+          // or existing service supports bulk? Service `updateCohortMemberStatus` is single.
+          // `bulkCreateCohortMembers` is for create.
+          
+          const removePromises = removedStudentIds.map(async (userId) => {
+              const membershipId = originalAssignedStudents.get(userId);
+              if (membershipId) {
+                  return updateCohortMemberStatus({
+                      membershipId,
+                      memberStatus: 'archived',
+                      statusReason: 'Unassigned by admin'
+                  });
+              }
+              return Promise.resolve();
+          });
+          
+          await Promise.all(removePromises);
+      }
+
+      showToastMessage(
+        'Class assignments updated successfully',
+        'success'
       );
 
-      // Prepare data for API call
-      const requestData = {
-        cohortId: [targetClassId], // Array with the target class ID
-        userId: selectedStudents, // Array of selected student IDs
-        // cohortAcademicYearId: cohortAcademicYearId, // Academic year ID
-      };
+      // Close the dialog
+      handleCloseAddStudents();
+      
+      // Refresh Lists
+      fetchCenters();
+      fetchSummaryCounts();
 
-      console.log('API Request Data:', requestData);
-
-      // Call the API to add students
-      const response = await addStudentsToClass(requestData);
-
-      console.log('API Response:', response);
-
-      if (response?.responseCode === 201) {
-        let className = selectedClass?.name;
-        if (dialogClass && dialogClasses.length > 0) {
-          const filteredClass = dialogClasses.find(
-            (c) => c.cohortId === dialogClass
-          );
-          if (filteredClass) {
-            className = filteredClass.name;
-          }
-        }
-        showToastMessage(
-          `Successfully added ${selectedStudents.length} student(s) to ${selectedClass.name}`,
-          'success'
-        );
-
-        // Close the dialog
-        handleCloseAddStudents();
-
-        // Optional: Refresh the class data to show updated student count
-        // You might want to fetch the updated class information here
-      } else {
-        throw new Error(response?.message || 'Failed to add students');
-      }
     } catch (err: any) {
-      console.error('Error adding students:', err);
-
-      // Show detailed error message
+      console.error('Error updating students:', err);
       const errorMessage =
         err.response?.data?.message ||
         err.message ||
-        'Failed to add students. Please try again.';
+        'Failed to update students. Please try again.';
 
       showToastMessage(errorMessage, 'error');
-
-      // You can also show the error in the dialog if you want
-      setSnackbar({
-        open: true,
-        message: errorMessage,
-        severity: 'error',
-      });
     } finally {
       setAddingStudents(false);
     }
@@ -1107,7 +1226,9 @@ const fetchSummaryCounts = useCallback(async () => {
     setDialogClass('');
     setDialogSchools([]);
     setDialogClasses([]);
-    setSelectedStudents([]);
+    
+    // Reset to original assignments
+    setSelectedStudents(Array.from(originalAssignedStudents.keys()));
     setStudentSearchTerm('');
 
     // When resetting, fetch students from the global list (Source=undefined)
@@ -1630,6 +1751,9 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
                       {columnVisibility.teacher && (
                         <TableCell>Teacher</TableCell>
                       )}
+                      {/* {columnVisibility.studentCount && (
+                        <TableCell>Student Count</TableCell>
+                      )} */}
                       {columnVisibility.status && (
                         <TableCell>
                           <TableSortLabel
@@ -1643,7 +1767,7 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
                           </TableSortLabel>
                         </TableCell>
                       )}
-                      {columnVisibility.createdAt && (
+                      {/* {columnVisibility.createdAt && (
                         <TableCell>
                           <TableSortLabel
                             active={sortBy === 'createdAt'}
@@ -1655,10 +1779,10 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
                             Created At
                           </TableSortLabel>
                         </TableCell>
-                      )}
-                      {columnVisibility.updatedAt && (
+                      )} */}
+                      {/* {columnVisibility.updatedAt && (
                         <TableCell>Updated At</TableCell>
-                      )}
+                      )} */}
                       {columnVisibility.actions && (
                         <TableCell>Actions</TableCell>
                       )}
@@ -1757,10 +1881,21 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
                               })()}
                             </TableCell>
                           )}
+                          {/* {columnVisibility.studentCount && (
+                            <TableCell>
+                              <Typography variant="body2" color="textSecondary">
+                            {loadingCounts[center.cohortId] ? (
+                                <CircularProgress size={16} />
+                            ) : (
+                                studentCounts[center.cohortId] !== undefined ? studentCounts[center.cohortId] : '...'
+                            )}
+                              </Typography>
+                          </TableCell>
+                          )} */}
                           {columnVisibility.status && (
                             <TableCell>
                         
-   <Chip
+                            <Chip
                                 label={getStatusText(center.status)}
                                 size="small"
                                 color={getStatusColor(center.status) as any}
@@ -1772,7 +1907,8 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
                               
                             </TableCell>
                           )}
-                          {columnVisibility.createdAt && (
+                          
+                          {/* {columnVisibility.createdAt && (
                             <TableCell>
                               <Typography variant="body2" color="textSecondary">
                                 {formatDate(center.createdAt)}
@@ -1785,7 +1921,7 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
                                 {formatDate(center.updatedAt)}
                               </Typography>
                             </TableCell>
-                          )}
+                          )} */}
                           {columnVisibility.actions && (
                             <TableCell>
                               <Box sx={{ display: 'flex', gap: 0.5 }}>
@@ -1908,10 +2044,13 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
       {/* Center Form Dialog */}
       {openForm && (
         <CenterForm
-          open={openForm}
-          onClose={() => setOpenForm(false)}
-          onSubmit={handleFormSubmit}
-          center={editingCenter}
+          {...({
+            open: openForm,
+            onClose: () => setOpenForm(false),
+            onSubmit: handleFormSubmit,
+            center: editingCenter,
+            parentName: editingCenter ? schools.find(s => s.cohortId === editingCenter.parentId)?.name || editingCenter.parentId : ''
+          } as any)}
         />
       )}
 
@@ -2211,6 +2350,7 @@ const { active: activeCount, inactive: inactiveCount, archived: archivedCount, p
                               <TableCell>
                                 {student.email ? student.email : 'N/A'}
                               </TableCell>
+                              
                               <TableCell>
                                 <Chip
                                   label={

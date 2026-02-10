@@ -82,6 +82,7 @@ import {
 } from '../services/CohortService/cohortService';
 import { showToastMessage } from '@/components/Toastify';
 import AddTeacherModal from '@/components/AddTeacherModal';
+import EditUserModal from '@/components/EditUserModal';
 import { deleteUser } from '@/services/UserService';
 import { userList } from '@/services/UserList';
 
@@ -135,6 +136,7 @@ interface ClassAssignment {
   clusterName: string;
   assigned: boolean;
   originallyAssigned: boolean;
+  membershipId?: string;
 }
 
 // Define sortable columns
@@ -198,6 +200,10 @@ const TeacherList = () => {
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [teacherToUpdate, setTeacherToUpdate] = useState<Teacher | null>(null);
   const [archiveLoading, setArchiveLoading] = useState(false);
+
+  // Edit Teacher Modal State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [teacherToEdit, setTeacherToEdit] = useState<Teacher | null>(null);
 
   // Pagination state
   const [pagination, setPagination] = useState({
@@ -480,7 +486,7 @@ const TeacherList = () => {
         });
 
         // If we have a teacherId, we need to fetch their current classes
-        let teacherCurrentClasses: string[] = [];
+        let teacherCurrentClassesMap = new Map<string, string>(); // cohortId -> membershipId
         if (teacherId) {
           try {
             // Fetch teacher's current cohort memberships using getUserCohorts
@@ -499,11 +505,17 @@ const TeacherList = () => {
             }
             
             // Extract cohortIds from the array
-            teacherCurrentClasses = cohortsArray
-              .filter((cohort: any) => cohort.cohortId || cohort.id)
-              .map((cohort: any) => cohort.cohortId || cohort.id);
+            cohortsArray.forEach((cohort: any) => {
+                 if ((cohort.cohortId || cohort.id) && cohort.cohortMemberStatus !== 'archived') {
+                     const cId = cohort.cohortId || cohort.id;
+                     const mId = cohort.cohortMembershipId || cohort.membershipId; // Ensure we capture membershipId if available
+                     if (cId) {
+                         teacherCurrentClassesMap.set(String(cId).toLowerCase(), mId);
+                     }
+                 }
+            });
             
-            console.log('Teacher current classes extracted:', teacherCurrentClasses);
+            console.log('Teacher current classes extracted (excluding archived):', teacherCurrentClassesMap.keys());
           } catch (err) {
             console.error('Error fetching teacher current classes:', err);
           }
@@ -512,9 +524,10 @@ const TeacherList = () => {
         // Transform classes to ClassAssignment format
         const assignments: ClassAssignment[] = allClasses.map((cls: any) => {
           const schoolName = schoolMap.get(cls.parentId) || 'Unknown School';
-          const isAssigned = teacherCurrentClasses.some(
-            (assignedId) => String(assignedId).toLowerCase() === String(cls.cohortId).toLowerCase()
-          );
+          const normalizedId = String(cls.cohortId).toLowerCase();
+          const isAssigned = teacherCurrentClassesMap.has(normalizedId);
+          const membershipId = teacherCurrentClassesMap.get(normalizedId);
+          
           return {
             classId: cls.cohortId,
             className: cls.name,
@@ -524,6 +537,7 @@ const TeacherList = () => {
             clusterName: '',
             assigned: isAssigned,
             originallyAssigned: isAssigned,
+            membershipId: membershipId // Store for unassignment
           };
         });
 
@@ -623,7 +637,8 @@ const TeacherList = () => {
   };
 
   const handleEditTeacher = (teacher: Teacher) => {
-    setEditingTeacher(teacher);
+    setTeacherToEdit(teacher);
+    setEditModalOpen(true);
   };
 
   // Handle archive/unarchive teacher
@@ -783,7 +798,7 @@ const TeacherList = () => {
     setClassAssignments((prev) =>
       prev.map((cls) => {
         if (cls.classId === classId) {
-          if (cls.originallyAssigned) return cls; // Do not toggle originally assigned classes
+          // Allow toggling even if originally assigned
           return { ...cls, assigned: !cls.assigned };
         }
         return cls;
@@ -811,46 +826,77 @@ const TeacherList = () => {
 
   // Handle save assignments - FIXED VERSION
   const handleSaveAssignments = async () => {
-    if (!selectedTeacher || !hasSelectedClasses) return;
+    // allow saving if there are changes (additions OR removals), even if hasSelectedClasses is false (removed all)
+    // Check if any changes were made
+    const hasChanges = classAssignments.some(cls => cls.assigned !== cls.originallyAssigned);
+
+    if (!selectedTeacher || !hasChanges) {
+         if (!hasChanges) showToastMessage('No changes to save', 'info');
+         return;
+    }
 
     setAssignLoading(true);
     try {
-      // Get classes to assign
+      // 1. Get classes to assign (newly assigned)
       const classesToAssign = classAssignments
-        .filter((cls) => cls.assigned)
+        .filter((cls) => cls.assigned && !cls.originallyAssigned)
         .map((cls) => cls.classId);
+
+      // 2. Get classes to unassign (removed)
+      const classesToUnassign = classAssignments
+        .filter((cls) => !cls.assigned && cls.originallyAssigned);
 
       console.log(
         'Assigning classes:',
         classesToAssign,
+        'Unassigning classes:',
+        classesToUnassign.map(c => c.classId),
         'to teacher:',
         selectedTeacher.userId
       );
 
-      // Call the API to assign classes to teacher
-      // FIXED: Make sure the API structure matches what your backend expects
-      const response = await assignClassToTeacher({
-        userId: [selectedTeacher.userId],
-        cohortId: classesToAssign, // Changed from cohortId to cohortIds if needed
-      });
+      // Execute Additions
+      if (classesToAssign.length > 0) {
+          const response = await assignClassToTeacher({
+            userId: [selectedTeacher.userId],
+            cohortId: classesToAssign, 
+          });
+           if (!response?.success && response?.responseCode !== 201) {
+              throw new Error(response?.message || 'Failed to assign some classes');
+           }
+      }
 
-      console.log('API Response:', response);
+      // Execute Removals
+      if (classesToUnassign.length > 0) {
+           const removePromises = classesToUnassign.map(async (cls) => {
+              if (cls.membershipId) {
+                  return updateCohortMemberStatus({
+                      membershipId: cls.membershipId,
+                      memberStatus: 'archived',
+                      statusReason: 'Unassigned by admin'
+                  });
+              } else {
+                  console.warn(`Cannot unassign class ${cls.className} - missing membershipId`);
+                  // Fallback: Use new API if exists or log error. 
+                  // If we don't have membershipID, we might fail.
+                  return Promise.resolve({ success: false, message: "Missing membership ID" });
+              }
+          });
+          await Promise.all(removePromises);
+      }
 
-      if (response?.success || response?.responseCode === 201) {
-        const message = `${classesToAssign.length} class(es) assigned successfully`;
-        showToastMessage(message, 'success');
+      const message = `Class assignments updated successfully`;
+      showToastMessage(message, 'success');
 
-        setSnackbar({
+      setSnackbar({
           open: true,
           message,
           severity: 'success',
-        });
+      });
 
-        handleAssignClassDialogClose();
-        fetchTeachers(); // Refresh the teacher list
-      } else {
-        throw new Error(response?.message || 'Failed to assign classes');
-      }
+      handleAssignClassDialogClose();
+      fetchTeachers(); // Refresh the teacher list
+      
     } catch (err: any) {
       console.error('Error updating class assignments:', err);
 
@@ -1589,7 +1635,7 @@ useEffect(() => {
                                     </IconButton>
                                   </Tooltip>
                                 ) : (
-                                  // Show all action buttons for active/non-archived
+                                   // Show all action buttons for active/non-archived
                                   <>
                                     <Tooltip title="Assign Class">
                                       <IconButton
@@ -1600,6 +1646,15 @@ useEffect(() => {
                                         color="primary"
                                       >
                                         <AssignmentIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Edit Teacher">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleEditTeacher(teacher)}
+                                        // color="primary"
+                                      >
+                                        <EditIcon fontSize="small" />
                                       </IconButton>
                                     </Tooltip>
                                     <Tooltip title={archiveProps.tooltip}>
@@ -1966,7 +2021,6 @@ useEffect(() => {
                                   <ListItem key={cls.classId} disablePadding>
                                     <ListItemButton
                                       dense
-                                      disabled={cls.originallyAssigned}
                                       onClick={() =>
                                         handleClassCheckboxChange(cls.classId)
                                       }
@@ -1974,9 +2028,6 @@ useEffect(() => {
                                         borderRadius: 1,
                                         '&:hover': {
                                           bgcolor: 'action.selected',
-                                        },
-                                        '&.Mui-disabled': {
-                                          opacity: 0.8,
                                         },
                                       }}
                                     >
@@ -1986,7 +2037,6 @@ useEffect(() => {
                                           checked={cls.assigned}
                                           tabIndex={-1}
                                           disableRipple
-                                          disabled={cls.originallyAssigned}
                                         />
                                       </ListItemIcon>
                                       <ListItemText
@@ -2056,13 +2106,22 @@ useEffect(() => {
           <Button
             onClick={handleSaveAssignments}
             variant="contained"
-            disabled={assignLoading || !hasSelectedClasses}
+            disabled={assignLoading}
             startIcon={assignLoading ? <CircularProgress size={20} /> : null}
           >
             {assignLoading ? 'Saving...' : 'Save Assignments'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Edit Teacher Modal */}
+      <EditUserModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSuccess={fetchTeachers}
+        user={teacherToEdit}
+        userType="Teacher"
+      />
 
       {/* Archive/Unarchive Confirmation Dialog */}
       <Dialog
