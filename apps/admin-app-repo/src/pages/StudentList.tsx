@@ -88,6 +88,7 @@ import {
 } from '../services/CohortService/cohortService';
 import { showToastMessage } from '@/components/Toastify';
 import AddStudentModal from '@/components/AddStudentModal';
+import EditStudentModal from '@/components/EditStudentModal';
 import { userList } from '@/services/UserList';
 import { deleteUser } from '@/services/UserService';
 
@@ -154,6 +155,7 @@ interface ClassAssignment {
   clusterName: string;
   assigned: boolean;
   originallyAssigned: boolean;
+  membershipId?: string;
 }
 
 // Define sortable columns
@@ -213,6 +215,10 @@ const StudentList = () => {
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [studentToUpdate, setStudentToUpdate] = useState<Student | null>(null);
   const [archiveLoading, setArchiveLoading] = useState(false);
+
+  // Edit Student State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
 
   // Pagination state
   const [pagination, setPagination] = useState({
@@ -491,7 +497,7 @@ const StudentList = () => {
       });
 
       // Fetch student's current cohorts if studentId provided
-      let studentCurrentClasses: string[] = [];
+      let studentCurrentClasses = new Map<string, string>(); // classId -> membershipId
       if (studentId) {
         try {
           const studentCohorts = await getUserCohorts(studentId);
@@ -508,12 +514,18 @@ const StudentList = () => {
             cohortsArray = studentCohorts.result;
           }
           
-          // Extract cohortIds from the array
-          studentCurrentClasses = cohortsArray
-            .filter((cohort: any) => cohort.cohortId || cohort.id)
-            .map((cohort: any) => cohort.cohortId || cohort.id);
+          // Extract cohortIds and membershipIds
+          cohortsArray.forEach((cohort: any) => {
+             const cohortId = cohort.cohortId || cohort.id;
+             const membershipId = cohort.cohortMembershipId || cohort.membershipId; // Adjust based on API response
+             const status = cohort.cohortMemberStatus || cohort.status;
+
+             if (cohortId && status !== 'archived') {
+                studentCurrentClasses.set(String(cohortId).toLowerCase(), membershipId);
+             }
+          });
           
-          console.log('Student current classes extracted:', studentCurrentClasses);
+          console.log('Student current classes extracted:', Array.from(studentCurrentClasses.keys()));
         } catch (err) {
           console.error('Error fetching student current classes:', err);
         }
@@ -522,9 +534,9 @@ const StudentList = () => {
       // Transform classes to ClassAssignment format
       const assignments: ClassAssignment[] = allClasses.map((cls: any) => {
         const schoolName = schoolMap.get(cls.parentId) || 'Unknown School';
-        const isAssigned = studentCurrentClasses.some(
-          (assignedId) => String(assignedId).toLowerCase() === String(cls.cohortId).toLowerCase()
-        );
+        const classIdLower = String(cls.cohortId).toLowerCase();
+        const isAssigned = studentCurrentClasses.has(classIdLower);
+        const membershipId = studentCurrentClasses.get(classIdLower);
 
         return {
           classId: cls.cohortId,
@@ -535,6 +547,7 @@ const StudentList = () => {
           clusterName: '',
           assigned: isAssigned,
           originallyAssigned: isAssigned,
+          membershipId: membershipId, 
         };
       });
 
@@ -635,8 +648,8 @@ const StudentList = () => {
   };
 
   const handleEditStudent = (student: Student) => {
-    setEditingStudent(student);
-    setOpenForm(true);
+    setStudentToEdit(student);
+    setEditModalOpen(true);
   };
 
   // Handle archive/unarchive student
@@ -764,7 +777,7 @@ const StudentList = () => {
     setClassAssignments((prev) =>
       prev.map((cls) => {
         if (cls.classId === classId) {
-          if (cls.originallyAssigned) return cls;
+          // Allow toggling even if originally assigned
           return { ...cls, assigned: !cls.assigned };
         }
         return cls;
@@ -792,18 +805,23 @@ const StudentList = () => {
 
   // Handle save assignments
   const handleSaveAssignments = async () => {
-    if (!selectedStudent || !hasSelectedClasses) return;
+    // Check if any changes were made
+    const hasChanges = classAssignments.some(cls => cls.assigned !== cls.originallyAssigned);
+
+    if (!selectedStudent || !hasChanges) {
+         if (!hasChanges) showToastMessage('No changes to save', 'info');
+         return;
+    }
 
     setAssignLoading(true);
     try {
       // Get classes to assign and remove
       const classesToAssign = classAssignments
-        .filter((cls) => cls.assigned)
+        .filter((cls) => cls.assigned && !cls.originallyAssigned)
         .map((cls) => cls.classId);
 
-      const classesToRemove = classAssignments
-        .filter((cls) => !cls.assigned)
-        .map((cls) => cls.classId);
+      const classesToUnassign = classAssignments
+        .filter((cls) => !cls.assigned && cls.originallyAssigned);
 
       // Assign new classes
       if (classesToAssign.length > 0) {
@@ -812,27 +830,27 @@ const StudentList = () => {
           userId: selectedStudent.userId,
         });
 
-        if (!assignResponse?.success) {
-          throw new Error(
-            assignResponse?.message || 'Failed to assign classes'
-          );
+        if (!assignResponse?.success && !assignResponse?.data?.result) {
+           console.warn("Assign response might indicate failure:", assignResponse);
+           // Proceeding as some APIs return different structures
         }
       }
 
-      // Remove classes
-      if (classesToRemove.length > 0) {
-        for (const classId of classesToRemove) {
-          const removeResponse = await removeCohortFromStudent({
-            cohortId: classId,
-            userId: selectedStudent.userId,
-          });
-
-          if (!removeResponse?.success) {
-            throw new Error(
-              removeResponse?.message || 'Failed to remove classes'
-            );
-          }
-        }
+      // Remove classes (Unassign)
+      if (classesToUnassign.length > 0) {
+        const removePromises = classesToUnassign.map(async (cls) => {
+            if (cls.membershipId) {
+                return updateCohortMemberStatusTeacherList(
+                    cls.membershipId, 
+                    'archived', 
+                    //'Unassigned by admin' 
+                );
+            } else {
+                console.warn(`Cannot unassign class ${cls.className} - missing membershipId`);
+                return Promise.resolve({ success: false, message: "Missing membership ID" });
+            }
+        });
+        await Promise.all(removePromises);
       }
 
       setSnackbar({
@@ -1547,6 +1565,16 @@ const { total, active, archived } = summaryCounts;
                                 ) : (
                                   // Show all action buttons for active/non-archived
                                   <>
+                                    <Tooltip title="Edit Student">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() =>
+                                          handleEditStudent(student)
+                                        }
+                                      >
+                                        <EditIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
                                     <Tooltip title="Assign Class">
                                       <IconButton
                                         size="small"
@@ -1924,7 +1952,6 @@ const { total, active, archived } = summaryCounts;
                                   <ListItem key={cls.classId} disablePadding>
                                     <ListItemButton
                                       dense
-                                      disabled={cls.originallyAssigned}
                                       onClick={() =>
                                         handleClassCheckboxChange(cls.classId)
                                       }
@@ -1933,18 +1960,13 @@ const { total, active, archived } = summaryCounts;
                                         '&:hover': {
                                           bgcolor: 'action.selected',
                                         },
-                                        '&.Mui-disabled': {
-                                          opacity: 0.8,
-                                        },
                                       }}
                                     >
                                       <ListItemIcon 
                                         sx={{ minWidth: 40 }}
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          if (!cls.originallyAssigned) {
-                                            handleClassCheckboxChange(cls.classId);
-                                          }
+                                          handleClassCheckboxChange(cls.classId);
                                         }}
                                       >
                                         <Checkbox
@@ -1952,14 +1974,11 @@ const { total, active, archived } = summaryCounts;
                                           checked={cls.assigned}
                                           tabIndex={-1}
                                           disableRipple
-                                          disabled={cls.originallyAssigned}
                                           onChange={(e) => {
                                             e.stopPropagation();
-                                            if (!cls.originallyAssigned) {
-                                              handleClassCheckboxChange(
-                                                cls.classId
-                                              );
-                                            }
+                                            handleClassCheckboxChange(
+                                              cls.classId
+                                            );
                                           }}
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -2135,6 +2154,13 @@ const { total, active, archived } = summaryCounts;
           </Button>
         </DialogActions>
       </Dialog>
+
+      <EditStudentModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSuccess={handleRefresh}
+        student={studentToEdit}
+      />
 
       {/* Snackbar for notifications */}
       <Snackbar

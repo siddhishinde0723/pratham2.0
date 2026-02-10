@@ -13,6 +13,7 @@ import {
   Card,
   alpha,
   CircularProgress,
+  FormControlLabel
 } from '@mui/material';
 import React, { useEffect, useRef, useState } from 'react';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
@@ -161,6 +162,12 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.localStorage) {
+      const rememberedUsername = localStorage.getItem('rememberedUsername');
+      if (rememberedUsername) {
+        setUsername(rememberedUsername);
+        setRememberMe(true);
+      }
+
       // If no tenant config applied (non-Swadhaar), use default language handling
       if (availableLanguages.length === 0) {
         const preferredLang = localStorage.getItem('preferredLanguage') || 'en';
@@ -472,6 +479,12 @@ const LoginPage = () => {
           if (typeof window !== 'undefined' && window.localStorage) {
             const token = response.result.access_token;
             const refreshToken = response?.result?.refresh_token;
+            if (rememberMe) {
+              localStorage.setItem('rememberedUsername', username);
+            } else {
+              localStorage.removeItem('rememberedUsername');
+            }
+
             localStorage.setItem('token', token);
             rememberMe
               ? localStorage.setItem('refreshToken', refreshToken)
@@ -904,6 +917,45 @@ const LoginPage = () => {
                   },
                 }}
               />
+
+              {/* Remember Me Checkbox */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  mb: 2,
+                  mt: -1,
+                  width: '100%',
+                }}
+              >
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      sx={{
+                        color: dynamicStyles.secondaryColor,
+                        '&.Mui-checked': {
+                          color: '#E6873C',
+                        },
+                      }}
+                    />
+                  }
+                  label={
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: 'rgba(0,0,0,0.65)',
+                        fontSize: '0.9rem',
+                        fontWeight: 500,
+                      }}
+                    >
+                      {t('LOGIN_PAGE.REMEMBER_ME')}
+                    </Typography>
+                  }
+                />
+              </Box>
 
               {/* Login Button */}
               <Button

@@ -66,6 +66,7 @@ import { Numbers } from '@mui/icons-material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddUserForm from '@/components/AddUserForm';
+import EditUserModal from '@/components/EditUserModal';
 import SimpleModal from '@/components/SimpleModal';
 import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 import { deleteUser } from '@/services/UserService';
@@ -109,6 +110,10 @@ const Supervisor = () => {
   const [assignLoading, setAssignLoading] = useState(false);
   const [expandedSchools, setExpandedSchools] = useState<Set<string>>(new Set());
   const [schoolSearchTerm, setSchoolSearchTerm] = useState('');
+
+  // Edit Supervisor Modal State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [supervisorToEdit, setSupervisorToEdit] = useState<any | null>(null);
 
   const { t, i18n } = useTranslation();
 
@@ -337,6 +342,11 @@ const Supervisor = () => {
 
   const handleCloseModal = () => {
     setOpenModal(false);
+  };
+
+  const handleEditSupervisor = (supervisor: any) => {
+    setSupervisorToEdit(supervisor);
+    setEditModalOpen(true);
   };
 
 
@@ -694,8 +704,6 @@ const Supervisor = () => {
     setSchoolAssignments((prev) =>
       prev.map((school) => {
         if (school.schoolId === schoolId) {
-          // Do not toggle originally assigned schools (they should remain checked and disabled)
-          if (school.originallyAssigned) return school;
           // Toggle unassigned schools
           return { ...school, assigned: !school.assigned };
         }
@@ -1106,56 +1114,59 @@ const Supervisor = () => {
                             {supervisor.status === 'archived' ? (
                               // Only show delete icon for archived
                               <Tooltip
-                                title="Activate Supervisor"
+                                title="Activate"
                               >
                                 <IconButton
                                   size="small"
                                   onClick={() => handleArchive(supervisor)}
-                                  color="success"
+                                  color={getStatusColor(supervisor.status) as any}
                                   sx={{
                                     '&:hover': {
                                       backgroundColor: '#e8f5e8',
                                     },
                                   }}
                                 >
-                                  <Archive
-                                    size={20}
-                                    color="#4caf50"
-                                    strokeWidth={2}
-                                  />
+                                  <DeleteIcon fontSize="small" />
                                 </IconButton>
                               </Tooltip>
                             ) : (
                               // Show all action buttons for active/non-archived
-                              <>
-                                <Tooltip title="Assign Center">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleAssignSchoolClick(supervisor)}
-                                    color="primary"
-                                  >
-                                    <AssignmentIcon />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Archive Supervisor">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleArchive(supervisor)}
-                                    color="error"
-                                    sx={{
-                                      '&:hover': {
-                                        backgroundColor: '#ffebee',
-                                      },
-                                    }}
-                                  >
-                                    <Archive
-                                      size={20}
-                                      color="#f44336"
-                                      strokeWidth={2}
-                                    />
-                                  </IconButton>
-                                </Tooltip>
-                              </>
+                                   <>
+                                    <Tooltip title="Assign Center">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() =>
+                                          handleAssignSchoolClick(supervisor)
+                                        }
+                                        color="primary"
+                                      >
+                                        <AssignmentIcon />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Edit Supervisor">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleEditSupervisor(supervisor)}
+                                        // color="primary"
+                                      >
+                                        <EditIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Archive">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleArchive(supervisor)}
+                                        color="error"
+                                        sx={{
+                                          '&:hover': {
+                                            backgroundColor: '#ffebee',
+                                          },
+                                        }}
+                                      >
+                                        <DeleteIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </>
                             )}
                           </Box>
                         </TableCell>
@@ -1236,6 +1247,15 @@ const Supervisor = () => {
           }}
         />
       </SimpleModal>
+
+      {/* Edit Supervisor Modal */}
+      <EditUserModal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSuccess={handleRefresh}
+        user={supervisorToEdit}
+        userType="Supervisor"
+      />
 
       {/* Assign Schools Dialog */}
       <Dialog
@@ -1379,16 +1399,13 @@ const Supervisor = () => {
                         <ListItem disablePadding>
                           <ListItemButton
                             dense
-                            disabled={school.originallyAssigned}
                             onClick={(e) => {
                               // Prevent double-trigger - don't handle if clicking on checkbox
                               const target = e.target as HTMLElement;
                               if (target.closest('input[type="checkbox"]')) {
                                 return;
                               }
-                              if (!school.originallyAssigned) {
-                                handleSchoolCheckboxChange(school.schoolId);
-                              }
+                              handleSchoolCheckboxChange(school.schoolId);
                             }}
                             sx={{
                               borderRadius: 1,
@@ -1406,12 +1423,9 @@ const Supervisor = () => {
                                 checked={school.assigned}
                                 tabIndex={-1}
                                 disableRipple
-                                disabled={school.originallyAssigned}
                                 onChange={(e) => {
                                   e.stopPropagation();
-                                  if (!school.originallyAssigned) {
-                                    handleSchoolCheckboxChange(school.schoolId);
-                                  }
+                                  handleSchoolCheckboxChange(school.schoolId);
                                 }}
                               />
                             </ListItemIcon>
