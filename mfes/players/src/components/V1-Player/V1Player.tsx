@@ -86,6 +86,7 @@ const V1Player = ({ playerConfig }: PlayerProps) => {
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
+        height:'calc(100vh - 160px)'
       }}
     >
       <iframe
@@ -94,7 +95,7 @@ const V1Player = ({ playerConfig }: PlayerProps) => {
         title="Content Player"
         src="/content/preview/preview.html?webview=true"
         aria-label="Content Player"
-        style={{ width: '100%', height: '600px', border: 'none' }}
+        style={{ width: '100%', height: 'calc(100vh - 160px)', border: 'none' }}
       ></iframe>
     </div>
   );

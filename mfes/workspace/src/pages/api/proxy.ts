@@ -80,24 +80,25 @@ export default async function handler(
      "Proxy BASE_URL env not set. Please set NEXT_PUBLIC_BASE_URL to your middleware base, e.g., https://interface.tekdinext.com/interface/v1"
    );
  }
- const tenantId = getCookie(req, "tenantId");
+  const queryTenantId = req.query.tenantId as string;
+  const cookieTenantId = getCookie(req, 'tenantId');
+  const headerTenantId = req.headers['tenantid'] as string;
 
+  // Use the first available tenant ID
+  const tenantId =
+    queryTenantId ||
+    cookieTenantId ||
+    headerTenantId ||
+    '6c386899-7a00-4733-8447-5ef925bbf700';
 
- console.log("🔐 [proxy] Authentication details:", {
-   baseURL: BASE_URL,
-   hasToken: !!token,
-   tenantId,
-   path,
- });
+  console.log('🔐 [proxy] Authentication details:', {
+    baseURL: BASE_URL,
+    hasToken: !!token,
+    tenantId,
+    path,
+  });
 
-
- if (!tenantId) {
-   console.log("❌ [proxy] Tenant ID not found in cookies");
-   return res.status(400).json({ error: "Tenant ID not found in cookies" });
- }
-
-
- const tenantConfig = mockData[tenantId];
+  const tenantConfig = mockData[tenantId];
 
 
  console.log("🏢 [proxy] Tenant config:", {
@@ -123,7 +124,7 @@ export default async function handler(
 
 
   // pathString is already defined above, so we can use it directly
-  if (pathString === "/action/data/v1/form/read") {
+   if (pathString === "/action/data/v1/form/read" && body?.request) {
    const { action, subType, type } = body.request;
    if (action === "save" && subType === "resource") {
      return res.status(200).json(genericEditorSaveFormResponse);
@@ -228,8 +229,21 @@ export default async function handler(
   });
 
   const queryString = req.url?.includes('?') ? req.url.split('?')[1] : '';
+   const contentMode = getCookie(req, 'contentMode');
+  
+  // Create query string for target URL, excluding the 'path' parameter used for proxy routing
+  const urlParams = new URLSearchParams(queryString);
+  urlParams.delete('path'); 
+  
+  if (pathString.includes('/action/questionset/v2/hierarchy') && contentMode === 'edit') {
+    if (!urlParams.has('mode')) {
+      urlParams.set('mode', 'edit');
+    }
+  }
+
+  const finalQueryString = urlParams.toString();
   const targetUrl = `${BASE_URL}${pathString}${
-    queryString ? `?${queryString}` : ''
+    queryString ? `?${finalQueryString}` : ''
   }`;
 
   console.log('🌐 [proxy] Target URL:', targetUrl);
@@ -252,8 +266,16 @@ export default async function handler(
 
     let forwardBody: any = undefined;
     if (['POST', 'PATCH', 'PUT'].includes(method || '')) {
+       let processedBody = body;
+      if (pathString === '/action/questionset/v2/hierarchy/update') {
+        console.log("🧹 [proxy] Sanitizing hierarchy update body...");
+        const cloudStorageUrl = (process.env.NEXT_PUBLIC_CLOUD_STORAGE_URL || process.env.CLOUD_STORAGE_URL || '').replace(/\/+$/, '');
+        const cleanS3Url = cloudStorageUrl.replace(/\/sunbird-content-prod\/?$/, '').replace(/\/$/, '');
+        processedBody = sanitizeMediaUrls(body, cleanS3Url);
+      }
+
       if (incomingContentType?.includes('application/json')) {
-        forwardBody = JSON.stringify(body);
+        forwardBody = JSON.stringify(processedBody);
       } else if (
         incomingContentType?.includes('application/x-www-form-urlencoded')
       ) {
@@ -273,7 +295,7 @@ export default async function handler(
         forwardBody = (req as any).body;
       } else {
         // Fallback: JSON stringify unknown structures
-        forwardBody = JSON.stringify(body || {});
+       forwardBody = JSON.stringify(processedBody || {});
         headers['Content-Type'] = 'application/json';
       }
     }
@@ -289,6 +311,10 @@ export default async function handler(
       hasBody: !!options.body,
       bodyType: typeof options.body,
       headers: Object.keys(options.headers || {}),
+        // Partially log body if it's a hierarchy update to verify sanitization
+      sanitizedSnippet: pathString === '/action/questionset/v2/hierarchy/update' 
+        ? (forwardBody as string).substring(0, 500) + "..." 
+        : "N/A"
     });
 
     const response = await fetch(targetUrl, options);
@@ -367,4 +393,42 @@ export default async function handler(
         .json({ message: 'Error fetching data', error: error.message });
     }
   }
+}
+function sanitizeMediaUrls(obj: any, cloudStorageUrl?: string): any {
+  if (obj === null || obj === undefined) return obj;
+
+  if (typeof obj === 'string') {
+    let sanitized = obj
+      .replace(/\/assets\/public\/\//g, '/')
+      .replace(/\/assets\/public\//g, '/');
+    
+    if (cloudStorageUrl) {
+       // Also fix any local URLs embedded in the string body
+       sanitized = sanitized.replace(/http:\/\/localhost:\d+\/assets\/public\//g, `${cloudStorageUrl}/`);
+       sanitized = sanitized.replace(/http:\/\/localhost:\d+\/content\/assets\//g, `${cloudStorageUrl}/content/assets/`);
+    }
+    return sanitized;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => sanitizeMediaUrls(item, cloudStorageUrl));
+  }
+
+  if (typeof obj === 'object') {
+    const sanitized: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        let value = obj[key];
+        if (key === 'baseUrl' && typeof value === 'string' && value.includes('localhost:') && cloudStorageUrl) {
+           value = cloudStorageUrl;
+        } else {
+           value = sanitizeMediaUrls(value, cloudStorageUrl);
+        }
+        sanitized[key] = value;
+      }
+    }
+    return sanitized;
+  }
+
+  return obj;
 }

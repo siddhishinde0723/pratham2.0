@@ -57,6 +57,7 @@ const Sidebar = ({
 
   // Check if program is OBLF
   const isOBLFProgram = localStorage.getItem('channelId') === 'oblf-channel';
+  const isSwadhaarChannel = localStorage.getItem('channelId') === 'swadhaar-channel';
 
   useEffect(() => {
     // Get menu config dynamically for any tenant
@@ -74,8 +75,8 @@ const Sidebar = ({
 
         // For non-OBLF programs, hide specific items
         if (!isOBLFProgram) {
-          // Hide "Classes" for non-OBLF programs
-          if (key === 'classes') {
+          // Hide "Classes", "centers" and "clusters" for non-OBLF programs
+          if (key === 'classes' || key === 'centers' || key === 'clusters') {
             return;
           }
 
@@ -83,7 +84,7 @@ const Sidebar = ({
           if (key === 'manageUsers' && item.subMenu) {
             const filteredSubMenu = item.subMenu.filter((sub: any) => {
               // Hide Teacher, Students, Staff, and Supervisor from submenu for non-OBLF
-              return !(sub.title === 'Teacher' || sub.title === 'Students' || sub.title === 'Staff' || sub.title === 'Supervisor' );
+              return !(sub.title === 'Teacher' || sub.title === 'Students' || sub.title === 'Staff' || sub.title === 'Supervisor');
             });
 
             // Only add manageUsers if it has subMenu items after filtering
@@ -95,6 +96,11 @@ const Sidebar = ({
             }
             return;
           }
+        }
+
+        // Only show "content" for Swadhaar channel
+        if (key === 'content' && !isSwadhaarChannel) {
+          return;
         }
 
         // For OBLF programs or other items, add as is

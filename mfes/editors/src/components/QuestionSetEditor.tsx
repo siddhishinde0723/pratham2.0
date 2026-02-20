@@ -38,7 +38,10 @@ const QuestionSetEditor: React.FC = () => {
     const generatedDeviceId = uuidv4();
     setDeviceId(generatedDeviceId);
   }, []);
+const cloudStorageUrl = CLOUD_STORAGE_URL || process.env.NEXT_PUBLIC_CLOUD_STORAGE_URL || "https://saas-prod.s3.ap-south-1.amazonaws.com/sunbird-content-prod";
+  const cleanCloudStorageUrl = cloudStorageUrl.replace(/\/sunbird-content-prod.*$/, '').replace(/\/$/, '');
 
+  console.log('QuestionSetEditor - CLOUD_STORAGE_URL:', cloudStorageUrl);
   const questionSetEditorConfig = {
     context: {
       user: {
@@ -76,7 +79,14 @@ const QuestionSetEditor: React.FC = () => {
       endpoint: "/data/v3/telemetry",
       env: "questionset_editor",
       framework: tenantConfig?.COLLECTION_FRAMEWORK,
-      cloudStorageUrls: [CLOUD_STORAGE_URL],
+       cloudStorageUrls: [
+        cleanCloudStorageUrl,
+        "https://saas-prod.s3-ap-south-1.amazonaws.com/",
+        cleanCloudStorageUrl,
+        "https://saas-prod.s3-ap-south-1.amazonaws.com/",
+        "https://saas-prod.s3.ap-south-1.amazonaws.com/"
+      ],
+      baseURL: cleanCloudStorageUrl,
       labels: {
         save_collection_btn_label: "Save as Draft",
       },
