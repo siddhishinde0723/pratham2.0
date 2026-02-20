@@ -70,6 +70,7 @@ export default async function handler(
   let s3Path = pathString;
   if (!pathString.startsWith('content/assets/')) {
     s3Path = `content/assets/${pathString}`;
+  }
 
   // Construct the S3 URL
   const s3Url = `${baseUrl}/${s3Path}`;

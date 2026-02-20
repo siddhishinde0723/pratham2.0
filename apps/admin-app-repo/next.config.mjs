@@ -7,7 +7,7 @@ const PORTAL_BASE_URL = "https://sunbird-editor.tekdinext.com";
 const cleanCloudStorageUrl = CLOUD_STORAGE_URL.replace(/\/sunbird-content-prod\/?$/, '').replace(/\/$/, '');
 const remotes = (isServer) => {
   const location = isServer ? 'ssr' : 'chunks';
-  const PLAYERS_BASE_URL = process.env.NEXT_PUBLIC_PLAYERS_BASE_URL || 'http://localhost:4106/mfe_players';
+  const PLAYERS_BASE_URL = process.env.NEXT_PUBLIC_PLAYERS_BASE_URL || 'http://localhost:4108/mfe_players';
   const WORKSPACE_BASE_URL = process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL || 'http://localhost:3001/mfe_workspace';
 
   return {
@@ -189,7 +189,7 @@ const nextConfig = {
       },
       {
         source: '/mfe_players/:path*',
-        destination: `http://localhost:4106/mfe_players/:path*`,
+        destination: `http://localhost:4108/mfe_players/:path*`,
       },
     ];
   },
