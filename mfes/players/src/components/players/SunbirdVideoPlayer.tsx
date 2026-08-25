@@ -69,7 +69,7 @@ const SunbirdVideoPlayer = ({ playerConfig }: PlayerConfigProps) => {
   }, []);
 
   return (
-    <div className="player" style={{ height: 'auto' }}>
+    <div className="player" style={{ height: 'calc(100vh - 160px)' }}>
       {/* @ts-ignore */}
       <sunbird-video-player
         player-config={JSON.stringify(playerConfig)}

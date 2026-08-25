@@ -201,10 +201,10 @@ export class GoogleCloudStorageService {
 export function createGCSService(config?: Partial<GCSConfig>): GoogleCloudStorageService {
   // Service account credentials from user-provided config or environment
   const serviceAccountConfig = config || {
-    projectId: process.env.GCS_PROJECT_ID || '',
+    projectId: process.env.GCS_PROJECT_ID || 'shiksha-prod',
     privateKey: process.env.NEXT_PUBLIC_GCS_PRIVATE_KEY || '',
     clientEmail: process.env.GCS_CLIENT_EMAIL || '',
-    bucketName: process.env.GCS_BUCKET_NAME || '',
+    bucketName: process.env.GCS_BUCKET_NAME || 'swadharprod',
   };
 
   // Validate required configuration
@@ -223,4 +223,3 @@ export function createGCSService(config?: Partial<GCSConfig>): GoogleCloudStorag
 
   return new GoogleCloudStorageService(serviceAccountConfig as GCSConfig);
 }
-

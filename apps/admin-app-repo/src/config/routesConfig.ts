@@ -11,15 +11,36 @@ export const PUBLIC_ROUTES = [
 ];
 // Universal role-based routes for all tenants
 const UNIVERSAL_ROLE_ROUTES = {
-  [Role.ADMIN]: ['/edit-password', '/TeacherList', '/StudentList', '/classes'],
+  [Role.ADMIN]: [
+    '/edit-password',
+    '/TeacherList',
+    '/StudentList',
+    '/classes',
+    '/play/content/[identifier]',
+    '/course-hierarchy/[identifier]',
+  ],
   [Role.CENTRAL_ADMIN]: [
     '/edit-password',
     '/TeacherList',
     '/StudentList',
     '/classes',
+    '/play/content/[identifier]',
+    '/course-hierarchy/[identifier]',
   ],
-  [Role.CCTA]: ['/edit-password', '/subjectDetails', '/importCsv'],
-  [Role.SCTA]: ['/edit-password', '/subjectDetails', '/importCsv'],
+  [Role.CCTA]: [
+    '/edit-password',
+    '/subjectDetails',
+    '/importCsv',
+    '/play/content/[identifier]',
+    '/course-hierarchy/[identifier]',
+  ],
+  [Role.SCTA]: [
+    '/edit-password',
+    '/subjectDetails',
+    '/importCsv',
+    '/play/content/[identifier]',
+    '/course-hierarchy/[identifier]',
+  ],
 };
 
 // Function to get role-based routes for any tenant

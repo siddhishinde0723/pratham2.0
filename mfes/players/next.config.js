@@ -15,6 +15,8 @@ const routes = {
   },
 };
 
+const { NextFederationPlugin } = require('@module-federation/nextjs-mf');
+
 /**
  * @type {import('@nx/next/plugins/with-nx').WithNxOptions}
  **/
@@ -23,6 +25,21 @@ const nextConfig = {
     // Set this to true if you would like to use SVGR
     // See: https://github.com/gregberge/svgr
     svgr: false,
+  },
+  basePath: '/mfe_players',
+  webpack: (config, options) => {
+    config.plugins.push(
+      new NextFederationPlugin({
+        name: 'players',
+        filename: 'static/chunks/remoteEntry.js',
+        exposes: {
+          './SunbirdPlayers': './src/components/players/Players.tsx',
+        },
+        shared: {},
+        extraOptions: {},
+      })
+    );
+    return config;
   },
   async rewrites() {
     return [
@@ -70,6 +87,10 @@ const nextConfig = {
       {
         source: '/assets/public/:path*', // Match any URL starting with /assets/public/
         destination: `${process.env.NEXT_PUBLIC_CLOUD_STORAGE_URL}/:path*`, // Forward to S3, stripping "/assets/public"
+      },
+       {
+         source: '/content/assets/:path*',
+         destination: `${process.env.NEXT_PUBLIC_CLOUD_STORAGE_URL}/:path*`,
       },
       {
         source: '/workspace/content/assets/:path*', // Match any URL starting with /workspace/content/assets/

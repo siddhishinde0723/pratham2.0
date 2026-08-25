@@ -33,6 +33,8 @@ const SunbirdPlayers = ({ 'player-config': playerConfig }: PlayerProps) => {
       return <SunbirdPdfPlayer playerConfig={playerConfig} />;
     case 'video/mp4':
     case 'video/webm':
+     case "audio/mp3":
+    case "audio/wav":
       return <SunbirdVideoPlayer playerConfig={playerConfig} />;
     case 'application/vnd.sunbird.questionset':
       return <SunbirdQuMLPlayer playerConfig={playerConfig} />;
@@ -43,6 +45,7 @@ const SunbirdPlayers = ({ 'player-config': playerConfig }: PlayerProps) => {
     case 'video/youtube':
     case 'video/x-youtube':
     case 'application/vnd.ekstep.ecml-archive':
+  
       return <SunbirdV1Player playerConfig={playerConfig} />;
     default:
       return <div>Unsupported media type</div>;

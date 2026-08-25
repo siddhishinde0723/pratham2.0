@@ -1,7 +1,20 @@
 /** @type {import('next').NextConfig} */
 import nextI18nextConfig from "./next-i18next.config.js";
 
+import { NextFederationPlugin } from '@module-federation/nextjs-mf';
+const CLOUD_STORAGE_URL = process.env.CLOUD_STORAGE_URL || 'https://saas-prod.s3.ap-south-1.amazonaws.com';
 const PORTAL_BASE_URL = "https://sunbird-editor.tekdinext.com";
+const cleanCloudStorageUrl = CLOUD_STORAGE_URL.replace(/\/sunbird-content-prod\/?$/, '').replace(/\/$/, '');
+const remotes = (isServer) => {
+  const location = isServer ? 'ssr' : 'chunks';
+  const PLAYERS_BASE_URL = process.env.NEXT_PUBLIC_PLAYERS_BASE_URL || 'http://localhost:4108/mfe_players';
+  const WORKSPACE_BASE_URL = process.env.NEXT_PUBLIC_WORKSPACE_BASE_URL || 'http://localhost:3001/mfe_workspace';
+
+  return {
+    editor: `editor@${WORKSPACE_BASE_URL}/_next/static/${location}/remoteEntry.js`,
+    players: `players@${PLAYERS_BASE_URL}/_next/static/${location}/remoteEntry.js`,
+  };
+};
 
 const CONTENT_EDITOR_BASE_URL = 'https://shiksha-dev-ge.tekdinext.com';
 const routes = {
@@ -33,6 +46,14 @@ const nextConfig = {
     esmExternals: false,
   },
   webpack: (config, { dev, isServer }) => {
+    config.plugins.push(
+      new NextFederationPlugin({
+        name: 'admin',
+        filename: 'static/chunks/remoteEntry.js',
+        remotes: remotes(isServer),
+        exposes: {},
+      })
+    );
     if (dev && !isServer) {
       config.watchOptions = {
         poll: 1000,
@@ -80,11 +101,11 @@ const nextConfig = {
       },
       {
         source: '/mfe_workspace/workspace/content/assets/:path*',
-        destination: `${WORKSPACE_BASE_URL}/assets/:path*`,
+        destination: `/assets/:path*`,
       },
       {
         source: '/workspace/content/assets/:path*',
-        destination: `${WORKSPACE_BASE_URL}/assets/:path*`,
+        destination: `/assets/:path*`,
       },
       {
         source: '/mfe_workspace/assets/:path*', // Match all requests under /mfe_workspace/assets
@@ -106,6 +127,10 @@ const nextConfig = {
         source: '/data/v3/telemetry',
         destination: `${TELEMETRY_URL}/v1/telemetry`,
       },
+       {
+        source: '/action/content/v3/read/:identifier*',
+        destination: `${WORKSPACE_BASE_URL}/api/proxy?path=/action/content/v3/read/:identifier*`,
+      },
       {
         source: '/action/content/:path*',
         destination: `${WORKSPACE_BASE_URL}/api/proxy?path=/action/content/:path*`,
@@ -122,9 +147,13 @@ const nextConfig = {
         source: '/api/:path*',
         destination: `${WORKSPACE_BASE_URL}/api/proxy?path=/api/:path*`,
       },
+        {
+        source: '/content/assets/:path*',
+        destination: `${cleanCloudStorageUrl}/content/assets/:path*`,
+      },
       {
         source: '/assets/public/:path*',
-        destination: '/api/s3-assets?path=:path*',
+        destination: `${cleanCloudStorageUrl}/:path*`,
       },
       {
         source: routes.API.GENERAL.CONTENT_PREVIEW,
@@ -151,8 +180,16 @@ const nextConfig = {
         destination: `${WORKSPACE_BASE_URL}/api/telemetry`,
       },
       {
+        source: '/mfe_workspace/:path*',
+        destination: `http://localhost:4104/mfe_workspace/:path*`,
+      },
+      {
         source: '/content-editor/telemetry', // Match telemetry route
         destination: `${WORKSPACE_BASE_URL}/api/telemetry`, // Redirect to telemetry proxy
+      },
+      {
+        source: '/mfe_players/:path*',
+        destination: `http://localhost:4108/mfe_players/:path*`,
       },
     ];
   },

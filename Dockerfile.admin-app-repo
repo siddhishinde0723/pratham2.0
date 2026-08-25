@@ -17,12 +17,12 @@ COPY . .
 
 # Build Specific Application
 # Build only specific applications
-RUN npx nx run-many --target=build --projects=admin-app-repo,workspace
+RUN npx nx run-many --target=build --projects=admin-app-repo,workspace,players
 
 # Install PM2 to manage multiple apps
 RUN npm install -g pm2@6.0.8
 # Expose the ports for all apps
-EXPOSE 3002 4104
+EXPOSE 3002 4104 4108
 
 # Command to run all apps using PM2
 CMD ["pm2-runtime", "ecosystem.admin-app-repo.config.js"]

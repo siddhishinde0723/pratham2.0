@@ -38,7 +38,10 @@ const QuestionSetEditor: React.FC = () => {
     const generatedDeviceId = uuidv4();
     setDeviceId(generatedDeviceId);
   }, []);
+  const cloudStorageUrl = CLOUD_STORAGE_URL || process.env.NEXT_PUBLIC_CLOUD_STORAGE_URL || "https://saas-prod.s3.ap-south-1.amazonaws.com/sunbird-content-prod";
+  const cleanCloudStorageUrl = cloudStorageUrl.replace(/\/sunbird-content-prod.*$/, '').replace(/\/$/, '');
 
+  console.log('QuestionSetEditor - CLOUD_STORAGE_URL:', cloudStorageUrl);
   const questionSetEditorConfig = {
     context: {
       user: {
@@ -76,7 +79,14 @@ const QuestionSetEditor: React.FC = () => {
       endpoint: "/data/v3/telemetry",
       env: "questionset_editor",
       framework: tenantConfig?.COLLECTION_FRAMEWORK,
-      cloudStorageUrls: [CLOUD_STORAGE_URL],
+      cloudStorageUrls: [
+        cleanCloudStorageUrl,
+        "https://saas-prod.s3-ap-south-1.amazonaws.com/",
+        cleanCloudStorageUrl,
+        "https://saas-prod.s3-ap-south-1.amazonaws.com/",
+        "https://saas-prod.s3.ap-south-1.amazonaws.com/"
+      ],
+      baseURL: cleanCloudStorageUrl,
       labels: {
         save_collection_btn_label: "Save as Draft",
       },
@@ -123,12 +133,12 @@ const QuestionSetEditor: React.FC = () => {
   const isAppendedRef = useRef(false);
   const [assetsLoaded, setAssetsLoaded] = useState(false);
   const sendReviewNotification = async (notificationData: any) => {
-   
-  
+
+
     const isQueue = false;
     const context = "CMS";
     const key = "onContentReview";
-    const url = `${window.location.origin}/editor?identifier=${notificationData?.contentId}`  
+    const url = `${window.location.origin}/editor?identifier=${notificationData?.contentId}`
     try {
       const response = await fetchCCTAList();
       const cctaList = response;
@@ -137,7 +147,7 @@ const QuestionSetEditor: React.FC = () => {
       );
       const data = await ContentDetail.json();
 
- 
+
       const promises = cctaList.map(async (user: any) => {
         const replacements = {
           "{reviewerName}": user?.name,
@@ -145,10 +155,10 @@ const QuestionSetEditor: React.FC = () => {
           "{contentId}": notificationData?.contentId,
           "{appUrl}": url,
           "{submissionDate}": new Date().toLocaleDateString(),
-        "{contentType}":"Course",
-        "{contentTitle}":data?.result?.content?.name
+          "{contentType}": "Course",
+          "{contentTitle}": data?.result?.content?.name
         };
-  
+
         return sendCredentialService({
           isQueue,
           context,
@@ -157,12 +167,12 @@ const QuestionSetEditor: React.FC = () => {
           email: { receipients: [user?.email] },
         });
       });
-  
+
       await Promise.all(promises);
-  
+
       console.log("All emails sent successfully.");
-      
-      window.history.back(); 
+
+      window.history.back();
     } catch (error) {
       console.error("Error sending email notifications:", error);
     }
@@ -175,11 +185,11 @@ const QuestionSetEditor: React.FC = () => {
       year: "numeric",
     });
   };
-  
- 
-  const sendCreatorNotification = () => sendContentNotification(ContentStatus.PUBLISHED, Editor.QUESTION_SET ,"", identifier, undefined, router);
-  const sendContentRejectNotification = () => sendContentNotification(ContentStatus.REJECTED, Editor.QUESTION_SET ,"", identifier, undefined, router);
- 
+
+
+  const sendCreatorNotification = () => sendContentNotification(ContentStatus.PUBLISHED, Editor.QUESTION_SET, "", identifier, undefined, router);
+  const sendContentRejectNotification = () => sendContentNotification(ContentStatus.REJECTED, Editor.QUESTION_SET, "", identifier, undefined, router);
+
   useEffect(() => {
     const loadAssets = () => {
       if (!document.getElementById("sunbird-editor-css")) {
@@ -195,7 +205,7 @@ const QuestionSetEditor: React.FC = () => {
         const script = document.createElement("script");
         script.id = "sunbird-editor-js";
         script.src =
-        "https://cdn.jsdelivr.net/npm/@tekdi/sunbird-questionset-editor-web-component@5.0.0-beta.14/sunbird-questionset-editor.js";        
+          "https://cdn.jsdelivr.net/npm/@tekdi/sunbird-questionset-editor-web-component@5.0.0-beta.14/sunbird-questionset-editor.js";
         script.async = true;
         script.onload = () => setAssetsLoaded(true);
         document.body.appendChild(script);
@@ -260,9 +270,8 @@ const QuestionSetEditor: React.FC = () => {
               //   .catch((error) => {
               //     console.error("Error in sendReviewNotification:", error);
               //   });
-            } 
-            else if (event.detail?.action === "publishContent")
-            {
+            }
+            else if (event.detail?.action === "publishContent") {
               sendCreatorNotification();
               // Redirect based on mode: reviewers go to up-review, creators go back
               setTimeout(() => {
@@ -275,16 +284,15 @@ const QuestionSetEditor: React.FC = () => {
                 }
               }, 2000); // Wait 2 seconds to show success message
             }
-            else if(event.detail?.action === "rejectContent")
-            {
+            else if (event.detail?.action === "rejectContent") {
               sendContentRejectNotification()
             }
-            
+
             else {
               window.history.back();
             }
             localStorage.removeItem("contentMode");
-          //  window.history.back();
+            //  window.history.back();
             window.addEventListener(
               "popstate",
               () => {

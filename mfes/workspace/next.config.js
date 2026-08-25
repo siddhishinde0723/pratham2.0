@@ -4,8 +4,9 @@
 const { composePlugins, withNx } = require('@nx/next');
 const path = require("path");
 const PORTAL_BASE_URL = 'https://sunbird-editor.tekdinext.com';
-
+const CLOUD_STORAGE_URL = process.env.CLOUD_STORAGE_URL || 'https://saas-prod.s3.ap-south-1.amazonaws.com';
 const CONTENT_EDITOR_BASE_URL = 'https://sunbird-editor.tekdinext.com';
+const cleanCloudStorageUrl = CLOUD_STORAGE_URL.replace(/\/sunbird-content-prod\/?$/, '').replace(/\/$/, '');
 const routes = {
   API: {
     GENERAL: {
@@ -84,7 +85,11 @@ const nextConfig = {
       },
       {
         source: '/assets/public/:path*', // Match any URL starting with /assets/public/
-        destination: '/api/s3-assets?path=:path*', // Forward to S3 assets API with authentication
+         destination: `${cleanCloudStorageUrl}/:path*`, // Forward to S3 assets API with authentication
+      },
+       {
+         source: '/content/assets/:path*',
+          destination: `${cleanCloudStorageUrl}/content/assets/:path*`,
       },
       {
         source: '/workspace/content/assets/:path*', // Match any URL starting with /workspace/content/assets/

@@ -77,6 +77,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   Close as CloseIcon,
+  CloudUpload as CloudUploadIcon,
 } from '@mui/icons-material';
 import {
   getCohortMemberList,
@@ -89,8 +90,10 @@ import {
 import { showToastMessage } from '@/components/Toastify';
 import AddStudentModal from '@/components/AddStudentModal';
 import EditStudentModal from '@/components/EditStudentModal';
+import BulkStudentUploadModal from '@/components/BulkStudentUploadModal';
 import { userList } from '@/services/UserList';
 import { deleteUser } from '@/services/UserService';
+import { isOblfChannel } from '@/services/DomainTenantService';
 
 // Define types
 interface Student {
@@ -182,6 +185,7 @@ const StudentList = () => {
   const [selectedClass, setSelectedClass] = useState('All');
   const [classes, setClasses] = useState<CohortCenter[]>([]);
   const [openForm, setOpenForm] = useState(false);
+  const [openBulkUpload, setOpenBulkUpload] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -1178,6 +1182,19 @@ const { total, active, archived } = summaryCounts;
             >
               Add New Student
             </Button>
+            {isOblfChannel() && (
+              <Button
+                variant="contained"
+                startIcon={<CloudUploadIcon />}
+                onClick={() => setOpenBulkUpload(true)}
+                sx={{
+                  bgcolor: '#2e7d32',
+                  '&:hover': { bgcolor: '#1b5e20' },
+                }}
+              >
+                Bulk Upload
+              </Button>
+            )}
           </Box>
         </Box>
 
@@ -1670,6 +1687,13 @@ const { total, active, archived } = summaryCounts;
       <AddStudentModal
         open={openForm}
         onClose={() => setOpenForm(false)}
+        onSuccess={handleRefresh}
+      />
+
+      {/* Bulk Upload CSV Dialog for OBLF */}
+      <BulkStudentUploadModal
+        open={openBulkUpload}
+        onClose={() => setOpenBulkUpload(false)}
         onSuccess={handleRefresh}
       />
 

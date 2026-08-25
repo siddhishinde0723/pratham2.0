@@ -182,7 +182,7 @@ const AreaSelection: React.FC<DropdownBoxProps> = ({
                 defaultValue={
                   reAssignModal
                     ? districtDefaultValue
-                    : selectedState.length > 0 && districts?.length === 0
+                    : selectedState?.length > 0 && districts?.length === 0
                       ? t("COMMON.NO_DISTRICTS")
                       : t("COMMON.ALL_DISTRICTS")
                 }

@@ -23,6 +23,32 @@ interface CohortDetail {
   createdBy: string | null;
   updatedBy: string | null;
 }
+export const timeAgo = (dateString: string) => {
+  if (!dateString) return "";
+  const now: any = new Date();
+  const date: any = new Date(dateString);
+  const secondsAgo = Math.floor((now - date) / 1000);
+
+  const intervals = [
+    { label: "year", seconds: 31536000 },
+    { label: "month", seconds: 2592000 },
+    { label: "week", seconds: 604800 },
+    { label: "day", seconds: 86400 },
+    { label: "hour", seconds: 3600 },
+    { label: "minute", seconds: 60 },
+    { label: "second", seconds: 1 },
+  ];
+
+  for (const interval of intervals) {
+    const count = Math.floor(secondsAgo / interval.seconds);
+    if (count > 0) {
+      return `${count} ${interval.label}${count !== 1 ? "s" : ""} ago`;
+    }
+  }
+
+  return "just now";
+};
+
 export const generateUUID = () => {
   let d = new Date().getTime();
   let d2 =
@@ -63,24 +89,24 @@ export const getInitials = (name: any) => {
     : words[0][0].toUpperCase();
 }
 
-  export const getUserFullName = (user?: { firstName?: string, lastName: string, name?: string }): string => {
-    let userData;
-    if (user) {
-      userData = user;
-    } else {
-      userData = localStorage.getItem(Storage.USER_DATA);
-      userData = JSON.parse(userData || "{}");
-    }
-
-    if (userData?.firstName) {
-      const lastName = userData?.lastName || "";
-      return `${userData.firstName} ${lastName}`;
-    } else if (userData?.firstName) {
-      return userData.firstName;
-    }
-
-    return '';
+export const getUserFullName = (user?: { firstName?: string, lastName: string, name?: string }): string => {
+  let userData;
+  if (user) {
+    userData = user;
+  } else {
+    userData = localStorage.getItem(Storage.USER_DATA);
+    userData = JSON.parse(userData || "{}");
   }
+
+  if (userData?.firstName) {
+    const lastName = userData?.lastName || "";
+    return `${userData.firstName} ${lastName}`;
+  } else if (userData?.firstName) {
+    return userData.firstName;
+  }
+
+  return '';
+}
 
 export const getDeviceId = () => {
   return new Promise((resolve) => {
@@ -217,7 +243,7 @@ export const mapFields = (formFields: any, Details: any) => {
       } else {
         if (
           field?.value === FormValues.FEMALE ||
-          field?.value === FormValues.MALE||
+          field?.value === FormValues.MALE ||
           field?.value === FormValues.TRANSGENDER
         ) {
           return field?.value?.toLowerCase();
@@ -521,7 +547,7 @@ export function convertImageToDataURL(imagePath: string, callback: any) {
     .catch(error => console.error("Error converting image:", error));
 }
 
-export const getLastDayDate= (): string => {
+export const getLastDayDate = (): string => {
   const currentDate = new Date();
   currentDate.setDate(currentDate.getDate() - 1); // Subtract 1 day
   const year = currentDate.getFullYear();
@@ -565,7 +591,7 @@ export const preserveLocalStorage = () => {
   });
 };
 
- export const formatDate = (dateString: string) => {
+export const formatDate = (dateString: string) => {
   const date = new Date(dateString);
   return date.toLocaleDateString('en-US', {
     day: 'numeric',

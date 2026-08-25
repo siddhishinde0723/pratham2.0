@@ -53,6 +53,7 @@ const MultipleSelectCheckmarks: React.FC<MultipleSelectCheckmarksProps> = ({
   const handleChange = (
     event: SelectChangeEvent<typeof selectedCategories>
   ) => {
+    if (!selectedCategories) return;
     const {
       target: { value },
     } = event;
@@ -63,12 +64,12 @@ const MultipleSelectCheckmarks: React.FC<MultipleSelectCheckmarksProps> = ({
       selectedNames = defaultValue ? [defaultValue] : [];
     }
 
-    const selectedCodes = selectedNames?.map(
-      (name) => codes[names?.indexOf(name)]
-    );
-    const selectedCohortId = selectedNames?.map(
-      (name) => cohortIds?.[names?.indexOf(name)]
-    ); 
+    const selectedCodes: string[] = selectedNames
+      .map((name) => codes[names?.indexOf(name)])
+      .filter((code): code is string => !!code);
+    const selectedCohortId: string[] = selectedNames
+      .map((name) => cohortIds?.[names?.indexOf(name)])
+      .filter((id): id is string => !!id);
 //const selectedCohortId="";
     onCategoryChange(selectedNames, selectedCodes, selectedCohortId);
   };
@@ -81,7 +82,7 @@ const MultipleSelectCheckmarks: React.FC<MultipleSelectCheckmarksProps> = ({
           labelId="multiple-checkbox-label"
           id="multiple-checkbox"
           value={
-            selectedCategories?.length === 0 || selectedCategories[0] === ""
+            !selectedCategories || selectedCategories?.length === 0 || selectedCategories[0] === ""
               ? defaultValue
                 ? [defaultValue]
                 : ""
