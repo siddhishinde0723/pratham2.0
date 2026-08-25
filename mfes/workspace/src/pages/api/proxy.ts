@@ -24,149 +24,148 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
- console.log("🚀 [proxy] Starting proxy request");
- console.log("📋 [proxy] Request details:", {
-   method: req.method,
-   url: req.url,
-   headers: {
-     "content-type": req.headers["content-type"],
-     "content-length": req.headers["content-length"],
-     authorization: req.headers["authorization"]
-       ? "Bearer ***"
-       : "Not provided",
-     tenantid: req.headers["tenantid"],
-     "x-channel-id": req.headers["x-channel-id"],
-   },
-   query: req.query,
- });
+  console.log("🚀 [proxy] Starting proxy request");
+  console.log("📋 [proxy] Request details:", {
+    method: req.method,
+    url: req.url,
+    headers: {
+      "content-type": req.headers["content-type"],
+      "content-length": req.headers["content-length"],
+      authorization: req.headers["authorization"]
+        ? "Bearer ***"
+        : "Not provided",
+      tenantid: req.headers["tenantid"],
+      "x-channel-id": req.headers["x-channel-id"],
+    },
+    query: req.query,
+  });
 
 
- const { method, body, query } = req;
- const { path } = query;
+  const { method, body, query } = req;
+  const { path } = query;
 
- // Internal API routes that should be handled by Next.js, not proxied
- const internalRoutes = [
-   '/api/content/process-artifact',
-   '/api/telemetry',
-   '/api/fileUpload',
-   '/api/s3-assets',
-   '/api/tenantConfig',
-   '/api/content/import-data',
- ];
+  // Internal API routes that should be handled by Next.js, not proxied
+  const internalRoutes = [
+    '/api/content/process-artifact',
+    '/api/telemetry',
+    '/api/fileUpload',
+    '/api/s3-assets',
+    '/api/tenantConfig',
+    '/api/content/import-data',
+  ];
 
- let pathString = Array.isArray(path) ? path.join("/") : (path as string);
- 
- // If this is an internal route, it should have been handled by Next.js already
- // If we reach here, the rewrite caught it incorrectly - return 404 so Next.js can handle it
- if (pathString && internalRoutes.includes(pathString)) {
-   console.log("⚠️ [proxy] Internal route detected that should be handled by Next.js:", pathString);
-   return res.status(404).json({ 
-     error: 'Route should be handled by Next.js API route',
-     message: `Internal route ${pathString} should not be proxied`
-   });
- }
+  let pathString = Array.isArray(path) ? path.join("/") : (path as string);
 
- const token =
-   getCookie(req, "authToken") || (process.env.AUTH_API_TOKEN as string);
+  // If this is an internal route, it should have been handled by Next.js already
+  // If we reach here, the rewrite caught it incorrectly - return 404 so Next.js can handle it
+  if (pathString && internalRoutes.includes(pathString)) {
+    console.log("⚠️ [proxy] Internal route detected that should be handled by Next.js:", pathString);
+    return res.status(404).json({
+      error: 'Route should be handled by Next.js API route',
+      message: `Internal route ${pathString} should not be proxied`
+    });
+  }
+
+  const token =
+    getCookie(req, "authToken") || (process.env.AUTH_API_TOKEN as string);
 
 
- const BASE_URL = (
-   process.env.NEXT_PUBLIC_BASE_URL ||
-   process.env.NEXT_PUBLIC_MIDDLEWARE_URL ||
-   "https://shiksha-dev-middleware.tekdinext.com"
- ).toString();
- if (!BASE_URL) {
-   console.warn(
-     "Proxy BASE_URL env not set. Please set NEXT_PUBLIC_BASE_URL to your middleware base, e.g., https://interface.tekdinext.com/interface/v1"
-   );
- }
-  const queryTenantId = req.query.tenantId as string;
-  const cookieTenantId = getCookie(req, 'tenantId');
-  const headerTenantId = req.headers['tenantid'] as string;
+  const BASE_URL = (
+    process.env.NEXT_PUBLIC_BASE_URL ||
+    process.env.NEXT_PUBLIC_MIDDLEWARE_URL ||
+    "https://interface.tekdinext.com/interface/v1"
+  ).toString();
+  if (!BASE_URL) {
+    console.warn(
+      "Proxy BASE_URL env not set. Please set NEXT_PUBLIC_BASE_URL to your middleware base, e.g., https://interface.tekdinext.com/interface/v1"
+    );
+  }
+  const tenantId = getCookie(req, "tenantId");
 
-  // Use the first available tenant ID
-  const tenantId =
-    queryTenantId ||
-    cookieTenantId ||
-    headerTenantId ||
-    '6c386899-7a00-4733-8447-5ef925bbf700';
 
-  console.log('🔐 [proxy] Authentication details:', {
+  console.log("🔐 [proxy] Authentication details:", {
     baseURL: BASE_URL,
     hasToken: !!token,
     tenantId,
     path,
   });
 
+
+  if (!tenantId) {
+    console.log("❌ [proxy] Tenant ID not found in cookies");
+    return res.status(400).json({ error: "Tenant ID not found in cookies" });
+  }
+
+
   const tenantConfig = mockData[tenantId];
 
 
- console.log("🏢 [proxy] Tenant config:", {
-   tenantId,
-   hasConfig: !!tenantConfig,
-   channelId: tenantConfig?.CHANNEL_ID,
- });
+  console.log("🏢 [proxy] Tenant config:", {
+    tenantId,
+    hasConfig: !!tenantConfig,
+    channelId: tenantConfig?.CHANNEL_ID,
+  });
 
 
- if (!tenantConfig) {
-   return res.status(404).json({ message: "Tenant configuration not found" });
- }
- const CHANNEL_ID = tenantConfig?.CHANNEL_ID;
+  if (!tenantConfig) {
+    return res.status(404).json({ message: "Tenant configuration not found" });
+  }
+  const CHANNEL_ID = tenantConfig?.CHANNEL_ID;
 
 
- if (!token) {
-   console.error("No valid token available");
-   return res.status(401).json({ message: "Unauthorized: Token is required" });
- }
+  if (!token) {
+    console.error("No valid token available");
+    return res.status(401).json({ message: "Unauthorized: Token is required" });
+  }
 
 
- // console.log("Using token:", token);
+  // console.log("Using token:", token);
 
 
   // pathString is already defined above, so we can use it directly
-   if (pathString === "/action/data/v1/form/read" && body?.request) {
-   const { action, subType, type } = body.request;
-   if (action === "save" && subType === "resource") {
-     return res.status(200).json(genericEditorSaveFormResponse);
-   }
+  if (pathString === "/action/data/v1/form/read") {
+    const { action, subType, type } = body.request;
+    if (action === "save" && subType === "resource") {
+      return res.status(200).json(genericEditorSaveFormResponse);
+    }
 
 
-   if (action === "question-meta-save" && subType === "questions") {
-     return res.status(200).json(contentEditorQuestionMetaFormResponse);
-   }
+    if (action === "question-meta-save" && subType === "questions") {
+      return res.status(200).json(contentEditorQuestionMetaFormResponse);
+    }
 
 
-   if (action === "question-filter-view" && subType === "questions") {
-     return res.status(200).json(contentEditorQuestionFormResponse);
-   }
+    if (action === "question-filter-view" && subType === "questions") {
+      return res.status(200).json(contentEditorQuestionFormResponse);
+    }
 
 
-   if (action === "review" && subType === "resource") {
-     const framework = tenantConfig?.CONTENT_FRAMEWORK;
-     console.log("framework ==>", framework);
+    if (action === "review" && subType === "resource") {
+      const framework = tenantConfig?.CONTENT_FRAMEWORK;
+      console.log("framework ==>", framework);
 
 
-     switch (framework) {
-       case "atree-framework":
-         return res.status(200).json(genericEditorReviewFormResponseatree);
+      switch (framework) {
+        case "atree-framework":
+          return res.status(200).json(genericEditorReviewFormResponseatree);
 
 
-       case "KEF-framework":
-         return res.status(200).json(genericEditorReviewFormResponseshiksha);
+        case "KEF-framework":
+          return res.status(200).json(genericEditorReviewFormResponseshiksha);
 
 
-       case "shikshalokam-framework":
-       case "shikshagraha-framework":
-       case "oblf-fw":
-       case "shikshagrahanew-framework":
-       case "kenya-framework":
-       case "agrinettest-framework":
-            case "chattisgarghboardfw":
-         return res.status(200).json(genericEditorReviewFormResponseshiksha);
-       case "badal-framework":
-         return res.status(200).json(genericEditorReviewFormResponsebadal);
-       case "swadhaar-framework":
-         return res.status(200).json(genericEditorReviewFormResponseswadhaar);
+        case "shikshalokam-framework":
+        case "shikshagraha-framework":
+        case "oblf-fw":
+        case "shikshagrahanew-framework":
+        case "kenya-framework":
+        case "agrinettest-framework":
+        case "chattisgarghboardfw":
+          return res.status(200).json(genericEditorReviewFormResponseshiksha);
+        case "badal-framework":
+          return res.status(200).json(genericEditorReviewFormResponsebadal);
+        case "swadhaar-framework":
+          return res.status(200).json(genericEditorReviewFormResponseswadhaar);
         case "krdpr-framework":
           return res.status(200).json(genericEditorReviewFormResponsekrdpr);
         case 'Colab-framework':
@@ -206,11 +205,11 @@ export default async function handler(
   // Intercept composite search API calls and ensure channel is included in filters
   if (pathString === '/action/composite/v3/search' && method === 'POST' && body?.request) {
     console.log('🔍 [proxy] Composite search API detected, checking for channel in filters');
-    
+
     if (!body.request.filters) {
       body.request.filters = {};
     }
-    
+
     // Add channel to filters if it's missing
     if (!body.request.filters.channel && CHANNEL_ID) {
       console.log('➕ [proxy] Adding channel to filters:', CHANNEL_ID);
@@ -218,6 +217,30 @@ export default async function handler(
     } else if (body.request.filters.channel) {
       console.log('✅ [proxy] Channel already present in filters:', body.request.filters.channel);
     }
+  }
+
+  // Intercept hierarchy/update to inject default license for nodes missing it
+  if (pathString === '/action/content/v3/hierarchy/update' && method === 'PATCH' && body?.request?.data?.nodesModified) {
+    console.log('📝 [proxy] Hierarchy update detected, injecting default license for nodes missing it');
+    const nodesModified = body.request.data.nodesModified;
+    Object.keys(nodesModified).forEach((key) => {
+      if (nodesModified[key].metadata) {
+        if (!nodesModified[key].metadata.license) {
+          console.log(`➕ [proxy] Injecting license for node: ${key}`);
+          nodesModified[key].metadata.license = 'CCA BY-SA 4.0';
+        }
+
+        // Fix malformed baseUrl in media array caused by the editor extracting the frontend host origin
+        if (nodesModified[key].metadata.media && Array.isArray(nodesModified[key].metadata.media)) {
+          nodesModified[key].metadata.media.forEach((mediaItem: any) => {
+            if (mediaItem.baseUrl) {
+              console.log(`🧹 [proxy] Stripping broken baseUrl from media item: ${mediaItem.id}`);
+              mediaItem.baseUrl = '';
+            }
+          });
+        }
+      }
+    });
   }
 
   console.log('🔄 [proxy] Processing request:', {
@@ -229,22 +252,8 @@ export default async function handler(
   });
 
   const queryString = req.url?.includes('?') ? req.url.split('?')[1] : '';
-   const contentMode = getCookie(req, 'contentMode');
-  
-  // Create query string for target URL, excluding the 'path' parameter used for proxy routing
-  const urlParams = new URLSearchParams(queryString);
-  urlParams.delete('path'); 
-  
-  if (pathString.includes('/action/questionset/v2/hierarchy') && contentMode === 'edit') {
-    if (!urlParams.has('mode')) {
-      urlParams.set('mode', 'edit');
-    }
-  }
-
-  const finalQueryString = urlParams.toString();
-  const targetUrl = `${BASE_URL}${pathString}${
-    queryString ? `?${finalQueryString}` : ''
-  }`;
+  const targetUrl = `${BASE_URL}${pathString}${queryString ? `?${queryString}` : ''
+    }`;
 
   console.log('🌐 [proxy] Target URL:', targetUrl);
 
@@ -265,8 +274,16 @@ export default async function handler(
     }
 
     let forwardBody: any = undefined;
+    let processedBody = body;
+    if (pathString === '/action/questionset/v2/hierarchy/update') {
+      console.log("🧹 [proxy] Sanitizing hierarchy update body...");
+      const cloudStorageUrl = (process.env.NEXT_PUBLIC_CLOUD_STORAGE_URL || process.env.CLOUD_STORAGE_URL || '').replace(/\/+$/, '');
+      const cleanS3Url = cloudStorageUrl.replace(/\/sunbird-content-prod\/?$/, '').replace(/\/$/, '');
+      processedBody = sanitizeMediaUrls(body, cleanS3Url);
+    }
+
     if (['POST', 'PATCH', 'PUT'].includes(method || '')) {
-       let processedBody = body;
+      let processedBody = body;
       if (pathString === '/action/questionset/v2/hierarchy/update') {
         console.log("🧹 [proxy] Sanitizing hierarchy update body...");
         const cloudStorageUrl = (process.env.NEXT_PUBLIC_CLOUD_STORAGE_URL || process.env.CLOUD_STORAGE_URL || '').replace(/\/+$/, '');
@@ -295,7 +312,7 @@ export default async function handler(
         forwardBody = (req as any).body;
       } else {
         // Fallback: JSON stringify unknown structures
-       forwardBody = JSON.stringify(processedBody || {});
+        forwardBody = JSON.stringify(processedBody || {});
         headers['Content-Type'] = 'application/json';
       }
     }
@@ -311,9 +328,9 @@ export default async function handler(
       hasBody: !!options.body,
       bodyType: typeof options.body,
       headers: Object.keys(options.headers || {}),
-        // Partially log body if it's a hierarchy update to verify sanitization
-      sanitizedSnippet: pathString === '/action/questionset/v2/hierarchy/update' 
-        ? (forwardBody as string).substring(0, 500) + "..." 
+      // Partially log body if it's a hierarchy update to verify sanitization
+      sanitizedSnippet: pathString === '/action/questionset/v2/hierarchy/update'
+        ? (forwardBody as string).substring(0, 500) + "..."
         : "N/A"
     });
 
@@ -330,7 +347,7 @@ export default async function handler(
     // If upstream sends JSON, forward JSON. Otherwise, forward raw text to avoid JSON parse errors
     if (contentType.includes('application/json')) {
       const data = await response.json();
-      
+
       // Ensure composite search response has proper structure for web component compatibility
       if (pathString === '/action/composite/v3/search') {
         // Log response structure for debugging
@@ -346,7 +363,7 @@ export default async function handler(
           responseKeys: Object.keys(data || {}),
           resultKeys: data?.result ? Object.keys(data.result) : 'no result',
         });
-        
+
         // Ensure result structure exists and has expected arrays to prevent Angular component errors
         if (data && !data.result) {
           data.result = {};
@@ -362,7 +379,26 @@ export default async function handler(
           }
         }
       }
-      
+
+      if (data) {
+        const rewriteUrls = (obj: any) => {
+          if (!obj) return;
+          Object.keys(obj).forEach(key => {
+            if (typeof obj[key] === 'string') {
+              let value = obj[key];
+
+              if (key === 'baseUrl') {
+                obj[key] = "";
+              }
+
+            } else if (typeof obj[key] === 'object' && obj[key] !== null) {
+              rewriteUrls(obj[key]);
+            }
+          });
+        };
+        rewriteUrls(data);
+      }
+
       res.status(response.status).json(data);
     } else {
       const text = await response.text();
@@ -401,11 +437,11 @@ function sanitizeMediaUrls(obj: any, cloudStorageUrl?: string): any {
     let sanitized = obj
       .replace(/\/assets\/public\/\//g, '/')
       .replace(/\/assets\/public\//g, '/');
-    
+
     if (cloudStorageUrl) {
-       // Also fix any local URLs embedded in the string body
-       sanitized = sanitized.replace(/http:\/\/localhost:\d+\/assets\/public\//g, `${cloudStorageUrl}/`);
-       sanitized = sanitized.replace(/http:\/\/localhost:\d+\/content\/assets\//g, `${cloudStorageUrl}/content/assets/`);
+      // Also fix any local URLs embedded in the string body
+      sanitized = sanitized.replace(/http:\/\/localhost:\d+\/assets\/public\//g, `${cloudStorageUrl}/`);
+      sanitized = sanitized.replace(/http:\/\/localhost:\d+\/content\/assets\//g, `${cloudStorageUrl}/content/assets/`);
     }
     return sanitized;
   }
@@ -419,10 +455,10 @@ function sanitizeMediaUrls(obj: any, cloudStorageUrl?: string): any {
     for (const key in obj) {
       if (Object.prototype.hasOwnProperty.call(obj, key)) {
         let value = obj[key];
-        if (key === 'baseUrl' && typeof value === 'string' && value.includes('localhost:') && cloudStorageUrl) {
-           value = cloudStorageUrl;
+        if (key === 'baseUrl') {
+          value = '';
         } else {
-           value = sanitizeMediaUrls(value, cloudStorageUrl);
+          value = sanitizeMediaUrls(value, cloudStorageUrl);
         }
         sanitized[key] = value;
       }

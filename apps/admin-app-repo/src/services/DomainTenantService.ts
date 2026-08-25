@@ -248,6 +248,51 @@ export const isSwadhaarChannel = (): boolean => {
   }
 };
 
+/**
+ * Checks if the current channel/tenant is OBLF
+ */
+export const isOblfChannel = (): boolean => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  try {
+    // Check current domain
+    const currentDomain = window.location.hostname.toLowerCase();
+    if (currentDomain.includes('oblf')) {
+      return true;
+    }
+
+    // Try to get tenant config from localStorage (set during login)
+    const tenantDataStr = localStorage.getItem('tenantData');
+    if (tenantDataStr) {
+      try {
+        const tenantData = JSON.parse(tenantDataStr);
+        const tenantDomain = tenantData.domain?.toLowerCase() || '';
+        const tenantName = tenantData.name?.toLowerCase() || '';
+        const tenantChannel = tenantData.channelId?.toLowerCase() || '';
+        
+        if (tenantDomain.includes('oblf') || tenantName.includes('oblf') || tenantChannel === 'oblf-channel') {
+          return true;
+        }
+      } catch (e) {
+        // Ignore JSON parse errors
+      }
+    }
+
+    // Check tenantId mapping (from tenantMapping.ts)
+    const tenantId = localStorage.getItem('tenantId');
+    if (tenantId === '8cf74da8-392d-4d02-8ac3-ae2204e34c0a') {
+      return true; // OBLF tenant ID
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Error checking OBLF channel:', error);
+    return false;
+  }
+};
+
 export const getTenantConfig = async (
   domain?: string
 ): Promise<Tenant | null> => {
